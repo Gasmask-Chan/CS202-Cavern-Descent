@@ -69,3 +69,10 @@ Testing/
 .cache/
 
 .vscode
+
+compile_flags.txt
+.clangd
+
+# AI Context Files
+GEMINI.md
+project_plan.md

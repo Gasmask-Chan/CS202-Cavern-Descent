@@ -4,12 +4,12 @@
 
 namespace Platformer {
 
-class Trap {
+class Trap : public Entity {
 protected:
     int damage;
 
 public:
-    Trap(float x, float y, int dmg);
+    Trap(float x, float y, float w, float h, int dmg);
 
     virtual void update(float dt);
 
