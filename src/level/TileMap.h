@@ -7,9 +7,7 @@
 
 namespace Platformer {
 
-class TileMap {
-
-enum TileType { //Just for example, modify it later if you need to
+enum class TileType { //Just for example, modify it later if you need to
     EMPTY,
     WALL,
     CRACKED,
@@ -23,6 +21,7 @@ enum TileType { //Just for example, modify it later if you need to
     EXIT_DOOR
 };
 
+class TileMap {
 private:
     std::vector<std::vector<TileType>> tiles;
     int width;

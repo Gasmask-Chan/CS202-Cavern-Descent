@@ -23,7 +23,7 @@ public:
     void run();
 
     /**
-     * @brief Initializes Raylib window (`InitWindow`), sets target FPS to 60, initializes `GameManager` and `AudioManager` singletons, loads all shared textures and sounds, creates the initial `MenuState`.
+     * @brief Initializes Raylib window (`InitWindow`), sets target FPS to 60, initializes `GameManager` and `AudioManager` singletons, loads all shared textures and sounds, creates the initial `MenuState`, calls `setGame(this)` and `enter()` on the initial state.
      * 
      */
     void init();
@@ -42,7 +42,7 @@ public:
     void update(float dt);
 
     /**
-     * @brief Calls `BeginDrawing()`, `ClearBackground(BLACK)`, delegates to `currentState->render()`, then `EndDrawing()`.
+     * @brief Calls `BeginDrawing()`, delegates to `currentState->render()`, then `EndDrawing()`.
      * 
      */
     void render();
@@ -54,11 +54,11 @@ public:
     void cleanup();
 
     /**
-     * @brief Calls `currentState->exit()`, deletes old state, sets `currentState = state`, calls `state->enter()`. Ensures clean resource handoff between states.
+     * @brief Calls `currentState->exit()`, deletes old state, creates a new state based on the `GameStateType` enum via a switch statement, calls `setGame(this)` and `enter()` on the new state. Ensures clean resource handoff between states.
      * 
      * @param state 
      */
-    void changeState(GameState *state);
+    void changeState(GameStateType state);
 };
 
 }
