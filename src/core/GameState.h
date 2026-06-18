@@ -123,6 +123,9 @@ public:
 };
 
 class CharSelectState : public GameState {
+private:
+    int selectedChar = 0; // 0=Explorer, 1=Ninja, 2=Tank
+
 public:
     void enter() override;
 

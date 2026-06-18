@@ -4,8 +4,13 @@
 
 namespace Platformer {
 
-enum ItemType {
+class Player;
 
+enum ItemType {
+    TREASURE,
+    HEALTH_CRATE,
+    BOMB_PICKUP,
+    ROPE_PICKUP
 };
 
 class Item : public Entity {
@@ -16,14 +21,15 @@ protected:
 public:
     Item(float x, float y, float w, float h, ItemType type);
 
-    //Uncomment this after finished adding `Player.h`
-    // virtual void active(Player* player);
+    virtual void activate(Player* player);
 
     virtual void render(float lightLevel);
 
     void collect();
 
     bool isPickedUp();
+
+    ItemType getType();
 };
 
 }
