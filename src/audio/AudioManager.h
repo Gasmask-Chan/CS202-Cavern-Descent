@@ -10,8 +10,8 @@ class AudioManager {
 private:
     static AudioManager* instance;
     std::unordered_map<std::string, Sound> sfxCache;
+    std::unordered_map<std::string, std::string> bgmPaths;
     Music currentBGM;
-    bool isBgmPlaying;
     float sfxVolume;
     float bgmVolume;
 
@@ -37,9 +37,14 @@ public:
     void playSFX(const std::string& name);
 
     /**
-     * @brief Stops current BGM, loads the new music file, and starts playing it.
+     * @brief Loads a BGM file path into the mapping so it can be played by name.
      */
-    void playBGM(const std::string& filePath);
+    void loadBGM(const std::string& name, const std::string& filePath);
+
+    /**
+     * @brief Stops current BGM, loads the new music file from the mapped path, and starts playing it.
+     */
+    void playBGM(const std::string& name);
 
     /**
      * @brief Stops the currently playing BGM stream.

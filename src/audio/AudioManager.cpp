@@ -6,8 +6,9 @@ namespace Platformer {
 
 AudioManager* AudioManager::instance = nullptr;
 
-AudioManager::AudioManager() : isBgmPlaying(false), sfxVolume(1.0f), bgmVolume(1.0f) {
+AudioManager::AudioManager() : sfxVolume(1.0f), bgmVolume(1.0f) {
     InitAudioDevice(); // Required by Raylib before any audio loading/playing
+    currentBGM.stream.buffer = nullptr;
 }
 
 AudioManager::~AudioManager() {
@@ -18,7 +19,7 @@ AudioManager::~AudioManager() {
     sfxCache.clear();
 
     // Free loaded BGM
-    if (isBgmPlaying) {
+    if (currentBGM.stream.buffer != nullptr) {
         StopMusicStream(currentBGM);
         UnloadMusicStream(currentBGM);
     }
@@ -44,6 +45,10 @@ void AudioManager::loadSFX(const std::string& name, const std::string& filePath)
     }
 }
 
+void AudioManager::loadBGM(const std::string& name, const std::string& filePath) {
+    bgmPaths[name] = filePath;
+}
+
 void AudioManager::playSFX(const std::string& name) {
     auto it = sfxCache.find(name);
     if (it != sfxCache.end()) {
@@ -54,32 +59,36 @@ void AudioManager::playSFX(const std::string& name) {
     }
 }
 
-void AudioManager::playBGM(const std::string& filePath) {
-    if (isBgmPlaying) {
+void AudioManager::playBGM(const std::string& name) {
+    auto it = bgmPaths.find(name);
+    if (it == bgmPaths.end()) {
+        std::cerr << "AudioManager Warning: BGM not found in mapping: " << name << std::endl;
+        return;
+    }
+
+    if (currentBGM.stream.buffer != nullptr) {
         StopMusicStream(currentBGM);
         UnloadMusicStream(currentBGM);
     }
 
-    currentBGM = LoadMusicStream(filePath.c_str());
+    currentBGM = LoadMusicStream(it->second.c_str());
     if (currentBGM.stream.buffer != nullptr) {
         SetMusicVolume(currentBGM, bgmVolume);
         PlayMusicStream(currentBGM);
-        isBgmPlaying = true;
     } else {
-        std::cerr << "AudioManager Warning: Failed to load BGM: " << filePath << std::endl;
-        isBgmPlaying = false;
+        std::cerr << "AudioManager Warning: Failed to load BGM: " << it->second << std::endl;
     }
 }
 
 void AudioManager::stopBGM() {
-    if (isBgmPlaying) {
+    if (currentBGM.stream.buffer != nullptr) {
         StopMusicStream(currentBGM);
     }
 }
 
 void AudioManager::updateBGM() {
     // Raylib requires this to be called every frame to stream the music
-    if (isBgmPlaying) {
+    if (currentBGM.stream.buffer != nullptr) {
         UpdateMusicStream(currentBGM);
     }
 }
@@ -90,7 +99,7 @@ void AudioManager::setVolume(float sfx, float bgm) {
     bgmVolume = std::clamp(bgm, 0.0f, 1.0f);
 
     // Immediately apply to currently playing BGM
-    if (isBgmPlaying) {
+    if (currentBGM.stream.buffer != nullptr) {
         SetMusicVolume(currentBGM, bgmVolume);
     }
 }

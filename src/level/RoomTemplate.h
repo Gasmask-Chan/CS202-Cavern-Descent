@@ -15,9 +15,9 @@ enum class RoomRole {
 
 class RoomTemplate {
 private:
-    std::vector<std::vector<char>> grid;
-    RoomRole role;
     std::string filePath;
+    RoomRole role;
+    std::vector<std::vector<char>> grid;
 
 public:
     RoomTemplate(std::string path);

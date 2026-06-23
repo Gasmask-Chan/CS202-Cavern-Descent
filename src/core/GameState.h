@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Config.h"
+#include <vector>
 
 namespace Platformer {
 
@@ -14,6 +15,12 @@ enum class GameStateType {
     CHAR_SELECT,
     EDITOR,
     NONE
+};
+
+enum class CharacterType {
+    EXPLORER,
+    NINJA,
+    TANK
 };
 
 class GameState {
@@ -124,7 +131,12 @@ public:
 
 class CharSelectState : public GameState {
 private:
-    int selectedChar = 0; // 0=Explorer, 1=Ninja, 2=Tank
+    int selectedIndex = 0;
+    std::vector<CharacterType> characters = {
+        CharacterType::EXPLORER, 
+        CharacterType::NINJA, 
+        CharacterType::TANK
+    };
 
 public:
     void enter() override;

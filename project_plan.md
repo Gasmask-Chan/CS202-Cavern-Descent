@@ -342,14 +342,18 @@ classDiagram
     class AudioManager {
         -static AudioManager* instance
         -unordered_map~string, Sound~ sfxCache
+        -unordered_map~string, string~ bgmPaths
         -Music currentBGM
         -float sfxVolume
         -float bgmVolume
         -AudioManager()
         +static getInstance() AudioManager*
+        +loadSFX(string name, string filePath) void
+        +loadBGM(string name, string filePath) void
         +playSFX(string name) void
         +playBGM(string name) void
         +stopBGM() void
+        +updateBGM() void
         +setVolume(float sfx, float bgm) void
     }
 
