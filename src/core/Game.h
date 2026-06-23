@@ -59,6 +59,12 @@ public:
      * @param state 
      */
     void changeState(GameStateType state);
+
+    /**
+     * @brief Set `isRunning = false`
+     * 
+     */
+    void quit();
 };
 
 }

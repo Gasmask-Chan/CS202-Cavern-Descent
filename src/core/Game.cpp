@@ -16,7 +16,7 @@ Game::~Game() {
 
 void Game::run() {
     init();
-    while (!WindowShouldClose()) {
+    while (!WindowShouldClose() && isRunning) {
         this->deltaTime = GetFrameTime();
         handleInput();
         update(deltaTime);
@@ -95,6 +95,10 @@ void Game::changeState(GameStateType state) {
         currentState->setGame(this);
         currentState->enter();
     }
+}
+
+void Game::quit() {
+    isRunning = false;
 }
 
 }

@@ -1,5 +1,6 @@
 #include "GameState.h"
 #include "Game.h"
+#include "../audio/AudioManager.h"
 
 namespace Platformer {
 
@@ -14,23 +15,59 @@ void GameState::setGame(Game* game) {
 */
 
 void MenuState::enter() {
-
+    selectedOption = 0;
+    // Placeholder: load background texture here
+    // Placeholder: start menu BGM here
+    // Platformer::AudioManager::getInstance()->playBGM("assets/music/placeholder_menu.ogg");
 }
 
 void MenuState::exit() {
-
+    // Placeholder: stop BGM if needed
+    // Platformer::AudioManager::getInstance()->stopBGM();
 }
 
 void MenuState::handleInput() {
-
+    if (IsKeyPressed(KEY_UP)) {
+        selectedOption = (selectedOption + 2) % 3;
+    }
+    if (IsKeyPressed(KEY_DOWN)) {
+        selectedOption = (selectedOption + 1) % 3;
+    }
+    if (IsKeyPressed(KEY_ENTER)) {
+        switch (selectedOption) {
+            case 0:
+                game->changeState(GameStateType::CHAR_SELECT);
+                break;
+            case 1:
+                game->changeState(GameStateType::EDITOR);
+                break;
+            case 2:
+                game->quit();
+                break;
+        }
+    }
 }
 
 void MenuState::update(float dt) {
-
+    // Placeholder: Update background animation or effects if added later
 }
 
 void MenuState::render() {
-    ClearBackground(GREEN);
+    ClearBackground(BLACK);
+
+    // Placeholder: draw background texture here
+
+    DrawText("CAVERN DESCENT", 400, 150, 60, RAYWHITE);
+
+    Color startColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
+    Color editorColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
+    Color quitColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
+
+    DrawText("START GAME", 500, 350, 40, startColor);
+    DrawText("LEVEL EDITOR", 500, 420, 40, editorColor);
+    DrawText("QUIT", 500, 490, 40, quitColor);
+
+    DrawText("Use UP/DOWN to navigate, ENTER to select", 400, 650, 20, GRAY);
 }
 
 /*
