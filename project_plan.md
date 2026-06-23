@@ -352,7 +352,7 @@ classDiagram
         +loadSFX(string name, string filePath) void
         +loadBGM(string name, string filePath) void
         +playSFX(string name) void
-        +playBGM(string filePath) void
+        +playBGM(string name) void
         +stopBGM() void
         +updateBGM() void
         +setVolume(float sfx, float bgm) void
@@ -476,7 +476,7 @@ classDiagram
 | Method | Behavior |
 |---|---|
 | `playSFX(string name)` | Looks up `name` in `sfxCache` (`unordered_map`). If found, calls Raylib `PlaySound(sfxCache[name])`. If not found, logs a warning and returns silently. |
-| `playBGM(string filePath)` | Stops any currently playing music via `StopMusicStream()`. Loads the new music file, calls `PlayMusicStream()`. Sets `currentBGM` to the new stream. |
+| `playBGM(string name)` | Stops any currently playing music via `StopMusicStream()`. Loads the new music file, calls `PlayMusicStream()`. Sets `currentBGM` to the new stream. |
 | `stopBGM()` | Calls `StopMusicStream(currentBGM)`. Used when transitioning to states that have no music (e.g., `PauseState`). |
 | `setVolume(float sfx, float bgm)` | Clamps both values to [0.0, 1.0]. Sets `sfxVolume` and `bgmVolume`. Calls `SetMusicVolume(currentBGM, bgmVolume)` immediately. SFX volume is applied per-play. |
 
