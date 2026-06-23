@@ -40,7 +40,7 @@ void TileMap::render(Camera2D &cam, std::vector<std::vector<float>> lightMap) {
             if (type == TileType::EMPTY) continue;
 
             float light = 1.0f;
-            if (y < lightMap.size() && x < lightMap[y].size()) {
+            if (static_cast<size_t>(y) < lightMap.size() && static_cast<size_t>(x) < lightMap[y].size()) {
                 light = lightMap[y][x];
             }
 

@@ -44,6 +44,10 @@ void AudioManager::loadSFX(const std::string& name, const std::string& filePath)
     }
 }
 
+void AudioManager::loadBGM(const std::string& name, const std::string& filePath) {
+    bgmPaths[name] = filePath;
+}
+
 void AudioManager::playSFX(const std::string& name) {
     auto it = sfxCache.find(name);
     if (it != sfxCache.end()) {
@@ -54,19 +58,25 @@ void AudioManager::playSFX(const std::string& name) {
     }
 }
 
-void AudioManager::playBGM(const std::string& filePath) {
+void AudioManager::playBGM(const std::string& name) {
+    auto it = bgmPaths.find(name);
+    if (it == bgmPaths.end()) {
+        std::cerr << "AudioManager Warning: BGM not found in mapping: " << name << std::endl;
+        return;
+    }
+
     if (isBgmPlaying) {
         StopMusicStream(currentBGM);
         UnloadMusicStream(currentBGM);
     }
 
-    currentBGM = LoadMusicStream(filePath.c_str());
+    currentBGM = LoadMusicStream(it->second.c_str());
     if (currentBGM.stream.buffer != nullptr) {
         SetMusicVolume(currentBGM, bgmVolume);
         PlayMusicStream(currentBGM);
         isBgmPlaying = true;
     } else {
-        std::cerr << "AudioManager Warning: Failed to load BGM: " << filePath << std::endl;
+        std::cerr << "AudioManager Warning: Failed to load BGM: " << it->second << std::endl;
         isBgmPlaying = false;
     }
 }
