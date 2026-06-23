@@ -333,7 +333,7 @@ classDiagram
         +getSelectedCharacter() CharacterType
         +setSelectedCharacter(CharacterType type) void
         +getGhostTimer() float
-        +tickGhostTimer(float dt) void
+        +tickGhostTimer(float dt) bool
         +getFloorModifier() FloorModifier
         +saveHighScore(string name) void
         +loadHighScores() vector~HighScoreEntry~
