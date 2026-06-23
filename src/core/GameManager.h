@@ -34,7 +34,7 @@ public:
      * @param points 
      * @return int 
      */
-    int addScore(int points);
+    void addScore(int points);
 
     /**
      * @brief Increments `currentFloor` by 1. Determines `ZoneType` from floor number (1–3=Cave, 4–6=Jungle, 7–9=Temple). Resets `ghostTimer` to the new floor's timer value from `DifficultyConfig`.

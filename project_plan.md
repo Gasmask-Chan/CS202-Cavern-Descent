@@ -313,6 +313,7 @@ classDiagram
         -render() void
         -cleanup() void
         +changeState(GameStateType state) void
+        +quit() void
     }
 
     class GameManager {
@@ -351,7 +352,7 @@ classDiagram
         +loadSFX(string name, string filePath) void
         +loadBGM(string name, string filePath) void
         +playSFX(string name) void
-        +playBGM(string name) void
+        +playBGM(string filePath) void
         +stopBGM() void
         +updateBGM() void
         +setVolume(float sfx, float bgm) void
@@ -475,7 +476,7 @@ classDiagram
 | Method | Behavior |
 |---|---|
 | `playSFX(string name)` | Looks up `name` in `sfxCache` (`unordered_map`). If found, calls Raylib `PlaySound(sfxCache[name])`. If not found, logs a warning and returns silently. |
-| `playBGM(string name)` | Stops any currently playing music via `StopMusicStream()`. Loads the new music file, calls `PlayMusicStream()`. Sets `currentBGM` to the new stream. |
+| `playBGM(string filePath)` | Stops any currently playing music via `StopMusicStream()`. Loads the new music file, calls `PlayMusicStream()`. Sets `currentBGM` to the new stream. |
 | `stopBGM()` | Calls `StopMusicStream(currentBGM)`. Used when transitioning to states that have no music (e.g., `PauseState`). |
 | `setVolume(float sfx, float bgm)` | Clamps both values to [0.0, 1.0]. Sets `sfxVolume` and `bgmVolume`. Calls `SetMusicVolume(currentBGM, bgmVolume)` immediately. SFX volume is applied per-play. |
 
@@ -863,7 +864,7 @@ classDiagram
         +isSolid(int x, int y) bool
         +isOpaque(int x, int y) bool
         +isCracked(int x, int y) bool
-        +render(Camera2D cam, vector~vector~float~~ lightMap) void
+        +render(Camera2D& cam, vector~vector~float~~ lightMap) void
         +worldToGrid(float wx, float wy) Vec2i
         +gridToWorld(int gx, int gy) Vec2f
         +getWidth() int
@@ -1112,6 +1113,7 @@ classDiagram
         +virtual render(float lightLevel) void
         +collect() void
         +isPickedUp() bool
+        +getType() ItemType
     }
 
     class Treasure {
@@ -1390,7 +1392,7 @@ classDiagram
 |---|---|---|
 | Language | **C++17** | Course requirement; smart pointers, structured bindings, `std::optional` |
 | Graphics/Audio | **Raylib 5.x** | Lightweight C library, built-in 2D rendering + audio |
-| Build System | **CMake 3.20+** | Cross-platform, Raylib CMake fetch integration |
+| Build System | **Makefile** | Standalone Makefile for building with Raylib |
 | Physics | **Custom AABB** | Hand-written collision — no Box2D |
 | Version Control | **Git + GitHub** | Separate branches per member, PR-based merging |
 
@@ -1619,7 +1621,7 @@ EndDrawing()
 |---|---|
 | **Co-design `TileMap.h` (all method sigs)** | **Co-design `Entity.h`, `DynamicEntity.h`** |
 | **Co-design `Item.h`, `Trap.h` interfaces** | **Implement `TileMap` class** |
-| Set up CMake + Raylib project structure | Implement `EntityFactory` skeleton |
+| Set up Makefile + Raylib project structure | Implement `EntityFactory` skeleton |
 | Implement `Game` loop with `deltaTime` | Create 15 room `.txt` templates |
 | Implement `GameState` interface + `MenuState` | Implement `AudioManager` Singleton |
 | Implement `GameManager` Singleton | Implement `CharSelectState` screen |
@@ -1695,7 +1697,7 @@ EndDrawing()
 
 | Week | Dates (approx.) | Sprint | Focus |
 |---|---|---|---|
-| 1 | Jun 16 – Jun 22 | Sprint 1 | **TileMap.h + Entity.h frozen Day 3.** CMake, menu, singletons |
+| 1 | Jun 16 - Jun 22 | Sprint 1 | **TileMap.h + Entity.h frozen Day 3.** Makefile, menu, singletons |
 | 2 | Jun 23 – Jun 29 | Sprint 1 | TileMap impl, factory, templates, event bus |
 | 3 | Jun 30 – Jul 6 | Sprint 2 | Player physics, AABB tile collision, strategies |
 | 4 | Jul 7 – Jul 13 | Sprint 2 | Level generation, golden path, BFS, difficulty, modifiers |
@@ -1718,7 +1720,7 @@ EndDrawing()
 - **Level editor serialization** — save → load → grids match.
 - **AABB collision** — overlap detection, push-out resolution.
 - **Combo system** — timer decay, multiplier increment, reset.
-- Run: `cmake --build build && ctest --output-on-failure`
+- Run: `make` or `mingw32-make`
 
 ### Manual Verification
 - **Play-test all 9 floors** (permadeath, all 3 characters).

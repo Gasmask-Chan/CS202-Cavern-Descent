@@ -2,13 +2,35 @@
 
 #include "../Config.h"
 #include <unordered_map>
+#include <vector>
+#include <functional>
 
 namespace Platformer {
+
+enum class EventType {
+    EVENT_TERRAIN_DESTROYED,
+    EVENT_BOMB_EXPLODE,
+    EVENT_PLAYER_DAMAGED,
+    EVENT_PLAYER_DEATH,
+    EVENT_GOLD_COLLECTED,
+    EVENT_GHOST_SPAWN,
+    EVENT_ENEMY_KILLED
+};
+
+struct EventData {
+    int gridX = 0;
+    int gridY = 0;
+    float worldX = 0.0f;
+    float worldY = 0.0f;
+    int amount = 0;
+};
+
+using EventCallback = std::function<void(EventData)>;
 
 class EventBus {
 private:
     static EventBus *instance;
-    // unordered_map<EventType, std::vector<EventCallback> listeners;
+    std::unordered_map<EventType, std::vector<EventCallback>> listeners;
 
     EventBus();
     ~EventBus();
@@ -18,9 +40,9 @@ public:
     EventBus(const EventBus &) = delete;
     EventBus& operator = (const EventBus &) = delete;
 
-    // void subscribe(EventType type, EventCallback cb);
+    void subscribe(EventType type, EventCallback cb);
 
-    // void publish(EventType type, EventData);
+    void publish(EventType type, EventData data);
 };
 
 }
