@@ -353,6 +353,7 @@ classDiagram
         +playSFX(string name) void
         +playBGM(string name) void
         +stopBGM() void
+        +updateBGM() void
         +setVolume(float sfx, float bgm) void
     }
 

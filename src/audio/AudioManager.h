@@ -12,7 +12,6 @@ private:
     std::unordered_map<std::string, Sound> sfxCache;
     std::unordered_map<std::string, std::string> bgmPaths;
     Music currentBGM;
-    bool isBgmPlaying;
     float sfxVolume;
     float bgmVolume;
 
