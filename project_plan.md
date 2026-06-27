@@ -263,6 +263,12 @@ Enemies use a simple state machine with direct movement — no pathfinding neede
 - **ChaseState:** Move directly toward player's X-position. Bats fly toward player. Snakes walk toward player, turn at ledges/walls. Spiders drop when player is below.
 - **ReturnState:** If player leaves detection range, return to original patrol position.
 
+### 2.11 Autotiling & Chunking (Visual Polish)
+
+To maximize visual impact (similar to Spelunky's organic caves), `TileMap` employs seamless texturing and border decals:
+1. **Chunking (Seamless Texture):** A large 4×4 dirt texture is tiled seamlessly across the grid using `(x % 4)` and `(y % 4)` coordinate mapping.
+2. **Border Decals (Autotiling):** `LevelGenerator::generateBorders()` scans the generated grid and calculates a 4-bit bitmask (Top, Right, Bottom, Left) for every `WALL` tile exposed to air. `TileMap::render()` uses this mask to draw edge details (rocky ground tops, stalactites) layered over the seamless dirt.
+
 ---
 
 ## 3. Design Patterns Integration
@@ -814,14 +820,22 @@ classDiagram
         -unordered_map~int, vector~int~~ adjacencyList
         -vector~int~ goldenPath
         -vector~RoomTemplate~ templates
+        -vector~unique_ptr~DynamicEntity~~ tempEnemies
+        -vector~unique_ptr~Item~~ tempItems
+        -vector~unique_ptr~Trap~~ tempTraps
+        -Vector2 tempPlayerSpawn
+        -Vector2 tempExitPos
         +LevelGenerator()
         +generate(int floor, ZoneType zone) GeneratedLevel
         -buildGraph() void
         -generateGoldenPath() void
         -selectRoomTemplate(RoomRole role) RoomTemplate
-        -populateRoom(RoomTemplate tpl, int gx, int gy) void
-        -validateLevel(TileMap* map, Vec2 start, Vec2 exit) bool
-        -bfsReachability(TileMap* map, Vec2 from, Vec2 to) bool
+        -populateRoom(RoomTemplate tpl, int gx, int gy, TileMap* map) void
+        -carvePathways(TileMap* map) void
+        -generateChunks(TileMap* map) void
+        -generateBorders(TileMap* map) void
+        -validateLevel(TileMap* map, Vector2i start, Vector2i exit) bool
+        -bfsReachability(TileMap* map, Vector2i from, Vector2i to) bool
         -getDifficultyConfig(int floor) DifficultyConfig
         -rollFloorModifier(int floor) FloorModifier
     }
@@ -853,13 +867,26 @@ classDiagram
         +getRole() RoomRole
     }
 
+    struct ChunkInfo {
+        +int width
+        +int height
+        +int offsetX
+        +int offsetY
+        +uint8_t borderMask
+    }
+
     class TileMap {
         -vector~vector~TileType~~ tiles
         -int width
         -int height
         -int tileSize
+        -vector~vector~ChunkInfo~~ chunks
+        -Texture2D tileset
         +TileMap(int w, int h, int size)
+        +~TileMap()
         +getTile(int x, int y) TileType
+        +getChunk(int x, int y) ChunkInfo
+        +setChunk(int x, int y, ChunkInfo c) void
         +setTile(int x, int y, TileType type) void
         +isSolid(int x, int y) bool
         +isOpaque(int x, int y) bool
@@ -897,11 +924,14 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `generate(int floor, ZoneType zone)` | Master generation method. Calls `buildGraph()` → `generateGoldenPath()` → selects room templates → `populateRoom()` for each → `validateLevel()` via BFS. If validation fails, regenerates (max 10 retries). Returns `GeneratedLevel` struct. Also calls `getDifficultyConfig(floor)` to scale enemy counts/speeds and `rollFloorModifier(floor)` for affixes. |
+| `generate(int floor, ZoneType zone)` | Master generation method. Calls `buildGraph()` → `generateGoldenPath()` → selects room templates → `populateRoom()` for each → `carvePathways()` → `generateChunks()` → `generateBorders()` → `validateLevel()` via BFS. If validation fails, regenerates (max 10 retries). Returns `GeneratedLevel` struct. Also calls `getDifficultyConfig(floor)` to scale enemy counts/speeds and `rollFloorModifier(floor)` for affixes. |
+| `generateChunks(TileMap* map)` | Applies Greedy Meshing algorithm to group solid `WALL` tiles into random 2x2, 1x2, 2x1, or 1x1 chunks. Assigns a random `offsetX` and `offsetY` to map to the spritesheet. |
+| `generateBorders(TileMap* map)` | Scans every `WALL` tile. Checks the 4 orthogonal neighbors (Top, Right, Bottom, Left). If a neighbor is exposed to air (`EMPTY`), sets the corresponding bit in the `borderMask` (1, 2, 4, 8) for rendering border decals. |
 | `buildGraph()` | Populates `adjacencyList` for a 4×4 grid (16 nodes). Each node connects to left, right, and down neighbors. No upward-only edges — ensures downward progression bias. Node ID = `row * 4 + col`. |
 | `generateGoldenPath()` | Pushes a random top-row node (0–3) onto a `std::stack`. Performs DFS with neighbor shuffling. Uses `std::stable_partition` to bias downward neighbors to the front. Records visited nodes in `goldenPath` vector. Terminates when a bottom-row node (12–15) is reached. |
 | `selectRoomTemplate(RoomRole role)` | Filters `templates` vector by `role` (PATH, SIDE, SHOP, TREASURE). Returns a random template from the filtered set. Templates are pre-loaded `.txt` files parsed into `vector<vector<char>>`. |
 | `populateRoom(RoomTemplate tpl, int gx, int gy)` | Copies the template's char grid into the `TileMap` at the room's grid offset (`gx * roomWidth`, `gy * roomHeight`). Each char maps to a `TileType` or entity spawn via Factory: `'1'`→Wall, `'0'`→Empty, `'C'`→Cracked, `'E'`→random Enemy, `'T'`→Treasure, `'W'`→Water source, etc. |
+| `carvePathways(TileMap* map)` | Carving pass executed after all rooms are populated. Punches a 2-tile high hole or 3-tile wide drop-down between consecutive rooms on the `goldenPath`. Also punches a 2-tile high hole between all horizontally adjacent side rooms to ensure no rooms are isolated tombs. |
 | `validateLevel(TileMap* map, Vec2 start, Vec2 exit)` | Calls `bfsReachability(map, start, exit)`. Returns `true` if the exit is reachable from the spawn point considering platformer physics constraints. |
 | `bfsReachability(TileMap* map, Vec2 from, Vec2 to)` | BFS on the tile grid. From each cell, enqueues: left, right (if not solid), down (always — gravity), and up to `jumpHeight` cells upward (simulating jump). A cell is reachable if not solid and has a solid cell below (floor). Returns `true` if `to` cell is visited. Uses `std::queue<Vec2i>` and a `visited` bool grid. |
 | `getDifficultyConfig(int floor)` | Returns a `DifficultyConfig` struct from a hardcoded lookup table indexed by floor ranges: floors 1–3 (easy), 4–6 (medium), 7–9 (hard). Controls `maxEnemiesPerRoom`, `enemySpeedScale`, `ghostTimerSeconds`, `liquidProbability`, etc. |

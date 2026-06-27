@@ -1,5 +1,6 @@
 #include "GameState.h"
 #include "Game.h"
+#include "GameManager.h"
 #include "../audio/AudioManager.h"
 
 namespace Platformer {
@@ -77,7 +78,8 @@ void MenuState::render() {
 */
 
 void PlayState::enter() {
-
+    tempGenerator = std::make_unique<LevelGenerator>();
+    tempLevel = tempGenerator->generate(1, ZoneType::CAVE);
 }
 
 void PlayState::exit() {
@@ -89,11 +91,31 @@ void PlayState::handleInput() {
 }
 
 void PlayState::update(float dt) {
-
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        game->changeState(GameStateType::MENU);
+    }
 }
 
 void PlayState::render() {
-    ClearBackground(GREEN);
+    ClearBackground(BLACK);
+    
+    if (tempLevel.tileMap) {
+        Camera2D cam = { 0 };
+        cam.zoom = 1.0f;
+        cam.offset = Vector2{ 0, 0 };
+        cam.target = Vector2{ 0, 0 };
+        
+        BeginMode2D(cam);
+        
+        // Dummy light map (full brightness)
+        std::vector<std::vector<float>> lightMap(tempLevel.tileMap->getHeight(), std::vector<float>(tempLevel.tileMap->getWidth(), 1.0f));
+        tempLevel.tileMap->render(cam, lightMap);
+        
+        EndMode2D();
+    }
+    
+    DrawText("TEMPORARY SPRINT 2 TEST BED", 10, 10, 20, YELLOW);
+    DrawText("Use ESC to return to menu.", 10, 40, 20, WHITE);
 }
 
 /*
@@ -170,7 +192,7 @@ void CharSelectState::handleInput() {
         selectedIndex = (selectedIndex + 1) % 3;
     }
     if (IsKeyPressed(KEY_ENTER)) {
-        // TODO: Pass characters[selectedIndex] to GameManager so the correct Player strategy is spawned
+        GameManager::getInstance()->setSelectedCharacter(static_cast<CharacterType>(selectedIndex));
         game->changeState(GameStateType::PLAY);
     }
     if (IsKeyPressed(KEY_ESCAPE)) {
