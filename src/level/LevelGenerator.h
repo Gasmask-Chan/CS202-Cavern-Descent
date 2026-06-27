@@ -12,6 +12,12 @@
 
 namespace Platformer {
 
+constexpr int ROOM_WIDTH = 10;
+constexpr int ROOM_HEIGHT = 8;
+constexpr int MAP_ROOMS_X = 4;
+constexpr int MAP_ROOMS_Y = 4;
+constexpr int MAP_TILE_SIZE = 32;
+
 struct GeneratedLevel {
     std::unique_ptr<TileMap> tileMap;
     std::vector<std::unique_ptr<DynamicEntity>> dynamicEntities;
@@ -25,8 +31,7 @@ struct GeneratedLevel {
 
 class LevelGenerator {
 private:
-    std::unordered_map<int, std::vector<int>> adjacencyList;
-    std::vector<int> goldenPath;
+    RoomRole macroGrid[MAP_ROOMS_Y][MAP_ROOMS_X];
     std::vector<RoomTemplate> templates;
 
     // For keeping track of the spawn lists while generating
@@ -36,15 +41,16 @@ private:
     Vector2 tempPlayerSpawn;
     Vector2 tempExitPos;
 
-    void buildGraph();
-    
-    void generateGoldenPath();
+    int startRoomX = 0;
+    int startRoomY = 0;
+    int exitRoomX = 0;
+    int exitRoomY = 0;
+
+    void generateMacroGrid();
     
     RoomTemplate selectRoomTemplate(RoomRole role);
     
-    void populateRoom(const RoomTemplate& tpl, int gx, int gy, TileMap* map);
-    
-    void carvePathways(TileMap* map);
+    void populateRoom(const RoomTemplate& tpl, int gx, int gy, RoomRole role, TileMap* map);
     
     void generateChunks(TileMap* map);
     

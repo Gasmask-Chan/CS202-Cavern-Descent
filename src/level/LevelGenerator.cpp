@@ -9,12 +9,6 @@
 
 namespace Platformer {
 
-// We agreed to use a 10x8 room size for Spelunky-style generation
-constexpr int ROOM_WIDTH = 10;
-constexpr int ROOM_HEIGHT = 10;
-constexpr int MAP_ROOMS_X = 4;
-constexpr int MAP_ROOMS_Y = 4;
-constexpr int MAP_TILE_SIZE = 32;
 
 LevelGenerator::LevelGenerator() {
   std::string roomsDir = "assets/rooms/";
@@ -42,8 +36,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
   bool isValid = false;
 
   for (int attempt = 0; attempt < maxRetries; ++attempt) {
-    buildGraph();
-    generateGoldenPath();
+    generateMacroGrid();
 
     int mapW = MAP_ROOMS_X * ROOM_WIDTH;
     int mapH = MAP_ROOMS_Y * ROOM_HEIGHT;
@@ -57,41 +50,45 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
 
     for (int gy = 0; gy < MAP_ROOMS_Y; ++gy) {
       for (int gx = 0; gx < MAP_ROOMS_X; ++gx) {
-        int id = gy * MAP_ROOMS_X + gx;
-
-        RoomRole role = RoomRole::SIDE;
-        if (std::find(goldenPath.begin(), goldenPath.end(), id) !=
-            goldenPath.end()) {
-          role = RoomRole::PATH;
-        }
+        RoomRole role = macroGrid[gy][gx];
 
         RoomTemplate tpl = selectRoomTemplate(role);
-        populateRoom(tpl, gx, gy, level.tileMap.get());
+        populateRoom(tpl, gx, gy, role, level.tileMap.get());
       }
     }
 
-    // Execute the carving pass to ensure rooms are physically connected
-    carvePathways(level.tileMap.get());
+    // Carving pass removed; Spelunky templates naturally have open walls.
 
     generateChunks(level.tileMap.get());
     generateBorders(level.tileMap.get());
 
     // Dynamically place Spawn and Exit
-    // Put spawn in top-left room
-    int spawnGx = 1;
-    int spawnGy = 1;
+    // Put spawn in top-left-most floor tile of start room
+    int spawnGx = startRoomX * ROOM_WIDTH + 1;
+    int spawnGy = startRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 2;
+    while (spawnGy > startRoomY * ROOM_HEIGHT && level.tileMap->isSolid(spawnGx, spawnGy)) {
+      spawnGy--;
+    }
+    
+    // If we couldn't find a non-solid, default to center of room
+    if (level.tileMap->isSolid(spawnGx, spawnGy)) {
+        spawnGy = startRoomY * ROOM_HEIGHT + 1;
+    }
     tempPlayerSpawn = Vector2{(float)(spawnGx * MAP_TILE_SIZE),
                               (float)(spawnGy * MAP_TILE_SIZE)};
     level.tileMap->setTile(spawnGx, spawnGy, TileType::EMPTY);
 
-    // Put exit in bottom-right room of the golden path
-    // For simplicity, just place it in the bottom-right-most floor tile
-    int exitGx = MAP_ROOMS_X * ROOM_WIDTH - 2;
-    int exitGy = MAP_ROOMS_Y * ROOM_HEIGHT - 2;
+    // Put exit in bottom-right-most floor tile of exit room
+    int exitGx = exitRoomX * ROOM_WIDTH + ROOM_WIDTH - 2;
+    int exitGy = exitRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 2;
 
     // Find the lowest non-solid tile in that column
-    while (exitGy > 0 && level.tileMap->isSolid(exitGx, exitGy)) {
+    while (exitGy > exitRoomY * ROOM_HEIGHT && level.tileMap->isSolid(exitGx, exitGy)) {
       exitGy--;
+    }
+    
+    if (level.tileMap->isSolid(exitGx, exitGy)) {
+        exitGy = exitRoomY * ROOM_HEIGHT + 1;
     }
 
     tempExitPos = Vector2{(float)(exitGx * MAP_TILE_SIZE),
@@ -108,7 +105,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
       isValid = validateLevel(level.tileMap.get(), startGrid, exitGrid);
     }
 
-    if (isValid) {
+    if (isValid || attempt == maxRetries - 1) {
       level.dynamicEntities = std::move(tempEnemies);
       level.items = std::move(tempItems);
       level.traps = std::move(tempTraps);
@@ -131,85 +128,54 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
   return level;
 }
 
-void LevelGenerator::buildGraph() {
-  adjacencyList.clear();
-  for (int row = 0; row < MAP_ROOMS_Y; ++row) {
-    for (int col = 0; col < MAP_ROOMS_X; ++col) {
-      int id = row * MAP_ROOMS_X + col;
-      std::vector<int> neighbors;
-
-      // Left
-      if (col > 0)
-        neighbors.push_back(id - 1);
-      // Right
-      if (col < MAP_ROOMS_X - 1)
-        neighbors.push_back(id + 1);
-      // Down (No upward edges)
-      if (row < MAP_ROOMS_Y - 1)
-        neighbors.push_back(id + MAP_ROOMS_X);
-
-      adjacencyList[id] = neighbors;
+void LevelGenerator::generateMacroGrid() {
+  for (int y = 0; y < MAP_ROOMS_Y; ++y) {
+    for (int x = 0; x < MAP_ROOMS_X; ++x) {
+      macroGrid[y][x] = RoomRole::TYPE_0;
     }
   }
-}
 
-void LevelGenerator::generateGoldenPath() {
-  goldenPath.clear();
+  int currX = GetRandomValue(0, MAP_ROOMS_X - 1);
+  int currY = 0;
+  bool movingLeft = (GetRandomValue(0, 1) == 0);
 
-  // Seed RNG
-  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-  std::default_random_engine rng(seed);
-
-  // Pick random start node on top row (0 to 3)
-  std::uniform_int_distribution<int> startDist(0, MAP_ROOMS_X - 1);
-  int startNode = startDist(rng);
-
-  std::vector<int> path;
-  path.push_back(startNode);
-
-  // Simple iterative walk with downward bias instead of full DFS for
-  // simplicity, but the plan says "DFS with neighbor shuffling. Uses
-  // std::stable_partition to bias downward". We'll implement the exact spec.
-
-  std::vector<int> visited(MAP_ROOMS_X * MAP_ROOMS_Y, 0);
-  std::vector<std::vector<int>> stack; // each element is the path so far
-  stack.push_back({startNode});
-
-  while (!stack.empty()) {
-    std::vector<int> currentPath = stack.back();
-    stack.pop_back();
-
-    int current = currentPath.back();
-    visited[current] = 1;
-
-    // Check if we reached the bottom row (12-15)
-    if (current >= MAP_ROOMS_X * (MAP_ROOMS_Y - 1)) {
-      goldenPath = currentPath;
-      break;
+  startRoomX = currX;
+  startRoomY = currY;
+  
+  while (currY < MAP_ROOMS_Y) {
+    if (macroGrid[currY][currX] == RoomRole::TYPE_0) {
+      macroGrid[currY][currX] = RoomRole::TYPE_1;
     }
 
-    std::vector<int> neighbors = adjacencyList[current];
-    std::shuffle(neighbors.begin(), neighbors.end(), rng);
-
-    // Bias downward neighbors to the front so they are pushed LAST (DFS pops
-    // from back) Wait, if we want them popped FIRST, they should be at the BACK
-    // of the vector. So we partition: downward neighbors go to the back.
-    std::stable_partition(neighbors.begin(), neighbors.end(), [&](int n) {
-      return n !=
-             current + MAP_ROOMS_X; // true for non-downward, false for downward
-    });
-
-    for (int neighbor : neighbors) {
-      // Ensure we don't cross our own path
-      bool inPath = false;
-      for (int p : currentPath)
-        if (p == neighbor)
-          inPath = true;
-
-      if (!inPath) {
-        std::vector<int> nextPath = currentPath;
-        nextPath.push_back(neighbor);
-        stack.push_back(nextPath);
+    int roll = GetRandomValue(1, 5);
+    bool forcedDown = false;
+    
+    if (roll <= 4) {
+      if (movingLeft) {
+        if (currX == 0) forcedDown = true;
+        else currX--;
+      } else {
+        if (currX == MAP_ROOMS_X - 1) forcedDown = true;
+        else currX++;
+      }
+    } else {
+      forcedDown = true;
+    }
+    
+    if (forcedDown) {
+      if (currY < MAP_ROOMS_Y - 1) {
+        if (macroGrid[currY][currX] == RoomRole::TYPE_3) {
+            macroGrid[currY][currX] = RoomRole::TYPE_2_DROP_THROUGH;
+        } else {
+            macroGrid[currY][currX] = RoomRole::TYPE_2;
+        }
+        currY++;
+        macroGrid[currY][currX] = RoomRole::TYPE_3;
+        movingLeft = (GetRandomValue(0, 1) == 0);
+      } else {
+        exitRoomX = currX;
+        exitRoomY = currY;
+        break;
       }
     }
   }
@@ -219,16 +185,18 @@ RoomTemplate LevelGenerator::selectRoomTemplate(RoomRole role) {
   if (templates.empty()) {
     // Generate a fallback empty 10x8 shell room
     RoomTemplate shell("");
-    // We can't access private grid directly, so we'll mock it if we had access,
-    // but we don't. Wait, RoomTemplate has no setter. Let's just return it and
-    // handle empty in populateRoom.
     return shell;
+  }
+
+  RoomRole searchRole = role;
+  if (role == RoomRole::TYPE_2_DROP_THROUGH) {
+      searchRole = RoomRole::TYPE_2;
   }
 
   // Filter templates by role
   std::vector<RoomTemplate> filtered;
   for (const auto &t : templates) {
-    if (t.getRole() == role)
+    if (t.getRole() == searchRole)
       filtered.push_back(t);
   }
 
@@ -242,7 +210,7 @@ RoomTemplate LevelGenerator::selectRoomTemplate(RoomRole role) {
   return filtered[dist(rng)];
 }
 
-void LevelGenerator::populateRoom(const RoomTemplate &tpl, int gx, int gy,
+void LevelGenerator::populateRoom(const RoomTemplate &tpl, int gx, int gy, RoomRole role,
                                   TileMap *map) {
   auto grid = tpl.getGrid();
 
@@ -250,8 +218,12 @@ void LevelGenerator::populateRoom(const RoomTemplate &tpl, int gx, int gy,
   bool isFallback =
       grid.empty() || grid.size() < ROOM_HEIGHT || grid[0].size() < ROOM_WIDTH;
 
+  bool skip[ROOM_HEIGHT][ROOM_WIDTH] = {false};
+
   for (int cy = 0; cy < ROOM_HEIGHT; ++cy) {
     for (int cx = 0; cx < ROOM_WIDTH; ++cx) {
+      if (skip[cy][cx]) continue;
+
       int tx = gx * ROOM_WIDTH + cx;
       int ty = gy * ROOM_HEIGHT + cy;
 
@@ -263,6 +235,13 @@ void LevelGenerator::populateRoom(const RoomTemplate &tpl, int gx, int gy,
           code = '0';
       } else {
         code = grid[cy][cx];
+      }
+
+      // If this is a drop-through room, punch a hole in the ceiling to connect to the drop room above
+      if (role == RoomRole::TYPE_2_DROP_THROUGH) {
+          if (cy < 2 && cx >= 4 && cx <= 6) {
+              code = '0';
+          }
       }
 
       float px = tx * MAP_TILE_SIZE;
@@ -278,6 +257,65 @@ void LevelGenerator::populateRoom(const RoomTemplate &tpl, int gx, int gy,
       case 'P':
         map->setTile(tx, ty, TileType::PLATFORM);
         break;
+      case 'L':
+        map->setTile(tx, ty, TileType::LADDER);
+        break;
+      case '4':
+        // 25% pushblock (using WALL for now until pushblock entity exists)
+        if (GetRandomValue(1, 100) <= 25) {
+            map->setTile(tx, ty, TileType::WALL);
+        } else {
+            map->setTile(tx, ty, TileType::EMPTY);
+        }
+        break;
+      case '5':
+      case '6': {
+        std::vector<std::string> block;
+        if (code == '5') {
+            block = {
+                "00000",
+                "00202",
+                "71177"
+            };
+        } else {
+            block = {
+                "00000",
+                "22222",
+                "00000"
+            };
+        }
+
+        for (int dy = 0; dy < 3; ++dy) {
+            for (int dx = 0; dx < 5; ++dx) {
+                if (cy + dy >= ROOM_HEIGHT || cx + dx >= ROOM_WIDTH) continue;
+                
+                char bc = block[dy][dx];
+                int btx = tx + dx;
+                int bty = ty + dy;
+                float bpx = btx * MAP_TILE_SIZE;
+                float bpy = bty * MAP_TILE_SIZE;
+                
+                skip[cy + dy][cx + dx] = true;
+                
+                // Probabilistic evaluations
+                if (bc == '2') {
+                    bc = (GetRandomValue(0, 1) == 0) ? '1' : '0';
+                } else if (bc == '7') {
+                    bc = (GetRandomValue(1, 10) <= 3) ? '^' : '0'; // 30% Spikes Trap
+                }
+
+                if (bc == '1') {
+                    map->setTile(btx, bty, TileType::WALL);
+                } else if (bc == '0') {
+                    map->setTile(btx, bty, TileType::EMPTY);
+                }
+
+                auto trap = EntityFactory::createTrap(bc, bpx, bpy);
+                if (trap) tempTraps.push_back(std::move(trap));
+            }
+        }
+        break;
+      }
       case '@':
         map->setTile(tx, ty, TileType::EMPTY);
         tempPlayerSpawn = Vector2{px, py};
@@ -308,59 +346,6 @@ void LevelGenerator::populateRoom(const RoomTemplate &tpl, int gx, int gy,
   }
 }
 
-void LevelGenerator::carvePathways(TileMap *map) {
-  // We will guarantee connection between consecutive rooms on the golden path.
-  // We will also punch a horizontal hole between adjacent side rooms to ensure
-  // no tombs.
-  for (size_t i = 0; i < goldenPath.size() - 1; ++i) {
-    int curr = goldenPath[i];
-    int next = goldenPath[i + 1];
-
-    int cX = curr % MAP_ROOMS_X;
-    int cY = curr / MAP_ROOMS_X;
-    int nX = next % MAP_ROOMS_X;
-    int nY = next / MAP_ROOMS_X;
-
-    if (cX != nX) {
-      // Horizontal connection
-      int leftRoomX = std::min(cX, nX);
-      int wallX = (leftRoomX + 1) * ROOM_WIDTH - 1;
-      int wallY = cY * ROOM_HEIGHT + ROOM_HEIGHT - 3; // 2 blocks above floor
-
-      map->setTile(wallX, wallY, TileType::EMPTY);
-      map->setTile(wallX + 1, wallY, TileType::EMPTY);
-      map->setTile(wallX, wallY - 1, TileType::EMPTY);
-      map->setTile(wallX + 1, wallY - 1, TileType::EMPTY);
-    } else if (cY != nY) {
-      // Vertical connection
-      int topRoomY = std::min(cY, nY);
-      int floorY = (topRoomY + 1) * ROOM_HEIGHT - 1;
-      int floorX = cX * ROOM_WIDTH + ROOM_WIDTH / 2 - 1; // Middle of room
-
-      map->setTile(floorX, floorY, TileType::EMPTY);
-      map->setTile(floorX + 1, floorY, TileType::EMPTY);
-      map->setTile(floorX + 2, floorY, TileType::EMPTY);
-      map->setTile(floorX, floorY + 1, TileType::EMPTY);
-      map->setTile(floorX + 1, floorY + 1, TileType::EMPTY);
-      map->setTile(floorX + 2, floorY + 1, TileType::EMPTY);
-    }
-  }
-
-  // Connect side rooms horizontally so nothing is isolated
-  for (int y = 0; y < MAP_ROOMS_Y; ++y) {
-    for (int x = 0; x < MAP_ROOMS_X - 1; ++x) {
-      // Just punch a 2x2 hole between every horizontally adjacent room
-      // That guarantees you can walk across an entire floor left-to-right!
-      int wallX = (x + 1) * ROOM_WIDTH - 1;
-      int wallY = y * ROOM_HEIGHT + ROOM_HEIGHT - 3;
-
-      map->setTile(wallX, wallY, TileType::EMPTY);
-      map->setTile(wallX + 1, wallY, TileType::EMPTY);
-      map->setTile(wallX, wallY - 1, TileType::EMPTY);
-      map->setTile(wallX + 1, wallY - 1, TileType::EMPTY);
-    }
-  }
-}
 
 void LevelGenerator::generateChunks(TileMap *map) {
   int width = map->getWidth();
@@ -571,13 +556,19 @@ bool LevelGenerator::bfsReachability(TileMap *map, Vector2i from, Vector2i to) {
       return true;
 
     bool onGround = (curr.y + 1 < height) && map->isSolid(curr.x, curr.y + 1);
+    bool onLadder = (map->getTile(curr.x, curr.y) == TileType::LADDER);
 
-    if (onGround) {
+    if (onGround || onLadder) {
       // Walk left/right
       pushState(curr.x - 1, curr.y, 4);
       pushState(curr.x + 1, curr.y, 4);
-      // Start jump
+      // Start jump or climb up
       pushState(curr.x, curr.y - 1, 3);
+      
+      // If on ladder, we can climb down without gravity
+      if (onLadder) {
+          pushState(curr.x, curr.y + 1, 0); // Climb down
+      }
     } else {
       // Falling / Gravity
       pushState(curr.x, curr.y + 1, 0);

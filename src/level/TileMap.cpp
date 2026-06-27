@@ -136,22 +136,25 @@ void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& light
         }
       } else if (type != TileType::WALL && type != TileType::EMPTY) {
         bool drawTexture = false;
-        Rectangle src = {0, 0, 16, 16};
+        Rectangle src = {0, 0, 64, 64};
         
         if (type == TileType::CRACKED) {
-            src = {16, 0, 16, 16};
+            src = {64, 0, 64, 64};
             drawTexture = true;
         } else if (type == TileType::PLATFORM) {
-            src = {80, 48, 16, 16};
+            src = {192, 0, 64, 64}; // Ladder top
+            drawTexture = true;
+        } else if (type == TileType::LADDER) {
+            src = {128, 0, 64, 64}; // Ladder
             drawTexture = true;
         } else if (type == TileType::SPIKE_TRAP) {
-            src = {80, 112, 16, 16};
+            src = {320, 448, 64, 64};
             drawTexture = true;
         } else if (type == TileType::ROPE_NODE) {
-            src = {32, 0, 16, 16};
+            src = {128, 0, 64, 64};
             drawTexture = true;
         } else if (type == TileType::EXIT_DOOR) {
-            src = {112, 112, 16, 16};
+            src = {448, 448, 64, 64};
             drawTexture = true;
         }
 

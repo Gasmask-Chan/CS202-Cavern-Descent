@@ -95,10 +95,10 @@ Each floor is a **4×4 macro-grid** of 16 room slots:
 
 **Algorithm — Golden Path Generation:**
 
-1. **Build a Graph:** Model the 4×4 grid as an adjacency list. Edges connect orthogonal neighbors (left, right, down — no upward-only).
-2. **Random Walk DFS:** From a random top-row node, biased-random DFS trending downward. The path to the bottom row is the **Golden Path**.
+1. **Macro Grid Walk:** Model the 4×4 grid as a 2D array (`RoomRole macroGrid[4][4]`). Start at a random top-row cell.
+2. **Random Walk:** Loop until reaching the bottom row: 80% chance to move left/right, 20% chance to drop down. Edges force a drop down. The traversed cells form the **Golden Path**.
 3. **BFS Validation:** After room population, BFS from spawn to exit on the tile grid confirms reachability with platformer physics constraints (jump height, gravity).
-4. **Room Template Instantiation:** Golden-path rooms load `.txt` templates via Factory. Off-path rooms are walled off or loaded as side rooms (treasure/shop).
+4. **Room Template Instantiation:** Golden-path rooms load `.txt` templates via Factory. Off-path rooms are loaded as side rooms. Spelunky templates naturally have open walls, so no carving pass is needed.
 
 **Integrated Difficulty Scaling (per floor):**
 
@@ -113,10 +113,9 @@ Floor  | Enemies/Room | Trap Density | Treasure Value | Enemy Speed | Ghost Time
 ```
 
 **Data Structures:**
-- `std::unordered_map<int, std::vector<int>>` — adjacency list (16 nodes).
+- `RoomRole macroGrid[4][4]` — 2D array tracking room roles.
 - `std::vector<std::vector<char>>` — room template grids from `.txt` files.
-- `std::vector<int>` — golden path node indices.
-- `std::queue<int>` / `std::stack<int>` — BFS validation / DFS generation.
+- `std::queue<int>` — BFS validation queue.
 
 ### 2.3 Block Destruction (Standard) vs. Bomb Destruction (Advanced)
 
@@ -817,8 +816,9 @@ classDiagram
     }
 
     class LevelGenerator {
-        -unordered_map~int, vector~int~~ adjacencyList
-        -vector~int~ goldenPath
+        -RoomRole macroGrid[4][4]
+        -int startRoomX, startRoomY
+        -int exitRoomX, exitRoomY
         -vector~RoomTemplate~ templates
         -vector~unique_ptr~DynamicEntity~~ tempEnemies
         -vector~unique_ptr~Item~~ tempItems
@@ -827,11 +827,9 @@ classDiagram
         -Vector2 tempExitPos
         +LevelGenerator()
         +generate(int floor, ZoneType zone) GeneratedLevel
-        -buildGraph() void
-        -generateGoldenPath() void
+        -generateMacroGrid() void
         -selectRoomTemplate(RoomRole role) RoomTemplate
-        -populateRoom(RoomTemplate tpl, int gx, int gy, TileMap* map) void
-        -carvePathways(TileMap* map) void
+        -populateRoom(RoomTemplate tpl, int gx, int gy, RoomRole role, TileMap* map) void
         -generateChunks(TileMap* map) void
         -generateBorders(TileMap* map) void
         -validateLevel(TileMap* map, Vector2i start, Vector2i exit) bool
@@ -924,18 +922,16 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `generate(int floor, ZoneType zone)` | Master generation method. Calls `buildGraph()` → `generateGoldenPath()` → selects room templates → `populateRoom()` for each → `carvePathways()` → `generateChunks()` → `generateBorders()` → `validateLevel()` via BFS. If validation fails, regenerates (max 10 retries). Returns `GeneratedLevel` struct. Also calls `getDifficultyConfig(floor)` to scale enemy counts/speeds and `rollFloorModifier(floor)` for affixes. |
+| `generate(int floor, ZoneType zone)` | Master generation method. Calls `generateMacroGrid()` → selects room templates → `populateRoom()` for each → `generateChunks()` → `generateBorders()` → `validateLevel()` via BFS. If validation fails, regenerates (max 10 retries). Returns `GeneratedLevel` struct. Also calls `getDifficultyConfig(floor)` to scale enemy counts/speeds and `rollFloorModifier(floor)` for affixes. |
 | `generateChunks(TileMap* map)` | Applies Greedy Meshing algorithm to group solid `WALL` tiles into random 2x2, 1x2, 2x1, or 1x1 chunks. Assigns a random `offsetX` and `offsetY` to map to the spritesheet. |
 | `generateBorders(TileMap* map)` | Scans every `WALL` tile. Checks the 4 orthogonal neighbors (Top, Right, Bottom, Left). If a neighbor is exposed to air (`EMPTY`), sets the corresponding bit in the `borderMask` (1, 2, 4, 8) for rendering border decals. |
-| `buildGraph()` | Populates `adjacencyList` for a 4×4 grid (16 nodes). Each node connects to left, right, and down neighbors. No upward-only edges — ensures downward progression bias. Node ID = `row * 4 + col`. |
-| `generateGoldenPath()` | Pushes a random top-row node (0–3) onto a `std::stack`. Performs DFS with neighbor shuffling. Uses `std::stable_partition` to bias downward neighbors to the front. Records visited nodes in `goldenPath` vector. Terminates when a bottom-row node (12–15) is reached. |
-| `selectRoomTemplate(RoomRole role)` | Filters `templates` vector by `role` (PATH, SIDE, SHOP, TREASURE). Returns a random template from the filtered set. Templates are pre-loaded `.txt` files parsed into `vector<vector<char>>`. |
-| `populateRoom(RoomTemplate tpl, int gx, int gy)` | Copies the template's char grid into the `TileMap` at the room's grid offset (`gx * roomWidth`, `gy * roomHeight`). Each char maps to a `TileType` or entity spawn via Factory: `'1'`→Wall, `'0'`→Empty, `'C'`→Cracked, `'E'`→random Enemy, `'T'`→Treasure, `'W'`→Water source, etc. |
-| `carvePathways(TileMap* map)` | Carving pass executed after all rooms are populated. Punches a 2-tile high hole or 3-tile wide drop-down between consecutive rooms on the `goldenPath`. Also punches a 2-tile high hole between all horizontally adjacent side rooms to ensure no rooms are isolated tombs. |
-| `validateLevel(TileMap* map, Vec2 start, Vec2 exit)` | Calls `bfsReachability(map, start, exit)`. Returns `true` if the exit is reachable from the spawn point considering platformer physics constraints. |
-| `bfsReachability(TileMap* map, Vec2 from, Vec2 to)` | BFS on the tile grid. From each cell, enqueues: left, right (if not solid), down (always — gravity), and up to `jumpHeight` cells upward (simulating jump). A cell is reachable if not solid and has a solid cell below (floor). Returns `true` if `to` cell is visited. Uses `std::queue<Vec2i>` and a `visited` bool grid. |
-| `getDifficultyConfig(int floor)` | Returns a `DifficultyConfig` struct from a hardcoded lookup table indexed by floor ranges: floors 1–3 (easy), 4–6 (medium), 7–9 (hard). Controls `maxEnemiesPerRoom`, `enemySpeedScale`, `ghostTimerSeconds`, `liquidProbability`, etc. |
-| `rollFloorModifier(int floor)` | If `floor == 1`, returns `NONE` (no modifier on first floor). Else 30% chance to roll a random modifier: `DARK_FLOOR`, `FLOODED_FLOOR`, or `CURSED_FLOOR`. Returns `FloorModifier` enum value. |
+| `generateMacroGrid()` | Uses a while loop to perform a random walk across a 4x4 grid of rooms from the top row to the bottom row. Assigns `RoomRole` enum values (`TYPE_0` through `TYPE_3`) to the cells to build the solution path. Sets `startRoomX/Y` and `exitRoomX/Y`. |
+| `selectRoomTemplate(RoomRole role)` | Filters `templates` vector by `role` (treats `TYPE_2_DROP_THROUGH` as `TYPE_2` for searching). Returns a random template from the filtered set. Templates are pre-loaded `.txt` files parsed into `vector<vector<char>>`. |
+| `populateRoom(RoomTemplate tpl, int gx, int gy, RoomRole role)` | Copies the template's char grid into the `TileMap` at the room's grid offset. Each char maps to a `TileType` or entity spawn via Factory. If `role` is `TYPE_2_DROP_THROUGH`, punches a hole in the ceiling. |
+| `validateLevel(TileMap* map, Vector2i start, Vector2i exit)` | Calls `bfsReachability(map, start, exit)`. Returns `true` if the exit is reachable from the spawn point considering platformer physics constraints. |
+| `bfsReachability(TileMap* map, Vector2i from, Vector2i to)` | BFS on the tile grid. Enqueues: left, right (if not solid), down (gravity/ladders), and up to `jumpEnergy` cells upward (or ladders). Returns `true` if `to` cell is visited. |
+| `getDifficultyConfig(int floor)` | Returns a `DifficultyConfig` struct from a hardcoded lookup table indexed by floor ranges. |
+| `rollFloorModifier(int floor)` | If `floor == 1`, returns `NONE`. Else 30% chance to roll a random modifier: `DARK_FLOOR`, `FLOODED_FLOOR`, or `CURSED_FLOOR`. Returns `FloorModifier` enum value. |
 
 **TileMap**
 

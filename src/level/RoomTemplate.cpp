@@ -10,14 +10,14 @@ RoomTemplate::RoomTemplate(std::string path) : filePath(path), role(RoomRole::UN
     std::string lowerPath = path;
     std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
     
-    if (lowerPath.find("path") != std::string::npos) {
-        role = RoomRole::PATH;
-    } else if (lowerPath.find("side") != std::string::npos) {
-        role = RoomRole::SIDE;
-    } else if (lowerPath.find("shop") != std::string::npos) {
-        role = RoomRole::SHOP;
-    } else if (lowerPath.find("treasure") != std::string::npos) {
-        role = RoomRole::TREASURE;
+    if (lowerPath.find("type1") != std::string::npos) {
+        role = RoomRole::TYPE_1;
+    } else if (lowerPath.find("type2") != std::string::npos) {
+        role = RoomRole::TYPE_2;
+    } else if (lowerPath.find("type3") != std::string::npos) {
+        role = RoomRole::TYPE_3;
+    } else if (lowerPath.find("type0") != std::string::npos) {
+        role = RoomRole::TYPE_0;
     }
 }
 

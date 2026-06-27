@@ -13,6 +13,7 @@ enum class TileType { //Just for example, modify it later if you need to
     WALL,
     CRACKED,
     PLATFORM,
+    LADDER,
     
     SPIKE_TRAP,
     ARROW_TRAP,
