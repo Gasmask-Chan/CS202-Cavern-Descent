@@ -2,8 +2,6 @@
 
 namespace Platformer {
 
-EventBus* EventBus::instance = nullptr;
-
 EventBus::EventBus() {
 }
 
@@ -11,10 +9,8 @@ EventBus::~EventBus() {
 }
 
 EventBus* EventBus::getInstance() {
-    if (instance == nullptr) {
-        instance = new EventBus();
-    }
-    return instance;
+    static EventBus instance;
+    return &instance;
 }
 
 void EventBus::subscribe(EventType type, EventCallback cb) {

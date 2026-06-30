@@ -29,7 +29,6 @@ using EventCallback = std::function<void(EventData)>;
 
 class EventBus {
 private:
-    static EventBus *instance;
     std::unordered_map<EventType, std::vector<EventCallback>> listeners;
 
     EventBus();

@@ -4,8 +4,6 @@
 
 namespace Platformer {
 
-AudioManager* AudioManager::instance = nullptr;
-
 AudioManager::AudioManager() : sfxVolume(1.0f), bgmVolume(1.0f) {
     InitAudioDevice(); // Required by Raylib before any audio loading/playing
     currentBGM.stream.buffer = nullptr;
@@ -28,10 +26,8 @@ AudioManager::~AudioManager() {
 }
 
 AudioManager* AudioManager::getInstance() {
-    if (instance == nullptr) {
-        instance = new AudioManager();
-    }
-    return instance;
+    static AudioManager instance;
+    return &instance;
 }
 
 void AudioManager::loadSFX(const std::string& name, const std::string& filePath) {
