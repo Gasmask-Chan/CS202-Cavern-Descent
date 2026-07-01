@@ -1,6 +1,8 @@
 #include "GameState.h"
 #include "Game.h"
+#include "GameManager.h"
 #include "../audio/AudioManager.h"
+#include "../player/Player.h"
 
 namespace Platformer {
 
@@ -77,23 +79,57 @@ void MenuState::render() {
 */
 
 void PlayState::enter() {
+    // Initialize Camera
+    camera.offset = Vector2{ 1280.0f / 2.0f, 720.0f / 2.0f }; // Center screen
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
 
+    // TODO: Person B will implement LevelManager to spawn the player.
+    // For now, we manually instantiate a temporary Player at (0,0) so the camera has a target.
+    player = new Player(0.0f, 0.0f, CharacterType::EXPLORER);
+    
+    camera.target = Vector2{ player->getX(), player->getY() };
 }
 
 void PlayState::exit() {
-
+    // Cleanup temporary player until LevelManager manages it.
+    if (player) {
+        delete player;
+        player = nullptr;
+    }
 }
 
 void PlayState::handleInput() {
-
+    if (player) {
+        player->handleInput();
+    }
 }
 
 void PlayState::update(float dt) {
-
+    if (player) {
+        player->update(dt);
+        
+        // Camera smooth follow using lerp
+        camera.target = Vector2Lerp(camera.target, Vector2{player->getX() + 16, player->getY() + 16}, 5.0f * dt);
+    }
 }
 
 void PlayState::render() {
-    ClearBackground(GREEN);
+    ClearBackground(BLACK);
+    
+    BeginMode2D(camera);
+    
+    // Draw grid to visualize movement for debugging
+    for (int i = -1000; i < 1000; i += 32) {
+        DrawLine(i, -1000, i, 1000, DARKGRAY);
+        DrawLine(-1000, i, 1000, i, DARKGRAY);
+    }
+
+    if (player) {
+        player->render(1.0f); // Light level 1.0 (fully bright) for now
+    }
+    
+    EndMode2D();
 }
 
 /*

@@ -8,7 +8,6 @@ namespace Platformer {
 
 class GameManager {
 private:
-    static GameManager* instance;
     int currentFloor;
     int score;
     int playerLives;

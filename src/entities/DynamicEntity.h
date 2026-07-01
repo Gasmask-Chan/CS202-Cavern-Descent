@@ -4,7 +4,12 @@
 
 namespace Platformer {
 
+class PhysicsSystem; // Forward declaration
+
 class DynamicEntity : public Entity {
+
+friend class PhysicsSystem;
+
 protected:
     float vx;
     float vy;
@@ -23,7 +28,7 @@ public:
     void applyGravity(float dt);
 
     /**
-     * @brief Adds `dx` to `x` and `dy` to `y`. Raw position change — no collision checking. Collision is handled separately by `PhysicsSystem::resolveEntityTileCollision()`.
+     * @brief Adds `dx` to `x` and `dy` to `y`. Raw position change - no collision checking. Collision is handled separately by `PhysicsSystem::resolveEntityTileCollision()`.
      * 
      * @param dx 
      * @param dy 
