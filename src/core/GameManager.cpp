@@ -5,8 +5,6 @@
 
 namespace Platformer {
 
-GameManager* GameManager::instance = nullptr;
-
 GameManager::GameManager() {
     resetRun();
 }
@@ -16,10 +14,8 @@ GameManager::~GameManager() {
 }
 
 GameManager* GameManager::getInstance() {
-    if (instance == nullptr) {
-        instance = new GameManager();
-    }
-    return instance;
+    static GameManager instance;
+    return &instance;
 }
 
 int GameManager::getFloor() {

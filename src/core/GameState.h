@@ -2,12 +2,11 @@
 
 #include "../Config.h"
 #include <vector>
-#include <memory>
-#include "../level/LevelGenerator.h"
 
 namespace Platformer {
 
 class Game;
+class Player;
 
 enum class GameStateType {
     MENU,
@@ -77,8 +76,9 @@ public:
 
 class PlayState : public GameState {
 private:
-    std::unique_ptr<LevelGenerator> tempGenerator;
-    GeneratedLevel tempLevel;
+    Player* player;
+    Camera2D camera;
+
 public:
     /**
      * @brief 	Creates `LevelManager`, `PhysicsSystem`, `LightingSystem`, `LiquidSimulator`, `ComboSystem`, `Minimap`, `HUD`. Calls `levelManager->generateFloor(1)`. Starts zone BGM.

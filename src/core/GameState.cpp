@@ -2,6 +2,7 @@
 #include "Game.h"
 #include "GameManager.h"
 #include "../audio/AudioManager.h"
+#include "../player/Player.h"
 
 namespace Platformer {
 
@@ -78,44 +79,57 @@ void MenuState::render() {
 */
 
 void PlayState::enter() {
-    tempGenerator = std::make_unique<LevelGenerator>();
-    tempLevel = tempGenerator->generate(1, ZoneType::CAVE);
+    // Initialize Camera
+    camera.offset = Vector2{ 1280.0f / 2.0f, 720.0f / 2.0f }; // Center screen
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
+
+    // TODO: Person B will implement LevelManager to spawn the player.
+    // For now, we manually instantiate a temporary Player at (0,0) so the camera has a target.
+    player = new Player(0.0f, 0.0f, CharacterType::EXPLORER);
+    
+    camera.target = Vector2{ player->getX(), player->getY() };
 }
 
 void PlayState::exit() {
-
+    // Cleanup temporary player until LevelManager manages it.
+    if (player) {
+        delete player;
+        player = nullptr;
+    }
 }
 
 void PlayState::handleInput() {
-
+    if (player) {
+        player->handleInput();
+    }
 }
 
 void PlayState::update(float dt) {
-    if (IsKeyPressed(KEY_ESCAPE)) {
-        game->changeState(GameStateType::MENU);
+    if (player) {
+        player->update(dt);
+        
+        // Camera smooth follow using lerp
+        camera.target = Vector2Lerp(camera.target, Vector2{player->getX() + 16, player->getY() + 16}, 5.0f * dt);
     }
 }
 
 void PlayState::render() {
     ClearBackground(BLACK);
     
-    if (tempLevel.tileMap) {
-        Camera2D cam = { 0 };
-        cam.zoom = 1.0f;
-        cam.offset = Vector2{ 0, 0 };
-        cam.target = Vector2{ 0, 0 };
-        
-        BeginMode2D(cam);
-        
-        // Dummy light map (full brightness)
-        std::vector<std::vector<float>> lightMap(tempLevel.tileMap->getHeight(), std::vector<float>(tempLevel.tileMap->getWidth(), 1.0f));
-        tempLevel.tileMap->render(cam, lightMap);
-        
-        EndMode2D();
+    BeginMode2D(camera);
+    
+    // Draw grid to visualize movement for debugging
+    for (int i = -1000; i < 1000; i += 32) {
+        DrawLine(i, -1000, i, 1000, DARKGRAY);
+        DrawLine(-1000, i, 1000, i, DARKGRAY);
+    }
+
+    if (player) {
+        player->render(1.0f); // Light level 1.0 (fully bright) for now
     }
     
-    DrawText("TEMPORARY SPRINT 2 TEST BED", 10, 10, 20, YELLOW);
-    DrawText("Use ESC to return to menu.", 10, 40, 20, WHITE);
+    EndMode2D();
 }
 
 /*
@@ -192,7 +206,7 @@ void CharSelectState::handleInput() {
         selectedIndex = (selectedIndex + 1) % 3;
     }
     if (IsKeyPressed(KEY_ENTER)) {
-        GameManager::getInstance()->setSelectedCharacter(static_cast<CharacterType>(selectedIndex));
+        // TODO: Pass characters[selectedIndex] to GameManager so the correct Player strategy is spawned
         game->changeState(GameStateType::PLAY);
     }
     if (IsKeyPressed(KEY_ESCAPE)) {
