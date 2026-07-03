@@ -8,28 +8,27 @@
 
 namespace Platformer {
 
-enum class TileType { //Just for example, modify it later if you need to
-    EMPTY,
-    WALL,
-    CRACKED,
-    PLATFORM,
-    LADDER,
+enum class TileType {
+    NOTHING = 0,
+    CAVE_ROCK = 1,
+    CAVE_REGULAR = 2,
+    STONE_BLOCK = 3,
+    CAVE_DOWN_ORIENTED = 4,
+    CAVE_SOME_GOLD = 5,
+    CAVE_MUCH_GOLD = 6,
+    CAVE_UP_ORIENTED = 7,
+    CAVE_UP_DOWN_ORIENTED = 8,
+    LADDER = 9,
+    LADDER_DECK = 10,
+    ARROW_TRAP_LEFT = 11,
+    ARROW_TRAP_RIGHT = 12,
+    ENTRANCE = 13,
+    EXIT = 14,
+    // (Other Spelunky DS tiles 15-42 omitted as they aren't used in cave generation, but can be added if needed)
     
-    SPIKE_TRAP,
-    ARROW_TRAP,
-    BOULDER_TRAP,
-
-    ROPE_NODE,
-    EXIT_DOOR
-};
-
-struct ChunkInfo {
-    int width = 1;
-    int height = 1;
-    int offsetX = 0;
-    int offsetY = 0;
-    uint8_t borderMask = 0;
-    bool isOrigin = false;
+    // We add a few custom ones we need for logic that aren't in DS tiles natively
+    SPIKE_TRAP = 100, 
+    ROPE_NODE = 101
 };
 
 class TileMap {
@@ -38,17 +37,15 @@ private:
     int width;
     int height;
     int tileSize;
-    
-    std::vector<std::vector<ChunkInfo>> chunks;
 
-    Texture2D tileset;
+    Texture2D dsTileset;
 
 public:
     TileMap(int w, int h, int size);
     ~TileMap();
 
     /**
-     * @brief Returns `tiles[y][x] if in bounds, else `TileType::WALL` (out-of-bounds treated as solid for safety).
+     * @brief Returns `tiles[y][x] if in bounds, else `TileType::NOTHING` (out-of-bounds treated as solid for safety).
      * 
      * @param x 
      * @param y 
@@ -64,9 +61,6 @@ public:
      * @param type 
      */
     void setTile(int x, int y, TileType type);
-    
-    ChunkInfo getChunk(int x, int y) const;
-    void setChunk(int x, int y, const ChunkInfo& c);
 
     /**
      * @brief Returns `true` if tile at `(x,y)` is `WALL`, `CRACKED`, or `PLATFORM`. Used by physics for collision and by BFS for reachability.
@@ -105,6 +99,13 @@ public:
      * @param lightMap 
      */
     void render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap);
+
+    /**
+     * @brief Renders a repeating background layer with parallax scrolling based on the camera.
+     * 
+     * @param cam 
+     */
+    void renderParallaxBackground(Camera2D &cam);
 
     /**
      * @brief Returns `Vector2i{(int)(wx / tileSize), (int)(wy / tileSize)}`. Converts pixel coordinates to grid indices.

@@ -98,7 +98,7 @@ Each floor is a **4×4 macro-grid** of 16 room slots:
 1. **Macro Grid Walk:** Model the 4×4 grid as a 2D array (`RoomRole macroGrid[4][4]`). Start at a random top-row cell.
 2. **Random Walk:** Loop until reaching the bottom row: 80% chance to move left/right, 20% chance to drop down. Edges force a drop down. The traversed cells form the **Golden Path**.
 3. **BFS Validation:** After room population, BFS from spawn to exit on the tile grid confirms reachability with platformer physics constraints (jump height, gravity).
-4. **Room Template Instantiation:** Golden-path rooms load `.txt` templates via Factory. Off-path rooms are loaded as side rooms. Spelunky templates naturally have open walls, so no carving pass is needed.
+4. **Room Template Instantiation:** To generate the actual geometry, each room slot loads a C++ `uint8_t` array (a "Template"). Each template represents a grid of exactly **10x8 tiles**. Since the macro grid is 4x4 rooms, the final playable level is exactly **40x32 tiles**. The numbers in the array are IDs from 0 to 42 (e.g., 0 = Air, 1 = Dirt Block, 4 = Wooden Platform), directly matching our master spritesheet.
 
 **Integrated Difficulty Scaling (per floor):**
 
@@ -114,7 +114,7 @@ Floor  | Enemies/Room | Trap Density | Treasure Value | Enemy Speed | Ghost Time
 
 **Data Structures:**
 - `RoomRole macroGrid[4][4]` — 2D array tracking room roles.
-- `std::vector<std::vector<char>>` — room template grids from `.txt` files.
+- `std::vector<std::vector<uint8_t>>` — room template grids defined in C++ arrays.
 - `std::queue<int>` — BFS validation queue.
 
 ### 2.3 Block Destruction (Standard) vs. Bomb Destruction (Advanced)
@@ -262,11 +262,16 @@ Enemies use a simple state machine with direct movement — no pathfinding neede
 - **ChaseState:** Move directly toward player's X-position. Bats fly toward player. Snakes walk toward player, turn at ledges/walls. Spiders drop when player is below.
 - **ReturnState:** If player leaves detection range, return to original patrol position.
 
-### 2.11 Autotiling & Chunking (Visual Polish)
+### 2.11 Master Spritesheet Rendering
 
-To maximize visual impact (similar to Spelunky's organic caves), `TileMap` employs seamless texturing and border decals:
-1. **Chunking (Seamless Texture):** A large 4×4 dirt texture is tiled seamlessly across the grid using `(x % 4)` and `(y % 4)` coordinate mapping.
-2. **Border Decals (Autotiling):** `LevelGenerator::generateBorders()` scans the generated grid and calculates a 4-bit bitmask (Top, Right, Bottom, Left) for every `WALL` tile exposed to air. `TileMap::render()` uses this mask to draw edge details (rocky ground tops, stalactites) layered over the seamless dirt.
+To keep level design simple and authentic, we use a single master spritesheet (`gfx_cavebg.png`) containing 42 different tile textures (each originally 16x16 pixels). 
+
+1. **Direct ID Mapping:** Instead of complex autotiling math, our level generator places exact integer IDs (1-42) into the grid. The renderer simply maps ID `N` to the `N`th sprite on the sheet. For example:
+   - ID 1: Standard dirt block (`CAVE_ROCK`).
+   - ID 4: Platform that can be jumped through from below.
+   - ID 5-8: Decorative border dirt blocks.
+2. **Parallax Background:** A dark, repeating dirt background is rendered behind the cave using parallax scrolling with a `{80, 80, 80, 255}` tint to simulate depth of field and make the foreground tiles pop.
+3. **Zoom & Bounds:** The camera features a 2.0x zoom (making the 16x16 tiles appear as chunky 32x32 blocks). The 40x32 map is mathematically surrounded by infinite dirt bounds (`CAVE_ROCK`), which the camera lets the player partially see without falling off the edge.
 
 ---
 
@@ -277,7 +282,7 @@ Exactly **5 design patterns**, each mapped to a concrete system:
 | Pattern | System | Implementation |
 |---|---|---|
 | **Singleton** | `GameManager` | Global game state (floor, score, lives). `GameManager::getInstance()`. Also `AudioManager`, `EventBus`. |
-| **Factory** | `EntityFactory` | Parses room `.txt` templates: char codes (`'1'`→Wall, `'E'`→Enemy, `'T'`→Treasure, `'W'`→Water) → concrete subclass constructors. |
+| **Factory** | `EntityFactory` | Translates integer IDs (from the room templates) into `TileType` enums and spawns items/enemies at runtime via concrete subclass constructors. |
 | **State** | Enemy AI & Game Screens | Enemies: `EnemyState` → Idle/Chase/Return. Game: `GameState` → Menu/CharSelect/Play/Pause/GameOver/Editor. |
 | **Strategy** | Character Movement | `MovementStrategy` → Explorer (balanced), Ninja (high jump, fast), Tank (slow, high HP). Swapped at character select. |
 | **Observer** | Event System | `EventBus::subscribe/publish`. Events: bomb → terrain+lighting+liquid+audio; treasure pickup → combo system; ghost timer → spawn ghost. |
@@ -830,8 +835,7 @@ classDiagram
         -generateMacroGrid() void
         -selectRoomTemplate(RoomRole role) RoomTemplate
         -populateRoom(RoomTemplate tpl, int gx, int gy, RoomRole role, TileMap* map) void
-        -generateChunks(TileMap* map) void
-        -generateBorders(TileMap* map) void
+        -generateParallaxBackground(TileMap* map) void
         -validateLevel(TileMap* map, Vector2i start, Vector2i exit) bool
         -bfsReachability(TileMap* map, Vector2i from, Vector2i to) bool
         -getDifficultyConfig(int floor) DifficultyConfig
@@ -856,21 +860,11 @@ classDiagram
     }
 
     class RoomTemplate {
-        -vector~vector~char~~ grid
+        -vector~vector~uint8_t~~ grid
         -RoomRole role
-        -string filePath
-        +RoomTemplate(string path)
-        +load() bool
-        +getGrid() vector~vector~char~~
+        +RoomTemplate(RoomRole role, const uint8_t* data)
+        +getGrid() vector~vector~uint8_t~~
         +getRole() RoomRole
-    }
-
-    struct ChunkInfo {
-        +int width
-        +int height
-        +int offsetX
-        +int offsetY
-        +uint8_t borderMask
     }
 
     class TileMap {
@@ -878,13 +872,10 @@ classDiagram
         -int width
         -int height
         -int tileSize
-        -vector~vector~ChunkInfo~~ chunks
-        -Texture2D tileset
+        -Texture2D dsTileset
         +TileMap(int w, int h, int size)
         +~TileMap()
         +getTile(int x, int y) TileType
-        +getChunk(int x, int y) ChunkInfo
-        +setChunk(int x, int y, ChunkInfo c) void
         +setTile(int x, int y, TileType type) void
         +isSolid(int x, int y) bool
         +isOpaque(int x, int y) bool
@@ -922,12 +913,10 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `generate(int floor, ZoneType zone)` | Master generation method. Calls `generateMacroGrid()` → selects room templates → `populateRoom()` for each → `generateChunks()` → `generateBorders()` → `validateLevel()` via BFS. If validation fails, regenerates (max 10 retries). Returns `GeneratedLevel` struct. Also calls `getDifficultyConfig(floor)` to scale enemy counts/speeds and `rollFloorModifier(floor)` for affixes. |
-| `generateChunks(TileMap* map)` | Applies Greedy Meshing algorithm to group solid `WALL` tiles into random 2x2, 1x2, 2x1, or 1x1 chunks. Assigns a random `offsetX` and `offsetY` to map to the spritesheet. |
-| `generateBorders(TileMap* map)` | Scans every `WALL` tile. Checks the 4 orthogonal neighbors (Top, Right, Bottom, Left). If a neighbor is exposed to air (`EMPTY`), sets the corresponding bit in the `borderMask` (1, 2, 4, 8) for rendering border decals. |
+| `generate(int floor, ZoneType zone)` | Master generation method. Calls `generateMacroGrid()` → selects room templates → `populateRoom()` for each → `generateParallaxBackground()` → `validateLevel()` via BFS. If validation fails, regenerates (max 10 retries). Returns `GeneratedLevel` struct. Also calls `getDifficultyConfig(floor)` to scale enemy counts/speeds and `rollFloorModifier(floor)` for affixes. |
 | `generateMacroGrid()` | Uses a while loop to perform a random walk across a 4x4 grid of rooms from the top row to the bottom row. Assigns `RoomRole` enum values (`TYPE_0` through `TYPE_3`) to the cells to build the solution path. Sets `startRoomX/Y` and `exitRoomX/Y`. |
-| `selectRoomTemplate(RoomRole role)` | Filters `templates` vector by `role` (treats `TYPE_2_DROP_THROUGH` as `TYPE_2` for searching). Returns a random template from the filtered set. Templates are pre-loaded `.txt` files parsed into `vector<vector<char>>`. |
-| `populateRoom(RoomTemplate tpl, int gx, int gy, RoomRole role)` | Copies the template's char grid into the `TileMap` at the room's grid offset. Each char maps to a `TileType` or entity spawn via Factory. If `role` is `TYPE_2_DROP_THROUGH`, punches a hole in the ceiling. |
+| `selectRoomTemplate(RoomRole role)` | Filters `templates` vector by `role` (treats `TYPE_2_DROP_THROUGH` as `TYPE_2` for searching). Returns a random template from the filtered set. Templates are defined statically in `RoomTemplate.cpp` using `uint8_t` arrays of 80 elements (10x8 tiles). |
+| `populateRoom(RoomTemplate tpl, int gx, int gy, RoomRole role, TileMap* map)` | Copies the template's 10x8 `uint8_t` grid into the `TileMap` at the room's grid offset. Each ID maps directly to a `TileType` (for rendering) or triggers entity spawns. If `role` is `TYPE_2_DROP_THROUGH`, manually punches a 3-tile wide hole in the ceiling blocks. |
 | `validateLevel(TileMap* map, Vector2i start, Vector2i exit)` | Calls `bfsReachability(map, start, exit)`. Returns `true` if the exit is reachable from the spawn point considering platformer physics constraints. |
 | `bfsReachability(TileMap* map, Vector2i from, Vector2i to)` | BFS on the tile grid. Enqueues: left, right (if not solid), down (gravity/ladders), and up to `jumpEnergy` cells upward (or ladders). Returns `true` if `to` cell is visited. |
 | `getDifficultyConfig(int floor)` | Returns a `DifficultyConfig` struct from a hardcoded lookup table indexed by floor ranges. |
@@ -937,10 +926,10 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `getTile(int x, int y)` | Returns `tiles[y][x]` if in bounds, else `TileType::WALL` (out-of-bounds treated as solid for safety). |
+| `getTile(int x, int y)` | Returns `tiles[y][x]` if in bounds, else `TileType::CAVE_ROCK` (out-of-bounds treated as infinite dirt boundary). |
 | `setTile(int x, int y, TileType type)` | Sets `tiles[y][x] = type`. Called by terrain destruction and level editor. Does bounds check first. |
-| `isSolid(int x, int y)` | Returns `true` if tile at `(x,y)` is `WALL`, `CRACKED`, or `PLATFORM`. Used by physics for collision and by BFS for reachability. |
-| `isOpaque(int x, int y)` | Returns `true` if tile blocks light (`WALL`, `CRACKED`). Used by `LightingSystem` shadowcasting. `PLATFORM` tiles are NOT opaque (light passes through). |
+| `isSolid(int x, int y)` | Returns `true` if tile at `(x,y)` is within the solid block range (IDs 1 through 8, which includes dirt and platforms). Used by physics for collision. |
+| `isOpaque(int x, int y)` | Returns `true` if tile blocks light. Platforms (`CAVE_DOWN_ORIENTED`) are NOT opaque. |
 | `isCracked(int x, int y)` | Returns `true` only if tile is `TileType::CRACKED`. Only cracked blocks can be broken by whip attack. |
 | `render(Camera2D cam, vector<vector<float>> lightMap)` | Iterates only tiles visible within the camera's viewport (culling). For each visible tile, draws the zone-appropriate sprite at grid position, tinted by `ColorTint(WHITE, lightMap[gy][gx])`. Empty tiles are not drawn (cave background is black). |
 | `worldToGrid(float wx, float wy)` | Returns `Vec2i{(int)(wx / tileSize), (int)(wy / tileSize)}`. Converts pixel coordinates to grid indices. |

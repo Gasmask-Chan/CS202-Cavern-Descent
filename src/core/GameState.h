@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../Config.h"
+#include "../level/LevelGenerator.h"
+#include "../physics/PhysicsSystem.h"
+#include "../level/TileMap.h"
 #include <vector>
 
 namespace Platformer {
@@ -78,8 +80,9 @@ class PlayState : public GameState {
 private:
     Player* player;
     Camera2D camera;
-
-public:
+    std::unique_ptr<LevelGenerator> tempGenerator;
+    GeneratedLevel tempLevel;
+    PhysicsSystem* physics;public:
     /**
      * @brief 	Creates `LevelManager`, `PhysicsSystem`, `LightingSystem`, `LiquidSimulator`, `ComboSystem`, `Minimap`, `HUD`. Calls `levelManager->generateFloor(1)`. Starts zone BGM.
      * 

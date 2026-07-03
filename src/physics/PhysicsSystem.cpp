@@ -16,16 +16,16 @@ bool PhysicsSystem::checkAABBOverlap(Rectangle a, Rectangle b) {
 void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
     Rectangle aabb = e->getAABB();
     
-    int startX = static_cast<int>(aabb.x / tileMap->getTileSize());
-    int endX = static_cast<int>((aabb.x + aabb.width) / tileMap->getTileSize());
-    int startY = static_cast<int>(aabb.y / tileMap->getTileSize());
-    int endY = static_cast<int>((aabb.y + aabb.height) / tileMap->getTileSize());
+    int startX = static_cast<int>(std::floor(aabb.x / tileMap->getTileSize()));
+    int endX = static_cast<int>(std::floor((aabb.x + aabb.width) / tileMap->getTileSize()));
+    int startY = static_cast<int>(std::floor(aabb.y / tileMap->getTileSize()));
+    int endY = static_cast<int>(std::floor((aabb.y + aabb.height) / tileMap->getTileSize()));
 
     e->isGrounded = false; 
 
     for (int y = startY; y <= endY; ++y) {
         for (int x = startX; x <= endX; ++x) {
-            if (tileMap->isInBounds(x, y) && tileMap->isSolid(x, y)) {
+            if (tileMap->isSolid(x, y)) {
                 Rectangle tileRect = {
                     static_cast<float>(x * tileMap->getTileSize()),
                     static_cast<float>(y * tileMap->getTileSize()),
@@ -84,14 +84,14 @@ CollisionResult PhysicsSystem::sweepAABB(DynamicEntity* e, float dt) {
         aabb.x += stepX;
         aabb.y += stepY;
         
-        int startX = static_cast<int>(aabb.x / tileMap->getTileSize());
-        int endX = static_cast<int>((aabb.x + aabb.width) / tileMap->getTileSize());
-        int startY = static_cast<int>(aabb.y / tileMap->getTileSize());
-        int endY = static_cast<int>((aabb.y + aabb.height) / tileMap->getTileSize());
+        int startX = static_cast<int>(std::floor(aabb.x / tileMap->getTileSize()));
+        int endX = static_cast<int>(std::floor((aabb.x + aabb.width) / tileMap->getTileSize()));
+        int startY = static_cast<int>(std::floor(aabb.y / tileMap->getTileSize()));
+        int endY = static_cast<int>(std::floor((aabb.y + aabb.height) / tileMap->getTileSize()));
         
         for (int y = startY; y <= endY; ++y) {
             for (int x = startX; x <= endX; ++x) {
-                if (tileMap->isInBounds(x, y) && tileMap->isSolid(x, y)) {
+                if (tileMap->isSolid(x, y)) {
                     result.collided = true;
                     result.contactTime = static_cast<float>(i) / steps;
                     if (std::abs(e->vx) > std::abs(e->vy)) {

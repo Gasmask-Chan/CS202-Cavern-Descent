@@ -17,8 +17,6 @@ void Entity::render(float lightLevel) {
     Color tint = { tintVal, tintVal, tintVal, 255 };
     if (sprite.id != 0) {
         DrawTextureEx(sprite, Vector2{x, y}, 0.0f, 1.0f, tint);
-    } else {
-        DrawRectangle(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height), tint);
     }
 }
 
