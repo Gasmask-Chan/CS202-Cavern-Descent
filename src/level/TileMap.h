@@ -4,21 +4,31 @@
 #include "../Config.h"
 
 #include <vector>
+#include <cstdint>
 
 namespace Platformer {
 
-enum class TileType { //Just for example, modify it later if you need to
-    EMPTY,
-    WALL,
-    CRACKED,
-    PLATFORM,
+enum class TileType {
+    NOTHING = 0,
+    CAVE_ROCK = 1,
+    CAVE_REGULAR = 2,
+    STONE_BLOCK = 3,
+    CAVE_DOWN_ORIENTED = 4,
+    CAVE_SOME_GOLD = 5,
+    CAVE_MUCH_GOLD = 6,
+    CAVE_UP_ORIENTED = 7,
+    CAVE_UP_DOWN_ORIENTED = 8,
+    LADDER = 9,
+    LADDER_DECK = 10,
+    ARROW_TRAP_LEFT = 11,
+    ARROW_TRAP_RIGHT = 12,
+    ENTRANCE = 13,
+    EXIT = 14,
+    // (Other Spelunky DS tiles 15-42 omitted as they aren't used in cave generation, but can be added if needed)
     
-    SPIKE_TRAP,
-    ARROW_TRAP,
-    BOULDER_TRAP,
-
-    ROPE_NODE,
-    EXIT_DOOR
+    // We add a few custom ones we need for logic that aren't in DS tiles natively
+    SPIKE_TRAP = 100, 
+    ROPE_NODE = 101
 };
 
 class TileMap {
@@ -28,17 +38,20 @@ private:
     int height;
     int tileSize;
 
+    Texture2D dsTileset;
+
 public:
     TileMap(int w, int h, int size);
+    ~TileMap();
 
     /**
-     * @brief Returns `tiles[y][x]` if in bounds, else `TileType::WALL` (out-of-bounds treated as solid for safety).
+     * @brief Returns `tiles[y][x] if in bounds, else `TileType::NOTHING` (out-of-bounds treated as solid for safety).
      * 
      * @param x 
      * @param y 
      * @return TileType 
      */
-    TileType getTile(int x, int y);
+    TileType getTile(int x, int y) const;
 
     /**
      * @brief Sets `tiles[y][x] = type`. Called by terrain destruction and level editor. Does bounds check first.
@@ -57,7 +70,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool isSolid(int x, int y);
+    bool isSolid(int x, int y) const;
 
     /**
      * @brief Returns `true` if tile blocks light (`WALL`, `CRACKED`). Used by `LightingSystem` shadowcasting. `PLATFORM` tiles are NOT opaque (light passes through).
@@ -67,7 +80,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool isOpaque(int x, int y);
+    bool isOpaque(int x, int y) const;
 
     /**
      * @brief Returns `true` only if tile is `TileType::CRACKED`. Only cracked blocks can be broken by whip attack.
@@ -77,7 +90,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool isCracked(int x, int y);
+    bool isCracked(int x, int y) const;
 
     /**
      * @brief Iterates only tiles visible within the camera's viewport (culling). For each visible tile, draws the zone-appropriate sprite at grid position, tinted by `ColorTint(WHITE, lightMap[gy][gx])`. Empty tiles are not drawn (cave background is black).
@@ -85,7 +98,14 @@ public:
      * @param cam 
      * @param lightMap 
      */
-    void render(Camera2D &cam, std::vector<std::vector<float>> lightMap);
+    void render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap);
+
+    /**
+     * @brief Renders a repeating background layer with parallax scrolling based on the camera.
+     * 
+     * @param cam 
+     */
+    void renderParallaxBackground(Camera2D &cam);
 
     /**
      * @brief Returns `Vector2i{(int)(wx / tileSize), (int)(wy / tileSize)}`. Converts pixel coordinates to grid indices.
@@ -111,6 +131,6 @@ public:
 
     int getTileSize();
 
-    bool isInBounds(int x, int y);
+    bool isInBounds(int x, int y) const;
 };
 }

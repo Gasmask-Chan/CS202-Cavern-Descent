@@ -21,4 +21,26 @@ struct Vector2i {
   }
 };
 
+enum class ZoneType {
+    CAVE,
+    JUNGLE,
+    TEMPLE
+};
+
+enum class FloorModifier {
+    NONE,
+    DARK_FLOOR,
+    FLOODED_FLOOR,
+    CURSED_FLOOR
+};
+
+struct DifficultyConfig {
+    int maxEnemiesPerRoom;
+    float trapDensity;
+    int treasureValueMultiplier;
+    float enemySpeedScale;
+    float ghostTimerSeconds;
+    float liquidProbability;
+};
+
 } // namespace Platformer

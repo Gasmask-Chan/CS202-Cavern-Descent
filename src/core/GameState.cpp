@@ -82,16 +82,25 @@ void PlayState::enter() {
     // Initialize Camera
     camera.offset = Vector2{ 1280.0f / 2.0f, 720.0f / 2.0f }; // Center screen
     camera.rotation = 0.0f;
-    camera.zoom = 1.0f;
+    camera.zoom = 2.0f;
+
+    tempGenerator = std::make_unique<LevelGenerator>();
+    tempLevel = tempGenerator->generate(1, ZoneType::CAVE);
+
+    physics = new PhysicsSystem(tempLevel.tileMap.get());
 
     // TODO: Person B will implement LevelManager to spawn the player.
-    // For now, we manually instantiate a temporary Player at (0,0) so the camera has a target.
-    player = new Player(0.0f, 0.0f, CharacterType::EXPLORER);
+    // For now, we manually instantiate a temporary Player at the generated spawn point.
+    player = new Player(tempLevel.playerSpawn.x, tempLevel.playerSpawn.y, CharacterType::EXPLORER);
     
     camera.target = Vector2{ player->getX(), player->getY() };
 }
 
 void PlayState::exit() {
+    if (physics) {
+        delete physics;
+        physics = nullptr;
+    }
     // Cleanup temporary player until LevelManager manages it.
     if (player) {
         delete player;
@@ -109,8 +118,32 @@ void PlayState::update(float dt) {
     if (player) {
         player->update(dt);
         
-        // Camera smooth follow using lerp
-        camera.target = Vector2Lerp(camera.target, Vector2{player->getX() + 16, player->getY() + 16}, 5.0f * dt);
+        if (physics) {
+            physics->resolveEntityTileCollision(player);
+        }
+        
+        // Camera smooth follow with boundary clamping
+        Vector2 desiredTarget = {player->getX() + 16, player->getY() + 16};
+        
+        float mapWidth = 40.0f * 32.0f; // 4 rooms * 10 tiles * 32 pixels = 1280
+        float mapHeight = 40.0f * 32.0f;
+        
+        float halfScreenWidth = (GetScreenWidth() / 2.0f) / camera.zoom;
+        float halfScreenHeight = (GetScreenHeight() / 2.0f) / camera.zoom;
+        
+        // Allow the camera to see 4 tiles (128 pixels) into the infinite bedrock
+        float borderPixelsX = 4.0f * 32.0f;
+        float borderPixelsY = 4.0f * 32.0f;
+        
+        // Clamp X
+        if (desiredTarget.x < halfScreenWidth - borderPixelsX) desiredTarget.x = halfScreenWidth - borderPixelsX;
+        if (desiredTarget.x > mapWidth + borderPixelsX - halfScreenWidth) desiredTarget.x = mapWidth + borderPixelsX - halfScreenWidth;
+        
+        // Clamp Y
+        if (desiredTarget.y < halfScreenHeight - borderPixelsY) desiredTarget.y = halfScreenHeight - borderPixelsY;
+        if (desiredTarget.y > mapHeight + borderPixelsY - halfScreenHeight) desiredTarget.y = mapHeight + borderPixelsY - halfScreenHeight;
+
+        camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
     }
 }
 
@@ -123,6 +156,22 @@ void PlayState::render() {
     for (int i = -1000; i < 1000; i += 32) {
         DrawLine(i, -1000, i, 1000, DARKGRAY);
         DrawLine(-1000, i, 1000, i, DARKGRAY);
+    }
+
+    if (tempLevel.tileMap) {
+        tempLevel.tileMap->renderParallaxBackground(camera);
+        std::vector<std::vector<float>> lightMap(tempLevel.tileMap->getHeight(), std::vector<float>(tempLevel.tileMap->getWidth(), 1.0f));
+        tempLevel.tileMap->render(camera, lightMap);
+    }
+
+    for (auto& item : tempLevel.items) {
+        if (item) item->render(1.0f);
+    }
+    for (auto& trap : tempLevel.traps) {
+        if (trap) trap->render(1.0f);
+    }
+    for (auto& enemy : tempLevel.dynamicEntities) {
+        if (enemy) enemy->render(1.0f);
     }
 
     if (player) {
