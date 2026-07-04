@@ -91,7 +91,7 @@ void PlayState::enter() {
 
     // TODO: Person B will implement LevelManager to spawn the player.
     // For now, we manually instantiate a temporary Player at the generated spawn point.
-    player = new Player(tempLevel.playerSpawn.x, tempLevel.playerSpawn.y, CharacterType::EXPLORER);
+    player = new Player(tempLevel.playerSpawn.x, tempLevel.playerSpawn.y, GameManager::getInstance()->getSelectedCharacter());
     
     camera.target = Vector2{ player->getX(), player->getY() };
 }
@@ -161,7 +161,7 @@ void PlayState::render() {
     if (tempLevel.tileMap) {
         tempLevel.tileMap->renderParallaxBackground(camera);
         std::vector<std::vector<float>> lightMap(tempLevel.tileMap->getHeight(), std::vector<float>(tempLevel.tileMap->getWidth(), 1.0f));
-        tempLevel.tileMap->render(camera, lightMap);
+        tempLevel.tileMap->render(camera, lightMap, false); // Background pass (Ladders, Doors)
     }
 
     for (auto& item : tempLevel.items) {
@@ -176,6 +176,12 @@ void PlayState::render() {
 
     if (player) {
         player->render(1.0f); // Light level 1.0 (fully bright) for now
+    }
+
+    // Render foreground tiles LAST so they overlap the player's head and entities
+    if (tempLevel.tileMap) {
+        std::vector<std::vector<float>> lightMap(tempLevel.tileMap->getHeight(), std::vector<float>(tempLevel.tileMap->getWidth(), 1.0f));
+        tempLevel.tileMap->render(camera, lightMap, true); // Foreground pass (Solid blocks)
     }
     
     EndMode2D();
@@ -255,7 +261,7 @@ void CharSelectState::handleInput() {
         selectedIndex = (selectedIndex + 1) % 3;
     }
     if (IsKeyPressed(KEY_ENTER)) {
-        // TODO: Pass characters[selectedIndex] to GameManager so the correct Player strategy is spawned
+        GameManager::getInstance()->setSelectedCharacter(characters[selectedIndex]);
         game->changeState(GameStateType::PLAY);
     }
     if (IsKeyPressed(KEY_ESCAPE)) {

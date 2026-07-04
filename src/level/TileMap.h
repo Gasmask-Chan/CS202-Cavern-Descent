@@ -97,8 +97,9 @@ public:
      * 
      * @param cam 
      * @param lightMap 
+     * @param foregroundPass
      */
-    void render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap);
+    void render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap, bool foregroundPass);
 
     /**
      * @brief Renders a repeating background layer with parallax scrolling based on the camera.

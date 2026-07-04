@@ -18,6 +18,12 @@ private:
     float invincibilityTimer;
     bool isSubmerged;
 
+    // Animation state
+    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL } currentAnim;
+    float frameTimer;
+    int currentFrame;
+    Rectangle frameRec;
+
 public:
     Player(float x, float y, CharacterType type);
     virtual ~Player();
