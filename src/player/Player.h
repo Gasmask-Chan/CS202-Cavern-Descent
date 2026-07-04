@@ -4,6 +4,7 @@
 #include "../entities/DynamicEntity.h"
 #include "MovementStrategy.h"
 #include "../core/GameState.h" 
+#include "../level/TileMap.h"
 
 namespace Platformer {
 
@@ -17,6 +18,16 @@ private:
     MovementStrategy* moveStrategy;
     float invincibilityTimer;
     bool isSubmerged;
+
+    bool isWhipping;
+    float whipTimer;
+    TileMap* tileMap;
+
+    // Animation state
+    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP } currentAnim;
+    float frameTimer;
+    int currentFrame;
+    Rectangle frameRec;
 
 public:
     Player(float x, float y, CharacterType type);
@@ -33,6 +44,13 @@ public:
     bool useRope();
     void whipAttack();
     void setMovementStrategy(MovementStrategy* s);
+
+    /**
+     * @brief Sets the tile map reference for the player, allowing interaction with the environment (e.g., breaking blocks).
+     * 
+     * @param map Pointer to the active TileMap.
+     */
+    void setTileMap(TileMap* map) { tileMap = map; }
     
     int getHealth();
     int getBombs();

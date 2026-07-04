@@ -18,8 +18,15 @@ TileType TileMap::getTile(int x, int y) const {
 }
 
 void TileMap::setTile(int x, int y, TileType type) {
-  if (isInBounds(x, y)) {
+  if (x >= 0 && x < width && y >= 0 && y < height) {
     tiles[y][x] = type;
+  }
+}
+
+void TileMap::destroyBlock(int x, int y) {
+  if (isCracked(x, y)) {
+    setTile(x, y, TileType::NOTHING);
+    // TODO: spawn rubble particle effects here in the future
   }
 }
 
@@ -46,7 +53,7 @@ bool TileMap::isCracked(int x, int y) const {
   return getTile(x, y) == TileType::STONE_BLOCK;
 }
 
-void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap) {
+void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap, bool foregroundPass) {
   Vector2 screenTL = GetScreenToWorld2D(Vector2{0, 0}, cam);
   Vector2 screenBR = GetScreenToWorld2D(Vector2{(float)GetScreenWidth(), (float)GetScreenHeight()}, cam);
 
@@ -72,6 +79,11 @@ void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& light
         if (type == TileType::NOTHING || type == TileType::ROPE_NODE || type == TileType::SPIKE_TRAP) {
             continue; 
         }
+
+        bool isBackgroundTile = (type == TileType::ENTRANCE || type == TileType::EXIT || type == TileType::LADDER || type == TileType::LADDER_DECK);
+        
+        if (foregroundPass && isBackgroundTile) continue;
+        if (!foregroundPass && !isBackgroundTile) continue;
 
         int dsIndex = static_cast<int>(type);
         if (dsIndex > 0 && dsIndex <= 42) {

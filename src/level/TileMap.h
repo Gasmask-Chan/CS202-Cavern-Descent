@@ -63,6 +63,14 @@ public:
     void setTile(int x, int y, TileType type);
 
     /**
+     * @brief Safely destroys a cracked block at the specified tile coordinates, replacing it with NOTHING.
+     * 
+     * @param x The X coordinate on the tile grid.
+     * @param y The Y coordinate on the tile grid.
+     */
+    void destroyBlock(int x, int y);
+
+    /**
      * @brief Returns `true` if tile at `(x,y)` is `WALL`, `CRACKED`, or `PLATFORM`. Used by physics for collision and by BFS for reachability.
      * 
      * @param x 
@@ -97,8 +105,9 @@ public:
      * 
      * @param cam 
      * @param lightMap 
+     * @param foregroundPass
      */
-    void render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap);
+    void render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap, bool foregroundPass);
 
     /**
      * @brief Renders a repeating background layer with parallax scrolling based on the camera.
