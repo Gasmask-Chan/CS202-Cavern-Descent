@@ -553,6 +553,13 @@ classDiagram
         -MovementStrategy* moveStrategy
         -float invincibilityTimer
         -bool isSubmerged
+        -bool isWhipping
+        -float whipTimer
+        -TileMap* tileMap
+        -AnimState currentAnim
+        -float frameTimer
+        -int currentFrame
+        -Rectangle frameRec
         +Player(float x, float y, CharacterType type)
         +handleInput() void
         +update(float dt) void
@@ -564,6 +571,7 @@ classDiagram
         +useRope() bool
         +whipAttack() void
         +setMovementStrategy(MovementStrategy* s) void
+        +setTileMap(TileMap* map) void
         +getHealth() int
         +getBombs() int
         +getRopes() int
@@ -880,7 +888,8 @@ classDiagram
         +isSolid(int x, int y) bool
         +isOpaque(int x, int y) bool
         +isCracked(int x, int y) bool
-        +render(Camera2D& cam, vector~vector~float~~ lightMap) void
+        +render(Camera2D& cam, vector~vector~float~~ lightMap, bool foregroundPass) void
+        +renderParallaxBackground(Camera2D& cam) void
         +worldToGrid(float wx, float wy) Vec2i
         +gridToWorld(int gx, int gy) Vec2f
         +getWidth() int
@@ -1650,13 +1659,13 @@ EndDrawing()
 
 | Person A | Person B |
 |---|---|
-| Implement `Player` (movement, jump, gravity) | Implement `LevelGenerator`: graph, DFS golden path |
-| Implement AABB collision (entity ↔ tile) | Room template instantiation via `EntityFactory` |
-| Variable jump height | BFS validation (spawn → exit reachability) |
-| Implement `MovementStrategy` (Explorer, Ninja, Tank) | Implement `DifficultyConfig` + per-floor scaling |
-| `Camera2D` smooth follow with lerp | Tile sprite loading |
-| Player sprite + animation frames | Wire char select → `MovementStrategy` swap |
-| Player whip for cracked blocks (S11) | Implement `FloorModifier` enum + rolling logic (A10) |
+| ✅ Implement `Player` (movement, jump, gravity) | Implement `LevelGenerator`: graph, DFS golden path |
+| ✅ Implement AABB collision (entity ↔ tile) | Room template instantiation via `EntityFactory` |
+| ✅ Variable jump height | BFS validation (spawn → exit reachability) |
+| ✅ Implement `MovementStrategy` (Explorer, Ninja, Tank) | Implement `DifficultyConfig` + per-floor scaling |
+| ✅ `Camera2D` smooth follow with lerp | Tile sprite loading |
+| ✅ Player sprite + animation frames | Wire char select → `MovementStrategy` swap |
+| ✅ Player whip for cracked blocks (S11) | Implement `FloorModifier` enum + rolling logic (A10) |
 
 **Milestone:** Player runs/jumps through procedural cave. 3 characters. Camera follows. Cracked blocks break.
 

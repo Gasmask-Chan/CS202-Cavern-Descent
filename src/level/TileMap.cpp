@@ -18,8 +18,15 @@ TileType TileMap::getTile(int x, int y) const {
 }
 
 void TileMap::setTile(int x, int y, TileType type) {
-  if (isInBounds(x, y)) {
+  if (x >= 0 && x < width && y >= 0 && y < height) {
     tiles[y][x] = type;
+  }
+}
+
+void TileMap::destroyBlock(int x, int y) {
+  if (isCracked(x, y)) {
+    setTile(x, y, TileType::NOTHING);
+    // TODO: spawn rubble particle effects here in the future
   }
 }
 

@@ -10,6 +10,9 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     gold = 0;
     invincibilityTimer = 0.0f;
     isSubmerged = false;
+    isWhipping = false;
+    whipTimer = 0.0f;
+    tileMap = nullptr;
     
     currentAnim = AnimState::IDLE;
     frameTimer = 0.0f;
@@ -78,13 +81,13 @@ void Player::handleInput() {
         }
     }
     
-    if (IsKeyPressed(KEY_Z)) {
+    if (IsKeyPressed(KEY_J)) {
         whipAttack();
     }
-    if (IsKeyPressed(KEY_X)) {
+    if (IsKeyPressed(KEY_K)) {
         useBomb();
     }
-    if (IsKeyPressed(KEY_C)) {
+    if (IsKeyPressed(KEY_L)) {
         useRope();
     }
 }
@@ -108,7 +111,37 @@ void Player::update(float dt) {
     
     // Animation state machine
     AnimState newAnim = AnimState::IDLE;
-    if (!isGrounded) {
+    if (isWhipping) {
+        whipTimer += dt;
+        currentVx = 0; // Lock horizontal movement while whipping
+        newAnim = AnimState::WHIP;
+        
+        // Active hitbox on frame 4 (0.15s to 0.20s)
+        if (whipTimer >= 0.15f && whipTimer - dt < 0.15f) {
+            float hitWidth = 24.0f;
+            float hitHeight = 12.0f;
+            float hitX = isFacingRight ? (x + width) : (x - hitWidth);
+            float hitY = y + 4.0f; // Upper-middle part of the player
+            Rectangle whipHitbox = { hitX, hitY, hitWidth, hitHeight };
+            
+            if (tileMap) {
+                int startTx = (int)(whipHitbox.x / 32.0f);
+                int startTy = (int)(whipHitbox.y / 32.0f);
+                int endTx = (int)((whipHitbox.x + whipHitbox.width - 0.001f) / 32.0f);
+                int endTy = (int)((whipHitbox.y + whipHitbox.height - 0.001f) / 32.0f);
+                
+                for (int ty = startTy; ty <= endTy; ty++) {
+                    for (int tx = startTx; tx <= endTx; tx++) {
+                        if (tileMap->isCracked(tx, ty)) {
+                            // TODO: Replace with LevelManager->breakCrackedBlock() once Person B implements LevelManager.
+                            // This is currently bypassing the SFX, particle events, and potential item drops!
+                            tileMap->destroyBlock(tx, ty);
+                        }
+                    }
+                }
+            }
+        }
+    } else if (!isGrounded) {
         if (vy < 0) newAnim = AnimState::JUMP;
         else newAnim = AnimState::FALL;
     } else {
@@ -184,14 +217,27 @@ void Player::update(float dt) {
             colOffset = 1;
             frameDuration = 0.08f;
             break;
+        case AnimState::WHIP:
+            maxFrames = 6;
+            row = 4;
+            colOffset = 0;
+            frameDuration = 0.05f;
+            break;
     }
     
     if (frameTimer >= frameDuration) {
-        frameTimer = 0.0f;
+        frameTimer -= frameDuration; // Prevent dt leak!
         if (currentAnim == AnimState::LOOK_UP && currentFrame == maxFrames - 1) {
             // Stay on the last frame while holding up
         } else if (currentAnim == AnimState::LOOK_UP_END && currentFrame == maxFrames - 1) {
             // Finished stopping look up, return to idle
+            currentAnim = AnimState::IDLE;
+            currentFrame = 0;
+            row = 0;
+            colOffset = 0;
+        } else if (currentAnim == AnimState::WHIP && currentFrame == maxFrames - 1) {
+            // Finished whip attack, return to idle
+            isWhipping = false;
             currentAnim = AnimState::IDLE;
             currentFrame = 0;
             row = 0;
@@ -274,9 +320,10 @@ bool Player::useRope() {
 }
 
 void Player::whipAttack() {
-    // TODO: Calculate 1-tile wide attack rect.
-    // Check TileType::CRACKED and call LevelManager to break it.
-    // Check overlap with enemies in range to deal damage.
+    if (!isWhipping) {
+        isWhipping = true;
+        whipTimer = 0.0f;
+    }
 }
 
 void Player::setMovementStrategy(MovementStrategy* s) {

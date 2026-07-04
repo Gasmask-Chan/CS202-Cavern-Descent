@@ -92,6 +92,7 @@ void PlayState::enter() {
     // TODO: Person B will implement LevelManager to spawn the player.
     // For now, we manually instantiate a temporary Player at the generated spawn point.
     player = new Player(tempLevel.playerSpawn.x, tempLevel.playerSpawn.y, GameManager::getInstance()->getSelectedCharacter());
+    player->setTileMap(tempLevel.tileMap.get());
     
     camera.target = Vector2{ player->getX(), player->getY() };
 }
