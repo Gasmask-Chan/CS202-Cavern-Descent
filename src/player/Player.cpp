@@ -14,6 +14,13 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     whipTimer = 0.0f;
     tileMap = nullptr;
     
+    Image whipImg = LoadImage("assets/sprites/16x16/gfx_spike_collectibles_flame.png");
+    ImageFormat(&whipImg, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8); // Ensure alpha channel exists
+    Color bg = GetImageColor(whipImg, 0, 0);
+    ImageColorReplace(&whipImg, bg, BLANK);
+    whipSprite = LoadTextureFromImage(whipImg);
+    UnloadImage(whipImg);
+    
     currentAnim = AnimState::IDLE;
     frameTimer = 0.0f;
     currentFrame = 0;
@@ -47,6 +54,7 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
 
 Player::~Player() {
     UnloadTexture(sprite);
+    UnloadTexture(whipSprite);
     if (moveStrategy) {
         delete moveStrategy;
     }
@@ -93,6 +101,9 @@ void Player::handleInput() {
 }
 
 void Player::update(float dt) {
+    // Prevent physics instability/sinking during lag spikes or when game is backgrounded
+    if (dt > 0.033f) dt = 0.033f; 
+
     // ALWAYS apply gravity so the player constantly pushes into the floor.
     // This ensures physics->resolveEntityTileCollision() always detects the floor
     // and keeps isGrounded = true steadily, preventing the idle animation from flickering to FALL.
@@ -147,11 +158,11 @@ void Player::update(float dt) {
     } else {
         if (IsKeyDown(KEY_W)) {
             newAnim = AnimState::LOOK_UP;
-        } else if (vx > 0.1f || vx < -0.1f) {
-            newAnim = AnimState::RUN;
         } else if (IsKeyDown(KEY_S)) {
             if (vx > 0.1f || vx < -0.1f) newAnim = AnimState::CRAWL;
             else newAnim = AnimState::DUCK;
+        } else if (vx > 0.1f || vx < -0.1f) {
+            newAnim = AnimState::RUN;
         } else if (currentAnim == AnimState::LOOK_UP || currentAnim == AnimState::LOOK_UP_END) {
             newAnim = AnimState::LOOK_UP_END;
         } else {
@@ -265,8 +276,42 @@ void Player::render(float lightLevel) {
         // X offset: (40 - 16) / 2 = 12px to horizontally center the 40px sprite over the 16px AABB.
         // Y offset: The 40x40 sprite has 5px of transparent padding at the bottom.
         // To make the visible feet (at destRec.y + 35) touch the floor (at y + 24), destRec.y must be y - 11.0f.
-        Rectangle destRec = { x - 12.0f, y - 11.0f, 40.0f, 40.0f };
+        Rectangle destRec = { x - 12.0f, y - 12.0f, 40.0f, 40.0f };
+        
+        int whipFrame = 0;
+        Rectangle wSrc, wDest;
+        
+        // Setup Whip Drawing Data
+        if (isWhipping && whipSprite.id != 0) {
+            whipFrame = (currentFrame < 4) ? 0 : 1; // Winding back (frames 0-3), lashing forward (frames 4-5)
+            float srcX = (whipFrame == 0) ? 32.0f : 16.0f; // offset 2 (wind back), offset 1 (lash forward)
+            float srcY = 3 * 16.0f; // row 3
+            // Native sprite is left-facing. If facing right, width is -16.0f to flip it.
+            wSrc = { srcX, srcY, isFacingRight ? -16.0f : 16.0f, 16.0f };
+            
+            // Scale 16x16 whip to 24x24
+            float scale = 24.0f;
+            if (whipFrame == 0) {
+                // Winding back (behind player)
+                wDest = { isFacingRight ? (x - 24.0f) : (x + 16.0f), y, scale, scale };
+            } else {
+                // Lashing forward (in front of player)
+                wDest = { isFacingRight ? (x + 20.0f) : (x - 28.0f), y + 3.0f, scale, scale };
+            }
+        }
+
+        // Draw Whip Wind-Back (Behind Player)
+        if (isWhipping && whipSprite.id != 0 && whipFrame == 0) {
+            DrawTexturePro(whipSprite, wSrc, wDest, Vector2{0.0f, 0.0f}, 0.0f, tint);
+        }
+
+        // Draw Player
         DrawTexturePro(sprite, frameRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, tint);
+        
+        // Draw Whip Lash-Forward (In front of Player)
+        if (isWhipping && whipSprite.id != 0 && whipFrame == 1) {
+            DrawTexturePro(whipSprite, wSrc, wDest, Vector2{0.0f, 0.0f}, 0.0f, tint);
+        }
     } else {
         DrawRectangle(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height), tint);
     }
