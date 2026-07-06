@@ -147,11 +147,11 @@ void Player::update(float dt) {
     } else {
         if (IsKeyDown(KEY_W)) {
             newAnim = AnimState::LOOK_UP;
-        } else if (vx > 0.1f || vx < -0.1f) {
-            newAnim = AnimState::RUN;
         } else if (IsKeyDown(KEY_S)) {
             if (vx > 0.1f || vx < -0.1f) newAnim = AnimState::CRAWL;
             else newAnim = AnimState::DUCK;
+        } else if (vx > 0.1f || vx < -0.1f) {
+            newAnim = AnimState::RUN;
         } else if (currentAnim == AnimState::LOOK_UP || currentAnim == AnimState::LOOK_UP_END) {
             newAnim = AnimState::LOOK_UP_END;
         } else {
@@ -265,7 +265,7 @@ void Player::render(float lightLevel) {
         // X offset: (40 - 16) / 2 = 12px to horizontally center the 40px sprite over the 16px AABB.
         // Y offset: The 40x40 sprite has 5px of transparent padding at the bottom.
         // To make the visible feet (at destRec.y + 35) touch the floor (at y + 24), destRec.y must be y - 11.0f.
-        Rectangle destRec = { x - 12.0f, y - 11.0f, 40.0f, 40.0f };
+        Rectangle destRec = { x - 12.0f, y - 12.0f, 40.0f, 40.0f };
         DrawTexturePro(sprite, frameRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, tint);
     } else {
         DrawRectangle(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height), tint);
