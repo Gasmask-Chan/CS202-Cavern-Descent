@@ -101,6 +101,9 @@ void Player::handleInput() {
 }
 
 void Player::update(float dt) {
+    // Prevent physics instability/sinking during lag spikes or when game is backgrounded
+    if (dt > 0.033f) dt = 0.033f; 
+
     // ALWAYS apply gravity so the player constantly pushes into the floor.
     // This ensures physics->resolveEntityTileCollision() always detects the floor
     // and keeps isGrounded = true steadily, preventing the idle animation from flickering to FALL.
