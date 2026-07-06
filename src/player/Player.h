@@ -22,6 +22,7 @@ private:
     bool isWhipping;
     float whipTimer;
     TileMap* tileMap;
+    Texture2D whipSprite;
 
     // Animation state
     enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP } currentAnim;
