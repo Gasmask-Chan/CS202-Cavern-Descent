@@ -16,6 +16,7 @@ protected:
     float gravity;
     bool isGrounded;
     bool isFacingRight;
+    bool passesThroughWalls;
 
 public:
     DynamicEntity(float x, float y, float w, float h);

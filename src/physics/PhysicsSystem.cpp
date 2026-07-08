@@ -14,6 +14,8 @@ bool PhysicsSystem::checkAABBOverlap(Rectangle a, Rectangle b) {
 }
 
 void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
+    if (e->passesThroughWalls) return;
+    
     Rectangle aabb = e->getAABB();
     
     int startX = static_cast<int>(std::floor(aabb.x / tileMap->getTileSize()));
@@ -69,6 +71,8 @@ CollisionResult PhysicsSystem::sweepAABB(DynamicEntity* e, float dt) {
     result.contactTime = 1.0f;
     result.contactNormal = {0.0f, 0.0f};
     result.contactPoint = {0.0f, 0.0f};
+    
+    if (e->passesThroughWalls) return result;
     
     float length = std::sqrt(e->vx * e->vx + e->vy * e->vy) * dt;
     if (length <= 0.0f) return result;

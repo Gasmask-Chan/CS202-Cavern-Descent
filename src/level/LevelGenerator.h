@@ -31,6 +31,7 @@ struct GeneratedLevel {
 class LevelGenerator {
 private:
     RoomRole macroGrid[MAP_ROOMS_Y][MAP_ROOMS_X];
+    int roomVariations[MAP_ROOMS_Y][MAP_ROOMS_X];
 
     // Temporary entity lists built during generate()
     std::vector<std::unique_ptr<DynamicEntity>> tempEnemies;
@@ -62,14 +63,11 @@ private:
 
     // ---- Template selection ----
     // Returns a random variation index for the given room role.
-    int selectVariation(RoomRole role) const;
+    int selectVariation(RoomRole role, bool isEntrance = false) const;
 
     // ---- Room population ----
-    // Reads pre-copied tileGrid, npcGrid, and lootGrid (all ROOM_HEIGHT x ROOM_WIDTH ints).
-    void populateRoom(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH],
-                      const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH],
-                      const int lootGrid[ROOM_HEIGHT][ROOM_WIDTH],
-                      int gx, int gy, RoomRole role, TileMap* map);
+    void instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map);
+    void populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH], const int lootGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map);
 
     // ---- Post-passes ----
     // (generateChunks and generateBorders removed for Spelunky DS native rendering)

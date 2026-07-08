@@ -35,7 +35,7 @@ public:
     virtual ~Player();
 
     void handleInput();
-    void update(float dt) override;
+    void update(float dt, class Player* player = nullptr) override;
     void render(float lightLevel) override;
     
     void takeDamage(int dmg);

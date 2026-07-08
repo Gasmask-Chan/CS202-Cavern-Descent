@@ -100,7 +100,7 @@ void Player::handleInput() {
     }
 }
 
-void Player::update(float dt) {
+void Player::update(float dt, Player* player) {
     // Prevent physics instability/sinking during lag spikes or when game is backgrounded
     if (dt > 0.033f) dt = 0.033f; 
 

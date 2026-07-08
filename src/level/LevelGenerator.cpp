@@ -1,5 +1,6 @@
 #include "LevelGenerator.h"
 #include "rooms/ClosedRooms.h"
+#include "rooms/EntranceRooms.h"
 #include "rooms/LeftRightRooms.h"
 #include "rooms/LeftRightDownRooms.h"
 #include "rooms/LeftRightUpRooms.h"
@@ -47,59 +48,53 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     spikesLeft    = 4;
     lastPlacement = 3;
 
+    // Step 2: Template Selection
     for (int gy = 0; gy < MAP_ROOMS_Y; ++gy) {
       for (int gx = 0; gx < MAP_ROOMS_X; ++gx) {
         RoomRole role = macroGrid[gy][gx];
-        int v         = selectVariation(role);
-
-        // Copy chosen variation into local stack buffers (spelunky-ds style)
-        int tileGrid[ROOM_HEIGHT][ROOM_WIDTH];
-        int npcGrid[ROOM_HEIGHT][ROOM_WIDTH];
-        int lootGrid[ROOM_HEIGHT][ROOM_WIDTH];
-
-        switch (role) {
-          case RoomRole::TYPE_1:
-            memcpy(tileGrid, left_right_rooms[v], sizeof(tileGrid));
-            memcpy(npcGrid,  left_right_npcs[v],  sizeof(npcGrid));
-            memcpy(lootGrid, left_right_loot[v],  sizeof(lootGrid));
-            break;
-          case RoomRole::TYPE_2:
-          case RoomRole::TYPE_2_DROP_THROUGH:
-            memcpy(tileGrid, left_right_down_rooms[v], sizeof(tileGrid));
-            memcpy(npcGrid,  left_right_down_npcs[v],  sizeof(npcGrid));
-            memcpy(lootGrid, left_right_down_loot[v],  sizeof(lootGrid));
-            break;
-          case RoomRole::TYPE_3:
-            memcpy(tileGrid, left_right_up_rooms[v], sizeof(tileGrid));
-            memcpy(npcGrid,  left_right_up_npcs[v],  sizeof(npcGrid));
-            memcpy(lootGrid, left_right_up_loot[v],  sizeof(lootGrid));
-            break;
-          case RoomRole::TYPE_SHOP:
-            // Shop has 2 variations (left/right) in spelunky-ds arrays
-            memcpy(tileGrid, shops[v % 2], sizeof(tileGrid));
-            memcpy(npcGrid,  shops_npcs[v % 2],  sizeof(npcGrid));
-            memcpy(lootGrid, shops_loot[v % 2],  sizeof(lootGrid));
-            break;
-          case RoomRole::TYPE_ALTAR:
-            // Altar room has 1 variation
-            memcpy(tileGrid, altar_room[0], sizeof(tileGrid));
-            memcpy(npcGrid,  altar_room_npc[0], sizeof(npcGrid));
-            memset(lootGrid, 0, sizeof(lootGrid)); // No loot array for altar
-            break;
-          case RoomRole::TYPE_0:
-          default:
-            memcpy(tileGrid, closed_rooms[v], sizeof(tileGrid));
-            memcpy(npcGrid,  closed_rooms_npcs[v], sizeof(npcGrid));
-            memcpy(lootGrid, closed_rooms_loot[v], sizeof(lootGrid));
-            break;
-        }
-
-        populateRoom(tileGrid, npcGrid, lootGrid, gx, gy, role, level.tileMap.get());
+        bool isEntrance = (gx == startRoomX && gy == startRoomY);
+        roomVariations[gy][gx] = selectVariation(role, isEntrance);
       }
     }
 
-    // generateChunks(level.tileMap.get());
-    // generateBorders(level.tileMap.get());
+    // Step 3: Tile Instantiation
+    for (int gy = 0; gy < MAP_ROOMS_Y; ++gy) {
+      for (int gx = 0; gx < MAP_ROOMS_X; ++gx) {
+        RoomRole role = macroGrid[gy][gx];
+        int v         = roomVariations[gy][gx];
+        bool isEntrance = (gx == startRoomX && gy == startRoomY);
+
+        int tileGrid[ROOM_HEIGHT][ROOM_WIDTH];
+        
+        if (isEntrance) {
+            memcpy(tileGrid, entrance_room[v], sizeof(tileGrid));
+        } else {
+            switch (role) {
+              case RoomRole::TYPE_1:
+                memcpy(tileGrid, left_right_rooms[v], sizeof(tileGrid));
+                break;
+              case RoomRole::TYPE_2:
+              case RoomRole::TYPE_2_DROP_THROUGH:
+                memcpy(tileGrid, left_right_down_rooms[v], sizeof(tileGrid));
+                break;
+              case RoomRole::TYPE_3:
+                memcpy(tileGrid, left_right_up_rooms[v], sizeof(tileGrid));
+                break;
+              case RoomRole::TYPE_SHOP:
+                memcpy(tileGrid, shops[v % 2], sizeof(tileGrid));
+                break;
+              case RoomRole::TYPE_ALTAR:
+                memcpy(tileGrid, altar_room[0], sizeof(tileGrid));
+                break;
+              case RoomRole::TYPE_0:
+              default:
+                memcpy(tileGrid, closed_rooms[v], sizeof(tileGrid));
+                break;
+            }
+        }
+        instantiateTiles(tileGrid, gx, gy, role, level.tileMap.get());
+      }
+    }
 
     // ---- Spawn and exit placement ----
     int spawnGx = startRoomX * ROOM_WIDTH + 1;
@@ -139,36 +134,52 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
                           (float)(exitGy * MAP_TILE_SIZE)};
     level.tileMap->setTile(exitGx, exitGy, TileType::EXIT);
 
-    // Remove any entities that were generated exactly on the Entrance or Exit
-    auto removeEntitiesAt = [&](int gx, int gy) {
-        float px = gx * MAP_TILE_SIZE;
-        float py = gy * MAP_TILE_SIZE;
-        Rectangle rect = { px, py, (float)MAP_TILE_SIZE, (float)MAP_TILE_SIZE };
+    // Step 4: Populating
+    for (int gy = 0; gy < MAP_ROOMS_Y; ++gy) {
+      for (int gx = 0; gx < MAP_ROOMS_X; ++gx) {
+        RoomRole role = macroGrid[gy][gx];
+        int v         = roomVariations[gy][gx];
+        bool isEntrance = (gx == startRoomX && gy == startRoomY);
 
-        tempEnemies.erase(
-            std::remove_if(tempEnemies.begin(), tempEnemies.end(),
-                [&](const std::unique_ptr<DynamicEntity>& e) {
-                    return CheckCollisionRecs(e->getAABB(), rect);
-                }),
-            tempEnemies.end());
-
-        tempTraps.erase(
-            std::remove_if(tempTraps.begin(), tempTraps.end(),
-                [&](const std::unique_ptr<Trap>& t) {
-                    return CheckCollisionRecs(t->getAABB(), rect);
-                }),
-            tempTraps.end());
-
-        tempItems.erase(
-            std::remove_if(tempItems.begin(), tempItems.end(),
-                [&](const std::unique_ptr<Item>& i) {
-                    return CheckCollisionRecs(i->getAABB(), rect);
-                }),
-            tempItems.end());
-    };
-
-    removeEntitiesAt(spawnGx, spawnGy);
-    removeEntitiesAt(exitGx, exitGy);
+        int npcGrid[ROOM_HEIGHT][ROOM_WIDTH];
+        int lootGrid[ROOM_HEIGHT][ROOM_WIDTH];
+        
+        if (isEntrance) {
+            memset(npcGrid, 0, sizeof(npcGrid)); // entrance_room has no NPCs
+            memcpy(lootGrid, entrance_room_loot[v], sizeof(lootGrid));
+        } else {
+            switch (role) {
+              case RoomRole::TYPE_1:
+                memcpy(npcGrid,  left_right_npcs[v],  sizeof(npcGrid));
+                memcpy(lootGrid, left_right_loot[v],  sizeof(lootGrid));
+                break;
+              case RoomRole::TYPE_2:
+              case RoomRole::TYPE_2_DROP_THROUGH:
+                memcpy(npcGrid,  left_right_down_npcs[v],  sizeof(npcGrid));
+                memcpy(lootGrid, left_right_down_loot[v],  sizeof(lootGrid));
+                break;
+              case RoomRole::TYPE_3:
+                memcpy(npcGrid,  left_right_up_npcs[v],  sizeof(npcGrid));
+                memcpy(lootGrid, left_right_up_loot[v],  sizeof(lootGrid));
+                break;
+              case RoomRole::TYPE_SHOP:
+                memcpy(npcGrid,  shops_npcs[v % 2],  sizeof(npcGrid));
+                memcpy(lootGrid, shops_loot[v % 2],  sizeof(lootGrid));
+                break;
+              case RoomRole::TYPE_ALTAR:
+                memcpy(npcGrid,  altar_room_npc[0], sizeof(npcGrid));
+                memset(lootGrid, 0, sizeof(lootGrid));
+                break;
+              case RoomRole::TYPE_0:
+              default:
+                memcpy(npcGrid,  closed_rooms_npcs[v], sizeof(npcGrid));
+                memcpy(lootGrid, closed_rooms_loot[v], sizeof(lootGrid));
+                break;
+            }
+        }
+        populateEntities(npcGrid, lootGrid, gx, gy, role, level.tileMap.get());
+      }
+    }
 
     Vector2i startGrid = {spawnGx, spawnGy};
     Vector2i exitGrid  = {exitGx,  exitGy};
@@ -316,7 +327,9 @@ void LevelGenerator::placeShop() {
 // ---------------------------------------------------------------------------
 // selectVariation() — picks a random variation index for the given role
 // ---------------------------------------------------------------------------
-int LevelGenerator::selectVariation(RoomRole role) const {
+int LevelGenerator::selectVariation(RoomRole role, bool isEntrance) const {
+  if (isEntrance) return GetRandomValue(0, 5); // 6 variations for entrance rooms
+
   int numVars = 6; // Most rooms have 6 variations
   switch (role) {
     case RoomRole::TYPE_SHOP:          numVars = 2; break;
@@ -327,41 +340,46 @@ int LevelGenerator::selectVariation(RoomRole role) const {
 }
 
 // ---------------------------------------------------------------------------
-// populateRoom() — writes tile and entity grids into the TileMap
-// ---------------------------------------------------------------------------
-void LevelGenerator::populateRoom(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH],
-                                  const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH],
-                                  const int lootGrid[ROOM_HEIGHT][ROOM_WIDTH],
-                                  int gx, int gy, RoomRole role, TileMap* map) {
+void LevelGenerator::instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map) {
   for (int cy = 0; cy < ROOM_HEIGHT; ++cy) {
     for (int cx = 0; cx < ROOM_WIDTH; ++cx) {
       int tx = gx * ROOM_WIDTH  + cx;
       int ty = gy * ROOM_HEIGHT + cy;
 
-      // TYPE_2_DROP_THROUGH: punch a hole in the ceiling to connect to the room above
-      // For Spelunky-DS 10x10, usually x=4,5 is open
       if (role == RoomRole::TYPE_2_DROP_THROUGH) {
         if (cy < 2 && cx >= 4 && cx <= 5) {
           map->setTile(tx, ty, TileType::NOTHING);
-          continue; // Override hole logic entirely
+          continue;
         }
+      }
+
+      int tileVal = tileGrid[cy][cx];
+      map->setTile(tx, ty, static_cast<TileType>(tileVal));
+    }
+  }
+}
+
+void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH],
+                                      const int lootGrid[ROOM_HEIGHT][ROOM_WIDTH],
+                                      int gx, int gy, RoomRole role, TileMap* map) {
+  for (int cy = 0; cy < ROOM_HEIGHT; ++cy) {
+    for (int cx = 0; cx < ROOM_WIDTH; ++cx) {
+      int tx = gx * ROOM_WIDTH  + cx;
+      int ty = gy * ROOM_HEIGHT + cy;
+      
+      // Do not spawn anything on Entrance or Exit tiles
+      TileType tile = map->getTile(tx, ty);
+      if (tile == TileType::ENTRANCE || tile == TileType::EXIT) {
+          continue;
       }
 
       float px = tx * MAP_TILE_SIZE;
       float py = ty * MAP_TILE_SIZE;
 
-      // ---- Tile layer (Spelunky MapTileType translation) ----
-      // Spelunky DS arrays contain direct integer values for MapTileType.
-      int tileVal = tileGrid[cy][cx];
-      map->setTile(tx, ty, static_cast<TileType>(tileVal));
-
-      // ---- NPC layer (Spelunky entity translation) ----
-      // Matches Spelunky-DS populate_cave_npcs() logic:
-      // only spawn on r==1 (1-in-3 chance) with global limits
       int npc = npcGrid[cy][cx];
       if (npc > 0) {
         lastPlacement++;
-        int r = GetRandomValue(0, 2); // 0,1,2 — spawn only when r==1
+        int r = GetRandomValue(0, 2);
 
         switch (npc) {
           case 1: { // Snake
@@ -393,29 +411,7 @@ void LevelGenerator::populateRoom(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH],
             }
             break;
           }
-          case 5: { // Caveman
-            if (cavemenLeft > 0 && r == 1 && lastPlacement >= 2) {
-              auto enemy = EntityFactory::createEnemy('C', px, py);
-              if (enemy) { tempEnemies.push_back(std::move(enemy)); cavemenLeft--; lastPlacement = 0; }
-            }
-            break;
-          }
-          case 6: { // Damsel
-            if (damselsLeft > 0) { // always spawn damsel if present
-              auto enemy = EntityFactory::createEnemy('D', px, py);
-              if (enemy) { tempEnemies.push_back(std::move(enemy)); damselsLeft--; }
-            }
-            break;
-          }
-          case 7: { // Lamp (decoration — skip for now)
-            break;
-          }
-          case 8: { // Shopkeeper — always spawn
-            auto enemy = EntityFactory::createEnemy('K', px, py);
-            if (enemy) tempEnemies.push_back(std::move(enemy));
-            break;
-          }
-          case 9: { // ArrowTrap Left (NPC entity, tile already set by tile grid)
+          case 9: { // ArrowTrap Left
             auto trap = EntityFactory::createTrap('<', px, py);
             if (trap) tempTraps.push_back(std::move(trap));
             break;
@@ -425,19 +421,12 @@ void LevelGenerator::populateRoom(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH],
             if (trap) tempTraps.push_back(std::move(trap));
             break;
           }
-          case 12: { // Shop Item — always spawn
+          case 12: { // Shop Item
             auto item = EntityFactory::createItem('$', px, py);
             if (item) tempItems.push_back(std::move(item));
             break;
           }
-          case 13: { // Skeleton
-            if (skeletonsLeft > 0 && r == 1 && lastPlacement >= 2) {
-              auto enemy = EntityFactory::createEnemy('X', px, py);
-              if (enemy) { tempEnemies.push_back(std::move(enemy)); skeletonsLeft--; lastPlacement = 0; }
-            }
-            break;
-          }
-          case 20: { // Golden Idol — always spawn
+          case 20: { // Golden Idol
             auto item = EntityFactory::createItem('I', px, py);
             if (item) tempItems.push_back(std::move(item));
             break;
@@ -446,17 +435,16 @@ void LevelGenerator::populateRoom(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH],
         }
       }
 
-      // ---- Loot layer (Spelunky loot translation) ----
       int loot = lootGrid[cy][cx];
       if (loot > 0 && GetRandomValue(1, 100) <= 20) {
         char itemCode = 0;
         switch (loot) {
-          case 1: itemCode = 'G'; break; // Goldbars
-          case 2: itemCode = 'R'; break; // Rubies
-          case 3: itemCode = 'J'; break; // Jar
-          case 4: itemCode = 'C'; break; // Crate
-          case 5: itemCode = 'L'; break; // Locked Chest
-          case 6: itemCode = 'Y'; break; // Key
+          case 1: itemCode = 'G'; break;
+          case 2: itemCode = 'R'; break;
+          case 3: itemCode = 'J'; break;
+          case 4: itemCode = 'C'; break;
+          case 5: itemCode = 'L'; break;
+          case 6: itemCode = 'Y'; break;
           default: break;
         }
         if (itemCode != 0) {

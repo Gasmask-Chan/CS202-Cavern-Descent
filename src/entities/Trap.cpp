@@ -5,8 +5,8 @@ namespace Platformer {
 Trap::Trap(float x, float y, float w, float h, int dmg)
     : Entity(x, y, w, h), damage(dmg) {}
 
-void Trap::update(float dt) {
-    Entity::update(dt);
+void Trap::update(float dt, Player* player) {
+    Entity::update(dt, player);
 }
 
 void Trap::render(float lightLevel) {

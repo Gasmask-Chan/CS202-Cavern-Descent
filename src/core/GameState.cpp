@@ -117,10 +117,17 @@ void PlayState::handleInput() {
 
 void PlayState::update(float dt) {
     if (player) {
-        player->update(dt);
+        player->update(dt, nullptr);
         
         if (physics) {
             physics->resolveEntityTileCollision(player);
+            
+            for (auto& entity : tempLevel.dynamicEntities) {
+                if (entity && entity->isAlive()) {
+                    entity->update(dt, player);
+                    physics->resolveEntityTileCollision(entity.get());
+                }
+            }
         }
         
         // Camera smooth follow with boundary clamping
