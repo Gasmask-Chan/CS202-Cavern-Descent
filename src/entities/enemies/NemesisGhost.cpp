@@ -6,7 +6,7 @@ namespace Platformer {
 
 NemesisGhost::NemesisGhost(float x, float y, float w, float h)
     : Enemy(x, y, w, h, 999, 1) { 
-    currentState = EnemyState::CHASE;
+    changeState(Enemy::chaseState);
     gravity = 0; 
     passesThroughWalls = true; // Set flag to true so PhysicsSystem ignores it
     setAnimation(1, 0.2f, 0, 0); // Default to 1 frame for now
@@ -16,7 +16,15 @@ NemesisGhost::~NemesisGhost() {}
 
 void NemesisGhost::update(float dt, Player* player) {
     Enemy::update(dt, player);
-    
+    move(vx * dt, vy * dt);
+}
+
+void NemesisGhost::handleIdle(float dt, Player* player) {
+    // Nemesis ghost doesn't idle
+    changeState(Enemy::chaseState);
+}
+
+void NemesisGhost::handleChase(float dt, Player* player) {
     if (!player) return;
     
     float dx = player->getX() - x;
@@ -29,8 +37,11 @@ void NemesisGhost::update(float dt, Player* player) {
         vy = (dy / dist) * speed;
         isFacingRight = (vx > 0);
     }
-    
-    move(vx * dt, vy * dt);
+}
+
+void NemesisGhost::handleReturn(float dt, Player* player) {
+    // Nemesis ghost doesn't return
+    changeState(Enemy::chaseState);
 }
 
 }

@@ -2,9 +2,13 @@
 
 namespace Platformer {
 
+std::shared_ptr<EnemyState> Enemy::idleState = std::make_shared<IdleState>();
+std::shared_ptr<EnemyState> Enemy::chaseState = std::make_shared<ChaseState>();
+std::shared_ptr<EnemyState> Enemy::returnState = std::make_shared<ReturnState>();
+
 Enemy::Enemy(float x, float y, float w, float h, int hp, int dmg)
-    : DynamicEntity(x, y, w, h), health(hp), damage(dmg), currentState(EnemyState::IDLE),
-      animTimer(0.0f), animSpeed(0.2f), currentFrame(0), numFrames(1), baseFrameX(0), baseFrameY(0) {
+    : DynamicEntity(x, y, w, h), health(hp), damage(dmg), currentStateObj(Enemy::idleState),
+      animTimer(0.0f), animSpeed(0.1f), currentFrame(0), numFrames(1), baseFrameX(0), baseFrameY(0) {
 }
 
 Enemy::~Enemy() {}
@@ -23,14 +27,19 @@ void Enemy::setAnimation(int frames, float speed, int baseX, int baseY) {
 void Enemy::update(float dt, Player* player) {
     DynamicEntity::update(dt, player);
 
-    if (numFrames > 1) {
-        animTimer += dt;
-        if (animTimer >= animSpeed) {
-            animTimer -= animSpeed;
-            currentFrame = (currentFrame + 1) % numFrames;
-        }
-    } else {
-        currentFrame = 0;
+    if (health <= 0) {
+        destroy();
+        return;
+    }
+
+    if (currentStateObj) {
+        currentStateObj->update(this, dt, player);
+    }
+
+    animTimer += dt;
+    if (animTimer >= animSpeed) {
+        animTimer = 0;
+        currentFrame = (currentFrame + 1) % numFrames;
     }
 
     if (sprite.id != 0) {
@@ -61,12 +70,19 @@ void Enemy::render(float lightLevel) {
 
 int Enemy::getHealth() const { return health; }
 int Enemy::getDamage() const { return damage; }
-EnemyState Enemy::getState() const { return currentState; }
+std::shared_ptr<EnemyState> Enemy::getState() const { return currentStateObj; }
 
 void Enemy::takeDamage(int dmg) {
     health -= dmg;
-    if (health <= 0) {
-        destroy();
+}
+
+void Enemy::changeState(std::shared_ptr<EnemyState> newState) {
+    if (currentStateObj) {
+        currentStateObj->exit(this);
+    }
+    currentStateObj = newState;
+    if (currentStateObj) {
+        currentStateObj->enter(this);
     }
 }
 

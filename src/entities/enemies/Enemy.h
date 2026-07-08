@@ -2,19 +2,15 @@
 
 #include "../DynamicEntity.h"
 
-namespace Platformer {
+#include "EnemyState.h"
 
-enum class EnemyState {
-    IDLE,
-    CHASE,
-    RETURN
-};
+namespace Platformer {
 
 class Enemy : public DynamicEntity {
 protected:
     int health;
     int damage;
-    EnemyState currentState;
+    std::shared_ptr<EnemyState> currentStateObj;
 
     float animTimer;
     float animSpeed;
@@ -34,9 +30,22 @@ public:
 
     int getHealth() const;
     int getDamage() const;
-    EnemyState getState() const;
+    std::shared_ptr<EnemyState> getState() const;
     
     virtual void takeDamage(int dmg);
+
+    // State Pattern core methods
+    void changeState(std::shared_ptr<EnemyState> newState);
+
+    // Virtual behavior hooks to be implemented by subclasses
+    virtual void handleIdle(float dt, class Player* player) {}
+    virtual void handleChase(float dt, class Player* player) {}
+    virtual void handleReturn(float dt, class Player* player) {}
+
+    // Global state instances to avoid reallocation overhead
+    static std::shared_ptr<EnemyState> idleState;
+    static std::shared_ptr<EnemyState> chaseState;
+    static std::shared_ptr<EnemyState> returnState;
 };
 
 }

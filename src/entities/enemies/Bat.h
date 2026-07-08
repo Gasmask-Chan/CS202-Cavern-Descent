@@ -13,6 +13,10 @@ public:
     ~Bat();
 
     void update(float dt, class Player* player = nullptr) override;
+
+    void handleIdle(float dt, class Player* player) override;
+    void handleChase(float dt, class Player* player) override;
+    void handleReturn(float dt, class Player* player) override;
 };
 
 }

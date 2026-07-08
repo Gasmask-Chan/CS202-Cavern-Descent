@@ -6,6 +6,7 @@ namespace Platformer {
 
 Snake::Snake(float x, float y, float w, float h)
     : Enemy(x, y, w, h, 1, 1), waitTimer(0.0f), moveSpeed(40.0f) {
+    changeState(Enemy::idleState);
     direction = (GetRandomValue(0, 1) == 0) ? -1 : 1;
     vx = direction * moveSpeed;
     isFacingRight = (direction == 1);
@@ -15,12 +16,16 @@ Snake::Snake(float x, float y, float w, float h)
 Snake::~Snake() {}
 
 void Snake::update(float dt, Player* player) {
-    // Call Enemy::update to process animation and base logic first
+    // Call Enemy::update to process state and base logic first
     Enemy::update(dt, player);
+    
+    applyGravity(dt);
+    move(vx * dt, vy * dt);
+}
 
+void Snake::handleIdle(float dt, Player* player) {
     // Ensure animation is set for IDLE state (walking)
     setAnimation(4, 0.2f, 0, 1);
-    applyGravity(dt);
     
     if (waitTimer > 0.0f) {
         waitTimer -= dt;
@@ -42,8 +47,16 @@ void Snake::update(float dt, Player* player) {
             isFacingRight = (direction == 1);
         }
     }
-    
-    move(vx * dt, vy * dt);
+}
+
+void Snake::handleChase(float dt, Player* player) {
+    // Snake doesn't chase
+    changeState(Enemy::idleState);
+}
+
+void Snake::handleReturn(float dt, Player* player) {
+    // Snake doesn't return
+    changeState(Enemy::idleState);
 }
 
 }
