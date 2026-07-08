@@ -9,6 +9,7 @@ Spider::Spider(float x, float y, float w, float h)
     : Enemy(x, y, w, h, 1, 1), jumpTimer(0.0f) {
     currentState = EnemyState::IDLE;
     gravity = 0; // Don't fall initially
+    setAnimation(1, 0.2f, 0, 0); // Hanging
 }
 
 Spider::~Spider() {}
@@ -24,6 +25,7 @@ void Spider::update(float dt, Player* player) {
     if (currentState == EnemyState::IDLE) {
         vx = 0;
         vy = 0;
+        setAnimation(1, 0.2f, 0, 0); // Hanging
         
         // Check if player is directly below (within 2 tiles horizontally) or generally close
         if (dy > 0 && std::abs(dx) < 64.0f) {
@@ -35,14 +37,19 @@ void Spider::update(float dt, Player* player) {
         
         if (isGrounded) {
             if (jumpTimer > 0.0f) {
+                setAnimation(1, 0.2f, 0, 0); // Ground idle
                 jumpTimer -= dt;
                 vx = 0; // Stop moving horizontally when grounded and waiting
             } else {
+                setAnimation(3, 0.1f, 1, 0); // Jumping
                 // Jump towards player with random force
                 jumpTimer = GetRandomValue(100, 250) / 100.0f; // 1.0 to 2.5 seconds between jumps
                 
                 float jumpVy = -(GetRandomValue(300, 600)); // Random height
                 float jumpVx = (dx > 0) ? GetRandomValue(100, 300) : -GetRandomValue(100, 300); // Random distance towards player
+                
+                if (jumpVx > 0) isFacingRight = true;
+                else if (jumpVx < 0) isFacingRight = false;
                 
                 vx = jumpVx;
                 vy = jumpVy;

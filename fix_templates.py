@@ -88,7 +88,12 @@ def process_file(filepath):
                             ny += 1
                         npcs[y][x] = 0
                         if ny < 9 and rooms[ny][x] not in SOLID_TILES:
-                            npcs[ny][x] = 1
+                            left_solid = (x == 0) or (rooms[ny][x-1] in SOLID_TILES)
+                            right_solid = (x == 9) or (rooms[ny][x+1] in SOLID_TILES)
+                            if left_solid and right_solid:
+                                npcs[ny][x] = 0 # Trapped, delete snake
+                            else:
+                                npcs[ny][x] = 1
                         
                 elif npc == 3: # Spider - Needs ceiling
                     if y == 0 or rooms[y-1][x] not in SOLID_TILES:
@@ -98,6 +103,17 @@ def process_file(filepath):
                         npcs[y][x] = 0
                         if ny > 0 and rooms[ny][x] not in SOLID_TILES:
                             npcs[ny][x] = 3
+
+        # 3. Limit to 1 of each NPC type per room maximum
+        seen_types = set()
+        for y in range(10):
+            for x in range(10):
+                npc = npcs[y][x]
+                if npc > 0:
+                    if npc in seen_types:
+                        npcs[y][x] = 0
+                    else:
+                        seen_types.add(npc)
 
     new_rooms_str = '\n' + ',\n'.join(grid_to_str(g) for g in room_grids) + '\n'
     new_npcs_str = '\n' + ',\n'.join(grid_to_str(g) for g in npc_grids) + '\n'

@@ -9,13 +9,13 @@ Bat::Bat(float x, float y, float w, float h)
     : Enemy(x, y, w, h, 1, 1) {
     currentState = EnemyState::IDLE;
     gravity = 0; // Bats don't fall by default
+    setAnimation(1, 0.2f, 0, 0); // IDLE (hanging)
 }
 
 Bat::~Bat() {}
 
 void Bat::update(float dt, Player* player) {
     Enemy::update(dt, player);
-    // Note: applyGravity is skipped or overridden since gravity is 0
 
     if (!player) return;
 
@@ -32,12 +32,13 @@ void Bat::update(float dt, Player* player) {
     if (currentState == EnemyState::IDLE) {
         vx = 0;
         vy = 0;
+        setAnimation(1, 0.2f, 0, 0); // Hanging
         // Check if player is below and within 7 tiles
         if (dy > 0 && dist < triggerDist) {
             currentState = EnemyState::CHASE;
-            // Play squeak sound here (handled by AudioSystem later)
         }
     } else if (currentState == EnemyState::CHASE) {
+        setAnimation(4, 0.1f, 1, 0); // Flying (4 frames, base X = 1)
         if (dist > loseAggroDist) {
             currentState = EnemyState::RETURN;
         } else {
@@ -48,6 +49,7 @@ void Bat::update(float dt, Player* player) {
             isFacingRight = (vx > 0);
         }
     } else if (currentState == EnemyState::RETURN) {
+        setAnimation(4, 0.1f, 1, 0); // Flying
         // If we hit a ceiling, PhysicsSystem will set our vy to 0 in resolveEntityTileCollision
         // We check if vy == 0 (from previous frame)
         if (vy == 0) {

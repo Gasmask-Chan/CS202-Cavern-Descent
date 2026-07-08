@@ -14,6 +14,7 @@ static const int altar_room[1][10][10] = {
         { 7,  7,  7,  7, 41, 42,  7,  7,  7,  7},
         { 2,  2,  2,  2,  2,  2,  2,  2,  2,  2},
     }
+
 };
 
 static const int altar_room_npc[1][10][10] = {
@@ -29,6 +30,7 @@ static const int altar_room_npc[1][10][10] = {
         { 0,  0,  0,  0,  0,  0,  0,  0,  0,  0},
         { 0,  0,  0,  0,  0,  0,  0,  0,  0,  0},
     }
+
 };
 
 #endif // SPELUNKYDS_ALTAR_ROOM_H

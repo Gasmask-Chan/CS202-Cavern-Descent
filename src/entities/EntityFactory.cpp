@@ -30,15 +30,15 @@ std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, fl
 
     switch (code) {
         case 'S': 
-            enemy = std::make_unique<Snake>(x, y, 32.0f, 32.0f);
+            enemy = std::make_unique<Snake>(x + 4.0f, y + 8.0f, 24.0f, 24.0f);
             enemy->setSprite(getTexture(texBatSnake), Rectangle{0, 16, 16, 16});
             break;
         case 'B': 
-            enemy = std::make_unique<Bat>(x, y, 32.0f, 32.0f);
+            enemy = std::make_unique<Bat>(x + 4.0f, y, 24.0f, 24.0f);
             enemy->setSprite(getTexture(texBatSnake), Rectangle{0, 0, 16, 16});
             break;
         case 'P': 
-            enemy = std::make_unique<Spider>(x, y, 32.0f, 32.0f);
+            enemy = std::make_unique<Spider>(x + 4.0f, y, 24.0f, 24.0f);
             enemy->setSprite(getTexture(texSpider), Rectangle{0, 0, 16, 16});
             break;
         default: return nullptr;

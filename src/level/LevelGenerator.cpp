@@ -99,40 +99,75 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     // ---- Spawn and exit placement ----
     int spawnGx = startRoomX * ROOM_WIDTH + 1;
     int spawnGy = startRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 2;
-    
-    // 1. Drop down if we start in mid-air
-    while (spawnGy < startRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 1 && !level.tileMap->isSolid(spawnGx, spawnGy + 1)) {
-      spawnGy++;
+    bool foundEntrance = false;
+
+    // Scan the entrance room for a pre-placed ENTRANCE tile (13) from the template
+    for (int y = startRoomY * ROOM_HEIGHT; y < startRoomY * ROOM_HEIGHT + ROOM_HEIGHT; ++y) {
+        for (int x = startRoomX * ROOM_WIDTH; x < startRoomX * ROOM_WIDTH + ROOM_WIDTH; ++x) {
+            if (level.tileMap->getTile(x, y) == TileType::ENTRANCE) {
+                spawnGx = x;
+                spawnGy = y;
+                foundEntrance = true;
+                break;
+            }
+        }
+        if (foundEntrance) break;
     }
-    // 2. Go up if we are inside a solid block
-    while (spawnGy > startRoomY * ROOM_HEIGHT && level.tileMap->isSolid(spawnGx, spawnGy)) {
-      spawnGy--;
+
+    if (!foundEntrance) {
+        // 1. Drop down if we start in mid-air
+        while (spawnGy < startRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 1 && !level.tileMap->isSolid(spawnGx, spawnGy + 1)) {
+          spawnGy++;
+        }
+        // 2. Go up if we are inside a solid block
+        while (spawnGy > startRoomY * ROOM_HEIGHT && level.tileMap->isSolid(spawnGx, spawnGy)) {
+          spawnGy--;
+        }
+        // 3. Fallback if trapped
+        if (level.tileMap->isSolid(spawnGx, spawnGy))
+          spawnGy = startRoomY * ROOM_HEIGHT + 1;
+        
+        level.tileMap->setTile(spawnGx, spawnGy, TileType::ENTRANCE);
     }
-    // 3. Fallback if trapped
-    if (level.tileMap->isSolid(spawnGx, spawnGy))
-      spawnGy = startRoomY * ROOM_HEIGHT + 1;
 
     // Offset by +8 to center the 16x24 player inside the 32x32 Entrance tile
     tempPlayerSpawn = Vector2{(float)(spawnGx * MAP_TILE_SIZE + 8),
                               (float)(spawnGy * MAP_TILE_SIZE + 8)};
-    level.tileMap->setTile(spawnGx, spawnGy, TileType::ENTRANCE);
+
 
     // Apply the same robust floor-finding logic to the exit placement
     int exitGx = exitRoomX * ROOM_WIDTH + ROOM_WIDTH - 2;
     int exitGy = exitRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 2;
-    
-    while (exitGy < exitRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 1 && !level.tileMap->isSolid(exitGx, exitGy + 1)) {
-      exitGy++;
+    bool foundExit = false;
+
+    // Scan the exit room for a pre-placed EXIT tile (14) from the template
+    for (int y = exitRoomY * ROOM_HEIGHT; y < exitRoomY * ROOM_HEIGHT + ROOM_HEIGHT; ++y) {
+        for (int x = exitRoomX * ROOM_WIDTH; x < exitRoomX * ROOM_WIDTH + ROOM_WIDTH; ++x) {
+            if (level.tileMap->getTile(x, y) == TileType::EXIT) {
+                exitGx = x;
+                exitGy = y;
+                foundExit = true;
+                break;
+            }
+        }
+        if (foundExit) break;
     }
-    while (exitGy > exitRoomY * ROOM_HEIGHT && level.tileMap->isSolid(exitGx, exitGy)) {
-      exitGy--;
+
+    if (!foundExit) {
+        while (exitGy < exitRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 1 && !level.tileMap->isSolid(exitGx, exitGy + 1)) {
+          exitGy++;
+        }
+        while (exitGy > exitRoomY * ROOM_HEIGHT && level.tileMap->isSolid(exitGx, exitGy)) {
+          exitGy--;
+        }
+        if (level.tileMap->isSolid(exitGx, exitGy))
+          exitGy = exitRoomY * ROOM_HEIGHT + 1;
+
+        level.tileMap->setTile(exitGx, exitGy, TileType::EXIT);
     }
-    if (level.tileMap->isSolid(exitGx, exitGy))
-      exitGy = exitRoomY * ROOM_HEIGHT + 1;
 
     tempExitPos = Vector2{(float)(exitGx * MAP_TILE_SIZE),
                           (float)(exitGy * MAP_TILE_SIZE)};
-    level.tileMap->setTile(exitGx, exitGy, TileType::EXIT);
 
     // Step 4: Populating
     for (int gy = 0; gy < MAP_ROOMS_Y; ++gy) {
@@ -379,25 +414,25 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
       int npc = npcGrid[cy][cx];
       if (npc > 0) {
         lastPlacement++;
-        int r = GetRandomValue(0, 2);
+        int r = GetRandomValue(1, 100);
 
         switch (npc) {
           case 1: { // Snake
-            if (snakesLeft > 0 && r == 1 && lastPlacement >= 2) {
+            if (snakesLeft > 0 && r <= 60) {
               auto enemy = EntityFactory::createEnemy('S', px, py);
               if (enemy) { tempEnemies.push_back(std::move(enemy)); snakesLeft--; lastPlacement = 0; }
             }
             break;
           }
           case 2: { // Bat
-            if (batsLeft > 0 && r == 1 && lastPlacement >= 2) {
+            if (batsLeft > 0 && r <= 60) {
               auto enemy = EntityFactory::createEnemy('B', px, py);
               if (enemy) { tempEnemies.push_back(std::move(enemy)); batsLeft--; lastPlacement = 0; }
             }
             break;
           }
           case 3: { // Spider
-            if (spidersLeft > 0 && r == 1 && lastPlacement >= 2) {
+            if (spidersLeft > 0 && r <= 60) {
               auto enemy = EntityFactory::createEnemy('P', px, py);
               if (enemy) { tempEnemies.push_back(std::move(enemy)); spidersLeft--; lastPlacement = 0; }
             }

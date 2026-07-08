@@ -1,6 +1,7 @@
 #include "PhysicsSystem.h"
 #include <cmath>
 #include <algorithm>
+#include <cstdio>
 
 namespace Platformer {
 
@@ -43,7 +44,9 @@ void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
 
                     float minPen = std::min({penLeft, penRight, penTop, penBottom});
 
-                    if (minPen == penTop) {
+                    // If penTop is extremely small, it means the entity is just sliding along the floor.
+                    // Prioritize floor collision over wall collision to prevent getting stuck on flat tiles.
+                    if (minPen == penTop || (penTop < 2.0f && e->vy >= 0)) {
                         e->move(0, -penTop);
                         e->isGrounded = true;
                         if (e->vy > 0) e->vy = 0;
@@ -52,9 +55,11 @@ void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
                         if (e->vy < 0) e->vy = 0;
                     } else if (minPen == penLeft) {
                         e->move(-penLeft, 0);
+                        if (e->vx != 0) printf("Hit wall Left! x=%f, y=%f, penLeft=%f, penTop=%f\n", e->x, e->y, penLeft, penTop);
                         e->vx = 0;
                     } else if (minPen == penRight) {
                         e->move(penRight, 0);
+                        if (e->vx != 0) printf("Hit wall Right! x=%f, y=%f, penRight=%f, penTop=%f\n", e->x, e->y, penRight, penTop);
                         e->vx = 0;
                     }
                     

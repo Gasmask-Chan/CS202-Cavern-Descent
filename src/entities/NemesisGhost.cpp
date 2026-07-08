@@ -9,6 +9,7 @@ NemesisGhost::NemesisGhost(float x, float y, float w, float h)
     currentState = EnemyState::CHASE;
     gravity = 0; 
     passesThroughWalls = true; // Set flag to true so PhysicsSystem ignores it
+    setAnimation(1, 0.2f, 0, 0); // Default to 1 frame for now
 }
 
 NemesisGhost::~NemesisGhost() {}
