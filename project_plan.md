@@ -98,18 +98,16 @@ Each floor is a **4×4 macro-grid** of 16 room slots:
 1. **Macro Grid Walk:** Model the 4×4 grid as a 2D array (`RoomRole macroGrid[4][4]`). Start at a random top-row cell.
 2. **Random Walk:** Loop until reaching the bottom row: 80% chance to move left/right, 20% chance to drop down. Edges force a drop down. The traversed cells form the **Golden Path**.
 3. **BFS Validation:** After room population, BFS from spawn to exit on the tile grid confirms reachability with platformer physics constraints (jump height, gravity).
-4. **Room Template Instantiation:** To generate the actual geometry, each room slot loads a C++ `uint8_t` array (a "Template"). Each template represents a grid of exactly **10x8 tiles**. Since the macro grid is 4x4 rooms, the final playable level is exactly **40x32 tiles**. The numbers in the array are IDs from 0 to 42 (e.g., 0 = Air, 1 = Dirt Block, 4 = Wooden Platform), directly matching our master spritesheet.
+4. **Room Template Instantiation:** To generate the actual geometry, each room slot loads a C++ `uint8_t` array (a "Template"). Each template represents a grid of exactly **10x8 tiles**. Since the macro grid is 4x4 rooms, the final playable level is exactly **40x32 tiles**. The numbers in the array are IDs from 0 to 42 (e.g., 0 = Air, 1 = Dirt Block, 4 = Wooden Platform), directly matching our master spritesheet. Note: We use a python script (`fix_templates.py`) to post-process these matrices during development to ensure each room contains a maximum of 1 enemy per type, and no enclosed dead-ends.
 
 **Integrated Difficulty Scaling (per floor):**
 
-`LevelGenerator::generate()` scales parameters via a `DifficultyConfig` lookup:
-
 ```text
-Floor  | Enemies/Room | Trap Density | Treasure Value | Enemy Speed | Ghost Timer
--------|-------------|-------------|----------------|-------------|------------
- 1–3   |     1       |    Low      |     Low        |    1.0×     |   180s
- 4–6   |     2       |   Medium    |    Medium      |    1.2×     |   150s
- 7–9   |     3       |    High     |     High       |    1.5×     |   120s
+Floor  | Enemy Spawn Rate | Trap Density | Treasure Value | Enemy Speed | Ghost Timer
+-------|------------------|-------------|----------------|-------------|------------
+ 1–3   |      60%         |    Low      |     Low        |    1.0×     |   180s
+ 4–6   |      70%         |   Medium    |    Medium      |    1.2×     |   150s
+ 7–9   |      85%         |    High     |     High       |    1.5×     |   120s
 ```
 
 **Data Structures:**
@@ -601,6 +599,8 @@ classDiagram
         +Bat(float x, float y)
         +update(float dt) void
     }
+
+    note for Enemy "All Enemy subclasses and NemesisGhost\nreside in src/entities/enemies/"
 
     class Snake {
         -float patrolSpeed

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DynamicEntity.h"
+#include "../DynamicEntity.h"
 
 namespace Platformer {
 

@@ -1,10 +1,10 @@
 #include "EntityFactory.h"
 #include <map>
 #include <string>
-#include "Snake.h"
-#include "Bat.h"
-#include "Spider.h"
-#include "NemesisGhost.h"
+#include "enemies/Snake.h"
+#include "enemies/Bat.h"
+#include "enemies/Spider.h"
+#include "enemies/NemesisGhost.h"
 
 namespace Platformer {
 

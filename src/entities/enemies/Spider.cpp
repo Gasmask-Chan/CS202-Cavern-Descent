@@ -1,5 +1,5 @@
 #include "Spider.h"
-#include "../player/Player.h"
+#include "../../player/Player.h"
 #include <raylib.h>
 #include <cmath>
 

@@ -1,5 +1,5 @@
 #include "NemesisGhost.h"
-#include "../player/Player.h"
+#include "../../player/Player.h"
 #include <cmath>
 
 namespace Platformer {
