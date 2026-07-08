@@ -104,25 +104,71 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     // ---- Spawn and exit placement ----
     int spawnGx = startRoomX * ROOM_WIDTH + 1;
     int spawnGy = startRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 2;
-    while (spawnGy > startRoomY * ROOM_HEIGHT && level.tileMap->isSolid(spawnGx, spawnGy))
+    
+    // 1. Drop down if we start in mid-air
+    while (spawnGy < startRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 1 && !level.tileMap->isSolid(spawnGx, spawnGy + 1)) {
+      spawnGy++;
+    }
+    // 2. Go up if we are inside a solid block
+    while (spawnGy > startRoomY * ROOM_HEIGHT && level.tileMap->isSolid(spawnGx, spawnGy)) {
       spawnGy--;
+    }
+    // 3. Fallback if trapped
     if (level.tileMap->isSolid(spawnGx, spawnGy))
       spawnGy = startRoomY * ROOM_HEIGHT + 1;
 
-    tempPlayerSpawn = Vector2{(float)(spawnGx * MAP_TILE_SIZE),
-                              (float)(spawnGy * MAP_TILE_SIZE)};
+    // Offset by +8 to center the 16x24 player inside the 32x32 Entrance tile
+    tempPlayerSpawn = Vector2{(float)(spawnGx * MAP_TILE_SIZE + 8),
+                              (float)(spawnGy * MAP_TILE_SIZE + 8)};
     level.tileMap->setTile(spawnGx, spawnGy, TileType::ENTRANCE);
 
+    // Apply the same robust floor-finding logic to the exit placement
     int exitGx = exitRoomX * ROOM_WIDTH + ROOM_WIDTH - 2;
     int exitGy = exitRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 2;
-    while (exitGy > exitRoomY * ROOM_HEIGHT && level.tileMap->isSolid(exitGx, exitGy))
+    
+    while (exitGy < exitRoomY * ROOM_HEIGHT + ROOM_HEIGHT - 1 && !level.tileMap->isSolid(exitGx, exitGy + 1)) {
+      exitGy++;
+    }
+    while (exitGy > exitRoomY * ROOM_HEIGHT && level.tileMap->isSolid(exitGx, exitGy)) {
       exitGy--;
+    }
     if (level.tileMap->isSolid(exitGx, exitGy))
       exitGy = exitRoomY * ROOM_HEIGHT + 1;
 
     tempExitPos = Vector2{(float)(exitGx * MAP_TILE_SIZE),
                           (float)(exitGy * MAP_TILE_SIZE)};
     level.tileMap->setTile(exitGx, exitGy, TileType::EXIT);
+
+    // Remove any entities that were generated exactly on the Entrance or Exit
+    auto removeEntitiesAt = [&](int gx, int gy) {
+        float px = gx * MAP_TILE_SIZE;
+        float py = gy * MAP_TILE_SIZE;
+        Rectangle rect = { px, py, (float)MAP_TILE_SIZE, (float)MAP_TILE_SIZE };
+
+        tempEnemies.erase(
+            std::remove_if(tempEnemies.begin(), tempEnemies.end(),
+                [&](const std::unique_ptr<DynamicEntity>& e) {
+                    return CheckCollisionRecs(e->getAABB(), rect);
+                }),
+            tempEnemies.end());
+
+        tempTraps.erase(
+            std::remove_if(tempTraps.begin(), tempTraps.end(),
+                [&](const std::unique_ptr<Trap>& t) {
+                    return CheckCollisionRecs(t->getAABB(), rect);
+                }),
+            tempTraps.end());
+
+        tempItems.erase(
+            std::remove_if(tempItems.begin(), tempItems.end(),
+                [&](const std::unique_ptr<Item>& i) {
+                    return CheckCollisionRecs(i->getAABB(), rect);
+                }),
+            tempItems.end());
+    };
+
+    removeEntitiesAt(spawnGx, spawnGy);
+    removeEntitiesAt(exitGx, exitGy);
 
     Vector2i startGrid = {spawnGx, spawnGy};
     Vector2i exitGrid  = {exitGx,  exitGy};
