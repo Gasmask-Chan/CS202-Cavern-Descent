@@ -4,6 +4,7 @@
 #include "../physics/PhysicsSystem.h"
 #include "../level/TileMap.h"
 #include <vector>
+#include "../ui/Minimap.h"
 
 namespace Platformer {
 
@@ -82,7 +83,10 @@ private:
     Camera2D camera;
     std::unique_ptr<LevelGenerator> tempGenerator;
     GeneratedLevel tempLevel;
-    PhysicsSystem* physics;public:
+    PhysicsSystem* physics;
+    std::unique_ptr<Minimap> minimap;
+    
+public:
     /**
      * @brief 	Creates `LevelManager`, `PhysicsSystem`, `LightingSystem`, `LiquidSimulator`, `ComboSystem`, `Minimap`, `HUD`. Calls `levelManager->generateFloor(1)`. Starts zone BGM.
      * 

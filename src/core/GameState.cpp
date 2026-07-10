@@ -3,6 +3,8 @@
 #include "GameManager.h"
 #include "../audio/AudioManager.h"
 #include "../player/Player.h"
+#include "../ui/Minimap.h"
+#include "raymath.h"
 
 namespace Platformer {
 
@@ -94,6 +96,8 @@ void PlayState::enter() {
     player = new Player(tempLevel.playerSpawn.x, tempLevel.playerSpawn.y, GameManager::getInstance()->getSelectedCharacter());
     player->setTileMap(tempLevel.tileMap.get());
     
+    minimap = std::make_unique<Minimap>(tempLevel.exitPos);
+    
     camera.target = Vector2{ player->getX(), player->getY() };
 }
 
@@ -145,6 +149,10 @@ void PlayState::update(float dt) {
         if (desiredTarget.y > mapHeight + borderPixelsY - halfScreenHeight) desiredTarget.y = mapHeight + borderPixelsY - halfScreenHeight;
 
         camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
+        
+        if (minimap) {
+            minimap->update(player->getX(), player->getY());
+        }
     }
 }
 
@@ -186,6 +194,10 @@ void PlayState::render() {
     }
     
     EndMode2D();
+    
+    if (minimap) {
+        minimap->render();
+    }
 }
 
 /*
