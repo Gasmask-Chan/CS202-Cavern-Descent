@@ -3,6 +3,8 @@
 #include "GameManager.h"
 #include "../audio/AudioManager.h"
 #include "../player/Player.h"
+#include "../core/EventBus.h"
+#include "../entities/EntityFactory.h"
 
 namespace Platformer {
 
@@ -95,6 +97,15 @@ void PlayState::enter() {
     player->setTileMap(tempLevel.tileMap.get());
     
     camera.target = Vector2{ player->getX(), player->getY() };
+    
+    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ITEM);
+    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_ITEM, [this](EventData data) {
+        auto item = EntityFactory::createItem(data.amount, data.worldX, data.worldY);
+        if (item) {
+            item->setVelocity(data.vx, data.vy);
+            this->pendingItems.push_back(std::move(item));
+        }
+    });
 }
 
 void PlayState::exit() {
@@ -137,6 +148,12 @@ void PlayState::update(float dt) {
             }
         }
         
+        // Merge pending items
+        for (auto& item : pendingItems) {
+            tempLevel.items.push_back(std::move(item));
+        }
+        pendingItems.clear();
+        
         // Camera smooth follow with boundary clamping
         Vector2 desiredTarget = {player->getX() + 16, player->getY() + 16};
         
@@ -178,7 +195,7 @@ void PlayState::update(float dt) {
 
         // Auto-pickup normal items
         for (auto& item : tempLevel.items) {
-            if (item && !item->isPickedUp() && !item->isShopItem && item->getType() != ItemType::CHEST) {
+            if (item && !item->isPickedUp() && !item->isShopItem && item->getType() != ItemType::CHEST && item->getIsGrounded()) {
                 Rectangle pRect = player->getAABB();
                 Rectangle iRect = item->getAABB();
                 // Check overlap and activate automatically

@@ -23,6 +23,12 @@ void DynamicEntity::setVelocity(float vx, float vy) {
 }
 
 float DynamicEntity::getVelocityX() { return vx; }
-float DynamicEntity::getVelocityY() { return vy; }
+float DynamicEntity::getVelocityY() {
+    return vy;
+}
+
+bool DynamicEntity::getIsGrounded() const {
+    return isGrounded;
+}
 
 }

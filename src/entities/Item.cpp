@@ -72,7 +72,7 @@ void Chest::update(float dt, Player* player) {
     if (!isOpened && player) {
         // Distance check
         float dist = std::sqrt(std::pow(player->getX() - x, 2) + std::pow(player->getY() - y, 2));
-        if (dist < 32.0f && IsKeyDown(KEY_UP) && IsKeyPressed(KEY_Y)) {
+        if (dist < 32.0f && (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
             // Open Chest
             isOpened = true;
             AudioManager::getInstance()->playSFX("open_chest");
@@ -83,9 +83,15 @@ void Chest::update(float dt, Player* player) {
             // Spawn 4 rubies bursting out
             for (int i = 0; i < 4; i++) {
                 EventData data;
-                data.worldX = this->x;
-                data.worldY = this->y;
+                data.worldX = this->x + (this->width / 2.0f);
+                data.worldY = this->y + (this->height / 2.0f);
                 data.amount = (GetRandomValue(0, 1) == 0) ? 'R' : 'G'; // R=Ruby Big, G=Ruby Small
+                
+                // Set burst velocity with slight variance to prevent overlapping
+                data.vy = -1.7f * 150.0f + (float)GetRandomValue(-30, 30); 
+                float baseVx = (GetRandomValue(0, 1) == 0 ? -0.8f : 0.8f) * 150.0f;
+                data.vx = baseVx + (float)GetRandomValue(-40, 40);
+                
                 EventBus::getInstance()->publish(EventType::EVENT_SPAWN_ITEM, data);
             }
         }

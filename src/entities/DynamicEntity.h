@@ -47,6 +47,8 @@ public:
     float getVelocityX();
 
     float getVelocityY();
+    
+    bool getIsGrounded() const;
 };
 
 }

@@ -17,6 +17,10 @@ void EventBus::subscribe(EventType type, EventCallback cb) {
     listeners[type].push_back(cb);
 }
 
+void EventBus::clearListeners(EventType type) {
+    listeners[type].clear();
+}
+
 void EventBus::publish(EventType type, EventData data) {
     auto it = listeners.find(type);
     if (it != listeners.end()) {

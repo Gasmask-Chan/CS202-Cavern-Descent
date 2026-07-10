@@ -82,7 +82,10 @@ private:
     Camera2D camera;
     std::unique_ptr<LevelGenerator> tempGenerator;
     GeneratedLevel tempLevel;
-    PhysicsSystem* physics;public:
+    PhysicsSystem* physics;
+    std::vector<std::unique_ptr<Item>> pendingItems;
+    
+public:
     /**
      * @brief 	Creates `LevelManager`, `PhysicsSystem`, `LightingSystem`, `LiquidSimulator`, `ComboSystem`, `Minimap`, `HUD`. Calls `levelManager->generateFloor(1)`. Starts zone BGM.
      * 

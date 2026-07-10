@@ -58,10 +58,12 @@ std::unique_ptr<Item> EntityFactory::createItem(char code, float x, float y) {
             item = std::make_unique<LootPickup>(x, y, 32.0f, 32.0f, 500); // Gold Bar
             item->setSprite(getTexture(texGold), Rectangle{0, 0, 16, 16});
             break;
-        case 'R': 
+        case 'R': {
             item = std::make_unique<LootPickup>(x, y, 16.0f, 16.0f, 100); // Ruby
-            item->setSprite(getTexture(texRubies), Rectangle{0, 0, 8, 8});
+            float col = (float)GetRandomValue(0, 2) * 8.0f;
+            item->setSprite(getTexture(texRubies), Rectangle{col, 0, 8, 8});
             break;
+        }
         case 'J': // Jade/Emerald?
             item = std::make_unique<LootPickup>(x, y, 32.0f, 32.0f, 1000);
             item->setSprite(getTexture(texSpikes), Rectangle{16, 0, 16, 16});

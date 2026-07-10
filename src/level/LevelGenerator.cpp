@@ -473,15 +473,15 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
       }
 
       int loot = lootGrid[cy][cx];
-      if (loot > 0 && GetRandomValue(1, 100) <= 20) {
+      if (loot > 0 && GetRandomValue(1, 100) <= 5) {
         char itemCode = 0;
         if (loot == 1) {
             int r = GetRandomValue(1, 100);
             if (r <= 50) itemCode = 'G'; // 50% Gold
-            else if (r <= 55) itemCode = 'R'; // 5% Ruby
-            else if (r <= 70) itemCode = 'O'; // 15% Bomb
-            else if (r <= 85) itemCode = 'U'; // 15% Rope
-            else itemCode = 'C'; // 15% Chest
+            else if (r <= 65) itemCode = 'R'; // 15% Ruby
+            else if (r <= 80) itemCode = 'O'; // 15% Bomb
+            else if (r <= 95) itemCode = 'U'; // 15% Rope
+            else itemCode = 'C'; // 5% Chest
         } else {
             switch (loot) {
               case 2: itemCode = 'R'; break;
