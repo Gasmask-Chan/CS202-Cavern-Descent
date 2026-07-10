@@ -1,16 +1,41 @@
 #include "Item.h"
+#include "../player/Player.h"
+#include "../core/EventBus.h"
+#include "../audio/AudioManager.h"
+#include <cmath>
 
 namespace Platformer {
 
 Item::Item(float x, float y, float w, float h, ItemType type)
-    : Entity(x, y, w, h), type(type), isCollected(false) {}
+    : DynamicEntity(x, y, w, h), type(type), isCollected(false), prevVy(0.0f), isHeld(false) {}
+
+void Item::update(float dt, Player* player) {
+    if (isHeld && player) {
+        // Stick to player's center/hands
+        this->x = player->getX() + (player->getAABB().width - this->width) / 2.0f;
+        this->y = player->getY() + player->getAABB().height / 2.0f - this->height;
+        this->vx = 0;
+        this->vy = 0;
+    } else {
+        prevVy = this->vy;
+        applyGravity(dt);
+        if (isGrounded) {
+            vx *= 0.8f; // friction
+            if (std::abs(vx) < 5.0f) vx = 0;
+        }
+        move(vx * dt, vy * dt);
+        DynamicEntity::update(dt, player);
+    }
+}
 
 void Item::activate(Player* player) {
     // Default implementation does nothing
 }
 
 void Item::render(float lightLevel) {
-    Entity::render(lightLevel);
+    if (isAlive() && !isCollected) {
+        DynamicEntity::render(lightLevel);
+    }
 }
 
 void Item::collect() {
@@ -24,6 +49,69 @@ bool Item::isPickedUp() {
 
 ItemType Item::getType() {
     return type;
+}
+
+// LootPickup
+LootPickup::LootPickup(float x, float y, float w, float h, int val)
+    : Item(x, y, w, h, ItemType::LOOT_PICKUP), value(val) {}
+
+void LootPickup::activate(Player* player) {
+    player->collectGold(value);
+    collect();
+}
+
+
+
+// Chest
+Chest::Chest(float x, float y, float w, float h)
+    : Item(x, y, w, h, ItemType::CHEST), isOpened(false) {}
+
+void Chest::update(float dt, Player* player) {
+    Item::update(dt, player);
+    
+    if (!isOpened && player) {
+        // Distance check
+        float dist = std::sqrt(std::pow(player->getX() - x, 2) + std::pow(player->getY() - y, 2));
+        if (dist < 32.0f && IsKeyDown(KEY_UP) && IsKeyPressed(KEY_Y)) {
+            // Open Chest
+            isOpened = true;
+            AudioManager::getInstance()->playSFX("open_chest");
+            
+            // Change sprite to open chest (Row 0, Col 3 -> {48, 0, 16, 16})
+            srcRect.x = 48.0f;
+            
+            // Spawn 4 rubies bursting out
+            for (int i = 0; i < 4; i++) {
+                EventData data;
+                data.worldX = this->x;
+                data.worldY = this->y;
+                data.amount = (GetRandomValue(0, 1) == 0) ? 'R' : 'G'; // R=Ruby Big, G=Ruby Small
+                EventBus::getInstance()->publish(EventType::EVENT_SPAWN_ITEM, data);
+            }
+        }
+    }
+}
+
+void Chest::activate(Player* player) {
+    // Chest interaction is handled in update(), not by simple overlap
+}
+
+// BombPickup
+BombPickup::BombPickup(float x, float y, float w, float h, int amount)
+    : Item(x, y, w, h, ItemType::BOMB_PICKUP), amount(amount) {}
+
+void BombPickup::activate(Player* player) {
+    player->addBomb(amount);
+    collect();
+}
+
+// RopePickup
+RopePickup::RopePickup(float x, float y, float w, float h, int amount)
+    : Item(x, y, w, h, ItemType::ROPE_PICKUP), amount(amount) {}
+
+void RopePickup::activate(Player* player) {
+    player->addRope(amount);
+    collect();
 }
 
 }

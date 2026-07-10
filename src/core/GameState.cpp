@@ -128,6 +128,13 @@ void PlayState::update(float dt) {
                     physics->resolveEntityTileCollision(entity.get());
                 }
             }
+            
+            for (auto& item : tempLevel.items) {
+                if (item && !item->isPickedUp()) {
+                    item->update(dt, player);
+                    physics->resolveEntityTileCollision(item.get());
+                }
+            }
         }
         
         // Camera smooth follow with boundary clamping
@@ -152,6 +159,35 @@ void PlayState::update(float dt) {
         if (desiredTarget.y > mapHeight + borderPixelsY - halfScreenHeight) desiredTarget.y = mapHeight + borderPixelsY - halfScreenHeight;
 
         camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
+        
+        // Handle Shop Item Interaction (Y Key)
+        if (IsKeyPressed(KEY_Y)) {
+            for (auto& item : tempLevel.items) {
+                if (item && !item->isPickedUp() && item->isShopItem && item->getType() != ItemType::CHEST) {
+                    Rectangle pRect = player->getAABB();
+                    Rectangle iRect = item->getAABB();
+                    // Check overlap and activate manually
+                    if (pRect.x < iRect.x + iRect.width && pRect.x + pRect.width > iRect.x &&
+                        pRect.y < iRect.y + iRect.height && pRect.y + pRect.height > iRect.y) {
+                        item->activate(player);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Auto-pickup normal items
+        for (auto& item : tempLevel.items) {
+            if (item && !item->isPickedUp() && !item->isShopItem && item->getType() != ItemType::CHEST) {
+                Rectangle pRect = player->getAABB();
+                Rectangle iRect = item->getAABB();
+                // Check overlap and activate automatically
+                if (pRect.x < iRect.x + iRect.width && pRect.x + pRect.width > iRect.x &&
+                    pRect.y < iRect.y + iRect.height && pRect.y + pRect.height > iRect.y) {
+                    item->activate(player);
+                }
+            }
+        }
     }
 }
 

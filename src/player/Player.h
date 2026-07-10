@@ -41,6 +41,8 @@ public:
     void takeDamage(int dmg);
     void heal(int amount);
     void collectGold(int amount);
+    void addBomb(int amount);
+    void addRope(int amount);
     bool useBomb();
     bool useRope();
     void whipAttack();

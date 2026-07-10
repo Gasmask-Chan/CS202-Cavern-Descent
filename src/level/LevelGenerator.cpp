@@ -5,8 +5,8 @@
 #include "rooms/LeftRightDownRooms.h"
 #include "rooms/LeftRightUpRooms.h"
 #include "rooms/ShopRooms.h"
-#include "rooms/AltarRoom.h"
 #include "../entities/EntityFactory.h"
+#include "../entities/enemies/Enemy.h"
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -82,9 +82,6 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
                 break;
               case RoomRole::TYPE_SHOP:
                 memcpy(tileGrid, shops[v % 2], sizeof(tileGrid));
-                break;
-              case RoomRole::TYPE_ALTAR:
-                memcpy(tileGrid, altar_room[0], sizeof(tileGrid));
                 break;
               case RoomRole::TYPE_0:
               default:
@@ -200,10 +197,6 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
               case RoomRole::TYPE_SHOP:
                 memcpy(npcGrid,  shops_npcs[v % 2],  sizeof(npcGrid));
                 memcpy(lootGrid, shops_loot[v % 2],  sizeof(lootGrid));
-                break;
-              case RoomRole::TYPE_ALTAR:
-                memcpy(npcGrid,  altar_room_npc[0], sizeof(npcGrid));
-                memset(lootGrid, 0, sizeof(lootGrid));
                 break;
               case RoomRole::TYPE_0:
               default:
@@ -322,8 +315,7 @@ void LevelGenerator::generateMacroGrid() {
     }
   }
 
-  // Post-process: convert first reachable closed room to altar, then shop
-  placeAltar();
+  // Post-process: convert first reachable closed room to shop
   placeShop();
 }
 
@@ -334,15 +326,6 @@ void LevelGenerator::obtainNewDirection(int currX, bool& movingLeft) {
     movingLeft = true;
   else
     movingLeft = (GetRandomValue(0, 1) == 0);
-}
-
-void LevelGenerator::placeAltar() {
-  for (int y = 0; y < MAP_ROOMS_Y; ++y)
-    for (int x = 0; x < MAP_ROOMS_X; ++x)
-      if (macroGrid[y][x] == RoomRole::TYPE_0) {
-        macroGrid[y][x] = RoomRole::TYPE_ALTAR;
-        return;
-      }
 }
 
 void LevelGenerator::placeShop() {
@@ -368,7 +351,6 @@ int LevelGenerator::selectVariation(RoomRole role, bool isEntrance) const {
   int numVars = 6; // Most rooms have 6 variations
   switch (role) {
     case RoomRole::TYPE_SHOP:          numVars = 2; break;
-    case RoomRole::TYPE_ALTAR:         numVars = 1; break;
     default:                           break;
   }
   return GetRandomValue(0, numVars - 1);
@@ -418,23 +400,38 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
 
         switch (npc) {
           case 1: { // Snake
-            if (snakesLeft > 0 && r <= 60) {
-              auto enemy = EntityFactory::createEnemy('S', px, py);
-              if (enemy) { tempEnemies.push_back(std::move(enemy)); snakesLeft--; lastPlacement = 0; }
+            if (snakesLeft > 0 && r <= 50) {
+              auto enemyObj = EntityFactory::createEnemy('S', px, py);
+              if (enemyObj) {
+                  auto* e = static_cast<Enemy*>(enemyObj.get());
+                  e->setTileMap(map);
+                  tempEnemies.push_back(std::move(enemyObj));
+                  snakesLeft--; lastPlacement = 0;
+              }
             }
             break;
           }
           case 2: { // Bat
-            if (batsLeft > 0 && r <= 60) {
-              auto enemy = EntityFactory::createEnemy('B', px, py);
-              if (enemy) { tempEnemies.push_back(std::move(enemy)); batsLeft--; lastPlacement = 0; }
+            if (batsLeft > 0 && r <= 50) {
+              auto enemyObj = EntityFactory::createEnemy('B', px, py);
+              if (enemyObj) {
+                  auto* e = static_cast<Enemy*>(enemyObj.get());
+                  e->setTileMap(map);
+                  tempEnemies.push_back(std::move(enemyObj));
+                  batsLeft--; lastPlacement = 0;
+              }
             }
             break;
           }
           case 3: { // Spider
-            if (spidersLeft > 0 && r <= 60) {
-              auto enemy = EntityFactory::createEnemy('P', px, py);
-              if (enemy) { tempEnemies.push_back(std::move(enemy)); spidersLeft--; lastPlacement = 0; }
+            if (spidersLeft > 0 && r <= 50) {
+              auto enemyObj = EntityFactory::createEnemy('P', px, py);
+              if (enemyObj) {
+                  auto* e = static_cast<Enemy*>(enemyObj.get());
+                  e->setTileMap(map);
+                  tempEnemies.push_back(std::move(enemyObj));
+                  spidersLeft--; lastPlacement = 0;
+              }
             }
             break;
           }
@@ -457,8 +454,13 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
             break;
           }
           case 12: { // Shop Item
-            auto item = EntityFactory::createItem('$', px, py);
-            if (item) tempItems.push_back(std::move(item));
+            char shopCodes[] = {'$', 'I', 'Y', 'L'};
+            char itemCode = shopCodes[GetRandomValue(0, 3)];
+            auto item = EntityFactory::createItem(itemCode, px, py + (32 - 16));
+            if (item) {
+                item->isShopItem = true;
+                tempItems.push_back(std::move(item));
+            }
             break;
           }
           case 20: { // Golden Idol
@@ -473,14 +475,21 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
       int loot = lootGrid[cy][cx];
       if (loot > 0 && GetRandomValue(1, 100) <= 20) {
         char itemCode = 0;
-        switch (loot) {
-          case 1: itemCode = 'G'; break;
-          case 2: itemCode = 'R'; break;
-          case 3: itemCode = 'J'; break;
-          case 4: itemCode = 'C'; break;
-          case 5: itemCode = 'L'; break;
-          case 6: itemCode = 'Y'; break;
-          default: break;
+        if (loot == 1) {
+            int r = GetRandomValue(1, 100);
+            if (r <= 50) itemCode = 'G'; // 50% Gold
+            else if (r <= 55) itemCode = 'R'; // 5% Ruby
+            else if (r <= 70) itemCode = 'O'; // 15% Bomb
+            else if (r <= 85) itemCode = 'U'; // 15% Rope
+            else itemCode = 'C'; // 15% Chest
+        } else {
+            switch (loot) {
+              case 2: itemCode = 'R'; break;
+              case 3: itemCode = 'C'; break;
+              case 4: itemCode = 'O'; break;
+              case 5: itemCode = 'U'; break;
+              default: break;
+            }
         }
         if (itemCode != 0) {
           auto item = EntityFactory::createItem(itemCode, px, py);

@@ -55,36 +55,36 @@ std::unique_ptr<Item> EntityFactory::createItem(char code, float x, float y) {
 
     switch (code) {
         case 'G': 
-            item = std::make_unique<Item>(x, y, 32.0f, 32.0f, ItemType::TREASURE);
+            item = std::make_unique<LootPickup>(x, y, 32.0f, 32.0f, 500); // Gold Bar
             item->setSprite(getTexture(texGold), Rectangle{0, 0, 16, 16});
             break;
         case 'R': 
-            item = std::make_unique<Item>(x, y, 16.0f, 16.0f, ItemType::TREASURE);
+            item = std::make_unique<LootPickup>(x, y, 16.0f, 16.0f, 100); // Ruby
             item->setSprite(getTexture(texRubies), Rectangle{0, 0, 8, 8});
             break;
-        case 'J': 
-            item = std::make_unique<Item>(x, y, 32.0f, 32.0f, ItemType::TREASURE);
+        case 'J': // Jade/Emerald?
+            item = std::make_unique<LootPickup>(x, y, 32.0f, 32.0f, 1000);
             item->setSprite(getTexture(texSpikes), Rectangle{16, 0, 16, 16});
             break;
-        case 'C': 
-            item = std::make_unique<Item>(x, y, 32.0f, 32.0f, ItemType::TREASURE);
-            item->setSprite(getTexture(texSpikes), Rectangle{64, 0, 16, 16});
-            break;
-        case 'L': 
-            item = std::make_unique<Item>(x, y, 32.0f, 32.0f, ItemType::TREASURE);
-            item->setSprite(getTexture(texSpikes), Rectangle{32, 0, 16, 16});
-            break;
-        case 'Y': 
-            item = std::make_unique<Item>(x, y, 32.0f, 32.0f, ItemType::TREASURE);
-            item->setSprite(getTexture(texSpikes), Rectangle{80, 0, 16, 16});
-            break;
-        case 'I': 
-            item = std::make_unique<Item>(x, y, 32.0f, 32.0f, ItemType::TREASURE);
-            item->setSprite(getTexture(texSpikes), Rectangle{0, 0, 16, 16});
+        case 'C': // Chest (Closed)
+            item = std::make_unique<Chest>(x, y, 32.0f, 32.0f);
+            item->setSprite(getTexture(texSpikes), Rectangle{32, 0, 16, 16}); // Row 0 Col 2
             break;
         case '$': 
-            item = std::make_unique<Item>(x, y, 32.0f, 32.0f, ItemType::TREASURE);
-            item->setSprite(getTexture(texSpikes), Rectangle{64, 0, 16, 16});
+            return createItem('C', x, y); // Chest
+        case 'I': 
+            return createItem('U', x, y); // Rope
+        case 'Y': 
+            return createItem('R', x, y); // Ruby
+        case 'L': 
+            return createItem('O', x, y); // Bomb
+        case 'O': // Bomb
+            item = std::make_unique<BombPickup>(x, y, 16.0f, 16.0f, 3); // 3 bombs
+            item->setSprite(getTexture("assets/sprites/8x8/gfx_bomb.png"), Rectangle{0, 0, 8, 8});
+            break;
+        case 'U': // Rope
+            item = std::make_unique<RopePickup>(x, y, 16.0f, 16.0f, 3); // 3 ropes
+            item->setSprite(getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"), Rectangle{72, 0, 8, 8}); // Row 0 Col 9
             break;
         default: return nullptr;
     }

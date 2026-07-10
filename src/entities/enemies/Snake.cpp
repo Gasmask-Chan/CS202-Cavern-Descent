@@ -1,4 +1,5 @@
 #include "Snake.h"
+#include "../../level/TileMap.h"
 #include <raylib.h>
 #include <cstdio>
 
@@ -38,10 +39,24 @@ void Snake::handleIdle(float dt, Player* player) {
     } else {
         // If we were supposed to be moving, but vx was forced to 0 by PhysicsSystem last frame,
         // it means we hit a wall.
-        if (vx == 0) {
+        bool hitWall = (vx == 0);
+        bool ledgeAhead = false;
+        
+        if (tileMap && !hitWall) {
+            // Check ledge ahead
+            // Snake's center is x + width/2. We check one tile ahead based on direction.
+            int nextGridX = (x + width / 2.0f + direction * 16.0f) / 32;
+            int nextGridY = (y + height + 2.0f) / 32; // Just below the snake
+            if (!tileMap->isSolid(nextGridX, nextGridY)) {
+                ledgeAhead = true;
+            }
+        }
+
+        if (hitWall || ledgeAhead) {
             waitTimer = GetRandomValue(50, 150) / 100.0f; // Wait 0.5s to 1.5s
             direction *= -1; // Turn around
             isFacingRight = (direction == 1);
+            vx = 0;
         } else {
             vx = moveSpeed * direction;
             isFacingRight = (direction == 1);

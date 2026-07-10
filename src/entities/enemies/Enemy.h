@@ -11,6 +11,7 @@ protected:
     int health;
     int damage;
     std::shared_ptr<EnemyState> currentStateObj;
+    class TileMap* tileMap = nullptr;
 
     float animTimer;
     float animSpeed;
@@ -24,6 +25,7 @@ public:
     virtual ~Enemy();
 
     void setAnimation(int frames, float speed, int baseX, int baseY);
+    void setTileMap(class TileMap* map) { tileMap = map; }
 
     virtual void update(float dt, class Player* player = nullptr) override;
     virtual void render(float lightLevel) override;
