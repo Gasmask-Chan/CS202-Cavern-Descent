@@ -24,6 +24,7 @@ enum class TileType {
     ARROW_TRAP_RIGHT = 12,
     ENTRANCE = 13,
     EXIT = 14,
+    CAVE_SMOOTH = 24, // Shop floor (Col 1, Row 11)
     // (Other Spelunky DS tiles 15-42 omitted as they aren't used in cave generation, but can be added if needed)
     
     // We add a few custom ones we need for logic that aren't in DS tiles natively

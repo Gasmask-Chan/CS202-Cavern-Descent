@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "../entities/Item.h"
 #include "../core/EventBus.h"
 #include <algorithm>
 
@@ -100,7 +101,7 @@ void Player::handleInput() {
     }
 }
 
-void Player::update(float dt) {
+void Player::update(float dt, Player* player) {
     // Prevent physics instability/sinking during lag spikes or when game is backgrounded
     if (dt > 0.033f) dt = 0.033f; 
 
@@ -386,5 +387,8 @@ int Player::getHealth() { return health; }
 int Player::getBombs() { return bombs; }
 int Player::getRopes() { return ropes; }
 int Player::getGold() { return gold; }
+
+void Player::addBomb(int amount) { bombs += amount; }
+void Player::addRope(int amount) { ropes += amount; }
 
 }

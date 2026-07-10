@@ -1,6 +1,7 @@
 #include "PhysicsSystem.h"
 #include <cmath>
 #include <algorithm>
+#include <cstdio>
 
 namespace Platformer {
 
@@ -14,6 +15,8 @@ bool PhysicsSystem::checkAABBOverlap(Rectangle a, Rectangle b) {
 }
 
 void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
+    if (e->passesThroughWalls) return;
+    
     Rectangle aabb = e->getAABB();
     
     int startX = static_cast<int>(std::floor(aabb.x / tileMap->getTileSize()));
@@ -41,7 +44,9 @@ void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
 
                     float minPen = std::min({penLeft, penRight, penTop, penBottom});
 
-                    if (minPen == penTop) {
+                    // If penTop is extremely small, it means the entity is just sliding along the floor.
+                    // Prioritize floor collision over wall collision to prevent getting stuck on flat tiles.
+                    if (minPen == penTop || (penTop < 2.0f && e->vy >= 0)) {
                         e->move(0, -penTop);
                         e->isGrounded = true;
                         if (e->vy > 0) e->vy = 0;
@@ -50,9 +55,11 @@ void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
                         if (e->vy < 0) e->vy = 0;
                     } else if (minPen == penLeft) {
                         e->move(-penLeft, 0);
+                        if (e->vx != 0) printf("Hit wall Left! x=%f, y=%f, penLeft=%f, penTop=%f\n", e->x, e->y, penLeft, penTop);
                         e->vx = 0;
                     } else if (minPen == penRight) {
                         e->move(penRight, 0);
+                        if (e->vx != 0) printf("Hit wall Right! x=%f, y=%f, penRight=%f, penTop=%f\n", e->x, e->y, penRight, penTop);
                         e->vx = 0;
                     }
                     
@@ -69,6 +76,8 @@ CollisionResult PhysicsSystem::sweepAABB(DynamicEntity* e, float dt) {
     result.contactTime = 1.0f;
     result.contactNormal = {0.0f, 0.0f};
     result.contactPoint = {0.0f, 0.0f};
+    
+    if (e->passesThroughWalls) return result;
     
     float length = std::sqrt(e->vx * e->vx + e->vy * e->vy) * dt;
     if (length <= 0.0f) return result;

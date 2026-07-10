@@ -35,12 +35,14 @@ public:
     virtual ~Player();
 
     void handleInput();
-    void update(float dt) override;
+    void update(float dt, class Player* player = nullptr) override;
     void render(float lightLevel) override;
     
     void takeDamage(int dmg);
     void heal(int amount);
     void collectGold(int amount);
+    void addBomb(int amount);
+    void addRope(int amount);
     bool useBomb();
     bool useRope();
     void whipAttack();

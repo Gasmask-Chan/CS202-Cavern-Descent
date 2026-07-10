@@ -98,18 +98,16 @@ Each floor is a **4×4 macro-grid** of 16 room slots:
 1. **Macro Grid Walk:** Model the 4×4 grid as a 2D array (`RoomRole macroGrid[4][4]`). Start at a random top-row cell.
 2. **Random Walk:** Loop until reaching the bottom row: 80% chance to move left/right, 20% chance to drop down. Edges force a drop down. The traversed cells form the **Golden Path**.
 3. **BFS Validation:** After room population, BFS from spawn to exit on the tile grid confirms reachability with platformer physics constraints (jump height, gravity).
-4. **Room Template Instantiation:** To generate the actual geometry, each room slot loads a C++ `uint8_t` array (a "Template"). Each template represents a grid of exactly **10x8 tiles**. Since the macro grid is 4x4 rooms, the final playable level is exactly **40x32 tiles**. The numbers in the array are IDs from 0 to 42 (e.g., 0 = Air, 1 = Dirt Block, 4 = Wooden Platform), directly matching our master spritesheet.
+4. **Room Template Instantiation:** To generate the actual geometry, each room slot loads a C++ `uint8_t` array (a "Template"). Each template represents a grid of exactly **10x8 tiles**. Since the macro grid is 4x4 rooms, the final playable level is exactly **40x32 tiles**. The numbers in the array are IDs from 0 to 42 (e.g., 0 = Air, 1 = Dirt Block, 4 = Wooden Platform), directly matching our master spritesheet. Note: We use a python script (`fix_templates.py`) to post-process these matrices during development to ensure each room contains a maximum of 1 enemy per type, and no enclosed dead-ends.
 
 **Integrated Difficulty Scaling (per floor):**
 
-`LevelGenerator::generate()` scales parameters via a `DifficultyConfig` lookup:
-
 ```text
-Floor  | Enemies/Room | Trap Density | Treasure Value | Enemy Speed | Ghost Timer
--------|-------------|-------------|----------------|-------------|------------
- 1–3   |     1       |    Low      |     Low        |    1.0×     |   180s
- 4–6   |     2       |   Medium    |    Medium      |    1.2×     |   150s
- 7–9   |     3       |    High     |     High       |    1.5×     |   120s
+Floor  | Enemy Spawn Rate | Trap Density | Treasure Value | Enemy Speed | Ghost Timer
+-------|------------------|-------------|----------------|-------------|------------
+ 1–3   |      60%         |    Low      |     Low        |    1.0×     |   180s
+ 4–6   |      70%         |   Medium    |    Medium      |    1.2×     |   150s
+ 7–9   |      85%         |    High     |     High       |    1.5×     |   120s
 ```
 
 **Data Structures:**
@@ -207,7 +205,7 @@ When generating a floor, the `LevelGenerator` rolls a random **floor modifier** 
 | **Flooded Floor** | Bottom 2 tile rows pre-filled with water | `liquidSim->addLiquid(x, bottomRows, 255, WATER)` in generation |
 | **Cursed Floor** | All treasure values doubled, but ghost timer halved | Modify `DifficultyConfig` fields |
 
-Applied as a `FloorModifier` enum stored in `LevelManager`. Each modifier tweaks an existing system's parameter — no new systems needed.
+Applied as a `FloorModifier` enum stored in `PlayState/GameState`. Each modifier tweaks an existing system's parameter — no new systems needed.
 
 ### 2.8 Minimap with Fog of War (A3)
 
@@ -390,7 +388,7 @@ classDiagram
     }
 
     class PlayState {
-        -LevelManager* levelManager
+        -PlayState/GameState* levelManager
         -Player* player
         -Camera2D camera
         -LightingSystem* lighting
@@ -499,7 +497,7 @@ classDiagram
 | `GameState::setGame(Game* g)` | Stores the owning `Game` pointer. Called by `Game::changeState()` and `Game::init()` immediately after creating a new state. |
 | `MenuState::enter()` | Loads menu background texture. Starts menu BGM via `AudioManager`. Sets `selectedOption = 0`. |
 | `MenuState::handleInput()` | Up/Down arrows change `selectedOption` (0=Start, 1=Editor, 2=Quit). Enter key triggers: 0→`game->changeState(GameStateType::CHAR_SELECT)`, 1→`game->changeState(GameStateType::EDITOR)`, 2→exit. |
-| `PlayState::enter()` | Creates `LevelManager`, `PhysicsSystem`, `LightingSystem`, `LiquidSimulator`, `ComboSystem`, `Minimap`, `HUD`. Calls `levelManager->generateFloor(1)`. Starts zone BGM. |
+| `PlayState::enter()` | Creates `PlayState/GameState`, `PhysicsSystem`, `LightingSystem`, `LiquidSimulator`, `ComboSystem`, `Minimap`, `HUD`. Calls `levelManager->generateFloor(1)`. Starts zone BGM. |
 | `PlayState::update(dt)` | Executes the 21-step update order from §6.1: input → player → ghost → enemies → gravity → collisions → items → bombs → liquids → lighting → events → combo → camera → cleanup → death check. |
 | `PauseState::handleInput()` | Escape key → return to `PlayState`. Up/Down select Resume/Quit. Enter triggers selected option. |
 | `GameOverState::enter()` | Captures final score and floors reached from `GameManager`. Prompts for name entry for high score save. |
@@ -508,7 +506,7 @@ classDiagram
 ### 4.2 Entity System
 
 > [!IMPORTANT]
-> **Typed ownership — no `dynamic_cast`.** `LevelManager` stores entities in separate typed vectors (see §4.4). The game loop iterates each list directly. Collision is O(N²) across typed lists — sufficient for ~30–50 entities per level.
+> **Typed ownership — no `dynamic_cast`.** `PlayState/GameState` stores entities in separate typed vectors (see §4.4). The game loop iterates each list directly. Collision is O(N²) across typed lists — sufficient for ~30–50 entities per level.
 
 ```mermaid
 classDiagram
@@ -602,6 +600,8 @@ classDiagram
         +update(float dt) void
     }
 
+    note for Enemy "All Enemy subclasses and NemesisGhost\nreside in src/entities/enemies/"
+
     class Snake {
         -float patrolSpeed
         -float patrolRange
@@ -649,7 +649,7 @@ classDiagram
 | `render(float lightLevel)` | Virtual. Draws `sprite` texture at `(x, y)` tinted by `lightLevel` (0.0=black, 1.0=full brightness) using Raylib `DrawTextureEx` with `ColorTint`. |
 | `getAABB()` | Returns a Raylib `Rectangle{x, y, width, height}` representing the axis-aligned bounding box. Used by `PhysicsSystem` for all collision checks. |
 | `isAlive()` | Returns `isActive`. Entities with `isActive == false` are removed during the cleanup step (step 20 in game loop). |
-| `destroy()` | Sets `isActive = false`. The entity remains in its vector until `LevelManager::removeDeadEntities()` erases it. |
+| `destroy()` | Sets `isActive = false`. The entity remains in its vector until `PlayState/GameState::removeDeadEntities()` erases it. |
 
 **DynamicEntity**
 
@@ -666,7 +666,7 @@ classDiagram
 | `handleInput()` | Reads Raylib key states: A/D → set `vx` to `±moveStrategy->getMoveSpeed()`. Space (pressed) → if `isGrounded`, set `vy = -moveStrategy->getJumpForce()`. Space (released mid-jump) → cap `vy` at half jump force for variable jump height. Z → `whipAttack()`. X → `useBomb()`. C → `useRope()`. |
 | `update(float dt)` | Applies velocity: `x += vx * dt`, `y += vy * dt`. Decrements `invincibilityTimer` by `dt`. Updates animation frame based on state (idle/run/jump/fall). If `isSubmerged`, multiplies `vx` by 0.5 (water slow). |
 | `takeDamage(int dmg)` | If `invincibilityTimer > 0`, return (immune). Else: `health -= dmg`. Sets `invincibilityTimer = 1.5f` (1.5 seconds of i-frames). Publishes `EVENT_PLAYER_DAMAGED` to `EventBus`. If `health <= 0`, publishes `EVENT_PLAYER_DEATH`. |
-| `whipAttack()` | Calculates a 1-tile-wide attack rectangle in front of the player (direction based on `isFacingRight`). Checks if that grid cell is `TileType::CRACKED` → calls `LevelManager::breakCrackedBlock()`. Also checks overlap with enemies in detection range → deals 1 damage. |
+| `whipAttack()` | Calculates a 1-tile-wide attack rectangle in front of the player (direction based on `isFacingRight`). Checks if that grid cell is `TileType::CRACKED` → calls `PlayState/GameState::breakCrackedBlock()`. Also checks overlap with enemies in detection range → deals 1 damage. |
 | `useBomb()` | If `bombs > 0`: decrements `bombs`, creates a `Bomb` projectile entity at player position with a 3-second fuse timer, adds it to `dynamicEntities`. Returns `true`. Else returns `false`. |
 | `useRope()` | If `ropes > 0`: decrements `ropes`, creates a vertical `Rope` entity above the player (extends upward until hitting a solid tile). Player can grab and climb it. Returns `true`. Else returns `false`. |
 | `collectGold(int amount)` | Adds `amount` to `gold`. Publishes `EVENT_GOLD_COLLECTED` to `EventBus`. `AudioManager` plays coin SFX via observer subscription. |
@@ -801,7 +801,7 @@ classDiagram
 
 ```mermaid
 classDiagram
-    class LevelManager {
+    class PlayState/GameState {
         -TileMap* currentMap
         -LevelGenerator* generator
         -unique_ptr~Player~ player
@@ -812,8 +812,8 @@ classDiagram
         -int currentFloor
         -ZoneType currentZone
         -FloorModifier modifier
-        +LevelManager()
-        +~LevelManager()
+        +PlayState/GameState()
+        +~PlayState/GameState()
         +generateFloor(int floor) void
         +getTileMap() TileMap*
         +getPlayer() Player*
@@ -898,8 +898,8 @@ classDiagram
         +isInBounds(int x, int y) bool
     }
 
-    LevelManager --> TileMap
-    LevelManager --> LevelGenerator
+    PlayState/GameState --> TileMap
+    PlayState/GameState --> LevelGenerator
     LevelGenerator --> RoomTemplate : loads many
     LevelGenerator --> DifficultyConfig
     LevelGenerator --> FloorModifier
@@ -908,7 +908,7 @@ classDiagram
 
 #### Method Behavior Descriptions — Level Generation & Ownership
 
-**LevelManager**
+**PlayState/GameState**
 
 | Method | Behavior |
 |---|---|
@@ -1187,8 +1187,8 @@ classDiagram
     }
 
     Entity <|-- Item
-    Item <|-- Treasure
-    Item <|-- HealthCrate
+    Item <|-- LootPickup
+    Item <|-- Chest
     Item <|-- BombPickup
     Item <|-- RopePickup
     Entity <|-- Trap
@@ -1431,9 +1431,9 @@ classDiagram
 | `std::vector<int>` | Golden Path | Ordered room-index sequence from DFS |
 | `std::queue<int>` | BFS validation + BFS liquid flood | Standard BFS frontier |
 | `std::stack<int>` | DFS golden-path generation | Standard DFS traversal |
-| `std::vector<unique_ptr<DynamicEntity>>` | **LevelManager typed ownership** | Enemies — iterate without `dynamic_cast` |
-| `std::vector<unique_ptr<Item>>` | **LevelManager typed ownership** | Items — type-safe iteration |
-| `std::vector<unique_ptr<Trap>>` | **LevelManager typed ownership** | Traps — type-safe iteration |
+| `std::vector<unique_ptr<DynamicEntity>>` | **PlayState/GameState typed ownership** | Enemies — iterate without `dynamic_cast` |
+| `std::vector<unique_ptr<Item>>` | **PlayState/GameState typed ownership** | Items — type-safe iteration |
+| `std::vector<unique_ptr<Trap>>` | **PlayState/GameState typed ownership** | Traps — type-safe iteration |
 | `bool visited[4][4]` | Minimap fog of war | Tracks which rooms are revealed |
 | `std::vector<FloatingText>` | Combo system | Active floating text elements |
 | `std::unordered_map<string, Sound>` | AudioManager SFX cache | O(1) sound lookup by name |
