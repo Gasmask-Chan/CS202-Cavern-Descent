@@ -55,11 +55,9 @@ void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
                         if (e->vy < 0) e->vy = 0;
                     } else if (minPen == penLeft) {
                         e->move(-penLeft, 0);
-                        if (e->vx != 0) printf("Hit wall Left! x=%f, y=%f, penLeft=%f, penTop=%f\n", e->x, e->y, penLeft, penTop);
                         e->vx = 0;
                     } else if (minPen == penRight) {
                         e->move(penRight, 0);
-                        if (e->vx != 0) printf("Hit wall Right! x=%f, y=%f, penRight=%f, penTop=%f\n", e->x, e->y, penRight, penTop);
                         e->vx = 0;
                     }
                     
