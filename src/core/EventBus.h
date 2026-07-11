@@ -14,7 +14,8 @@ enum class EventType {
     EVENT_PLAYER_DEATH,
     EVENT_GOLD_COLLECTED,
     EVENT_GHOST_SPAWN,
-    EVENT_ENEMY_KILLED
+    EVENT_ENEMY_KILLED,
+    EVENT_SPAWN_ITEM
 };
 
 struct EventData {
@@ -23,6 +24,9 @@ struct EventData {
     float worldX = 0.0f;
     float worldY = 0.0f;
     int amount = 0;
+    char entityCode = ' ';
+    float vx = 0.0f;
+    float vy = 0.0f;
 };
 
 using EventCallback = std::function<void(EventData)>;
@@ -40,6 +44,8 @@ public:
     EventBus& operator = (const EventBus &) = delete;
 
     void subscribe(EventType type, EventCallback cb);
+    
+    void clearListeners(EventType type);
 
     void publish(EventType type, EventData data);
 };

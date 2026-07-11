@@ -3,7 +3,7 @@
 namespace Platformer {
 
 DynamicEntity::DynamicEntity(float x, float y, float w, float h) 
-    : Entity(x, y, w, h), vx(0.0f), vy(0.0f), gravity(800.0f), isGrounded(false), isFacingRight(true) {
+    : Entity(x, y, w, h), vx(0.0f), vy(0.0f), gravity(800.0f), isGrounded(false), isFacingRight(true), passesThroughWalls(false) {
 }
 
 void DynamicEntity::applyGravity(float dt) {
@@ -23,6 +23,12 @@ void DynamicEntity::setVelocity(float vx, float vy) {
 }
 
 float DynamicEntity::getVelocityX() { return vx; }
-float DynamicEntity::getVelocityY() { return vy; }
+float DynamicEntity::getVelocityY() {
+    return vy;
+}
+
+bool DynamicEntity::getIsGrounded() const {
+    return isGrounded;
+}
 
 }

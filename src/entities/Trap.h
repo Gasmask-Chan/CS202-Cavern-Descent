@@ -11,7 +11,7 @@ protected:
 public:
     Trap(float x, float y, float w, float h, int dmg);
 
-    virtual void update(float dt);
+    virtual void update(float dt, class Player* player = nullptr) override;
 
     virtual void render(float lightLevel);
 

@@ -87,6 +87,7 @@ private:
     PhysicsSystem* physics;
     std::unique_ptr<Minimap> minimap;
     std::unique_ptr<LightingSystem> lighting;
+    std::vector<std::unique_ptr<Item>> pendingItems;
     
 public:
     /**

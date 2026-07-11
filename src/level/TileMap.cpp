@@ -37,7 +37,7 @@ bool TileMap::isSolid(int x, int y) const {
   TileType type = getTile(x, y);
   // In Spelunky DS:
   // 1=CAVE_ROCK, 2=CAVE_REGULAR, 3=STONE_BLOCK, 4=CAVE_DOWN_ORIENTED (platform), 5-8 = Gold/Oriented walls
-  if (type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) {
+  if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) || type == TileType::CAVE_SMOOTH) {
       return true; 
   }
   return false;
@@ -46,7 +46,7 @@ bool TileMap::isSolid(int x, int y) const {
 bool TileMap::isOpaque(int x, int y) const {
   TileType type = getTile(x, y);
   // Opaque blocks light
-  if (type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED && type != TileType::CAVE_DOWN_ORIENTED) {
+  if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED && type != TileType::CAVE_DOWN_ORIENTED) || type == TileType::CAVE_SMOOTH) {
       return true; 
   }
   return false;

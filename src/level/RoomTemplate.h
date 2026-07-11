@@ -11,8 +11,7 @@ enum class RoomRole {
     TYPE_2,             // Left/Right/Bottom pass (Drop room)
     TYPE_3,             // Left/Right/Top pass (Landing room)
     TYPE_2_DROP_THROUGH,// Left/Right/Top/Bottom pass
-    TYPE_SHOP,          // Closed room repurposed as a shop
-    TYPE_ALTAR,         // Closed room repurposed as a kali altar
+    TYPE_SHOP           // Closed room repurposed as a shop
 };
 
 } // namespace Platformer

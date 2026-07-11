@@ -12,6 +12,7 @@ protected:
     float height;
     bool isActive;
     Texture2D sprite;
+    Rectangle srcRect;
 
 public:
     Entity(float x, float y, float w, float h);
@@ -23,7 +24,7 @@ public:
      * 
      * @param dt 
      */
-    virtual void update(float dt);
+    virtual void update(float dt, class Player* player = nullptr);
 
     /**
      * @brief Virtual. Draws sprite texture at `(x, y)` tinted by `lightLevel` (0.0=black, 1.0=full brightness) using Raylib `DrawTextureEx` with `ColorTint`.
@@ -31,6 +32,8 @@ public:
      * @param lightLevel 
      */
     virtual void render(float lightLevel);
+
+    void setSprite(Texture2D tex, Rectangle src);
 
     /**
      * @brief Returns a Raylib `Rectangle{x, y, width, height}` representing the axis-aligned bounding box. Used by `PhysicsSystem` for all collision checks.
