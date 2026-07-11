@@ -534,6 +534,7 @@ classDiagram
         #float gravity
         #bool isGrounded
         #bool isFacingRight
+        +bool passesThroughWalls
         +DynamicEntity(float x, float y, float w, float h)
         +applyGravity(float dt) void
         +move(float dx, float dy) void
@@ -568,6 +569,7 @@ classDiagram
         +useBomb() bool
         +useRope() bool
         +whipAttack() void
+        +isInvincible() bool
         +setMovementStrategy(MovementStrategy* s) void
         +setTileMap(TileMap* map) void
         +getHealth() int
@@ -591,6 +593,23 @@ classDiagram
         +getDetectionRange() float
         +getTarget() Player*
         +getOrigin() Vec2f
+    }
+
+    class NemesisGhost {
+        +NemesisGhost(float x, float y, float w, float h)
+        +update(float dt, Player* player) void
+        +handleIdle(float dt, Player* player) void
+        +handleChase(float dt, Player* player) void
+        +handleReturn(float dt, Player* player) void
+    }
+
+    class Bomb {
+        -float fuseTimer
+        -bool exploded
+        +Bomb(float x, float y, float vx, float vy)
+        +update(float dt, Player* player) void
+        +render(float lightLevel) void
+        +explode() void
     }
 
     class Bat {
@@ -629,12 +648,15 @@ classDiagram
     }
 
     Entity <|-- DynamicEntity
+    Entity <|-- Trap
+    Entity <|-- Item
     DynamicEntity <|-- Player
     DynamicEntity <|-- Enemy
-    DynamicEntity <|-- NemesisGhost
+    DynamicEntity <|-- Bomb
     Enemy <|-- Bat
     Enemy <|-- Snake
     Enemy <|-- Spider
+    Enemy <|-- NemesisGhost
     Player --> MovementStrategy : uses
     Enemy --> EnemyState : currentState
 ```

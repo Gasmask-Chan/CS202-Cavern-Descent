@@ -13,11 +13,18 @@ namespace Platformer {
  */
 class EntityFactory {
 public:
+    static void preloadTextures();
+
     /**
      * @brief Creates an enemy entity based on the character code.
      * Returns nullptr if the code does not correspond to an enemy.
      */
     static std::unique_ptr<DynamicEntity> createEnemy(char code, float x, float y);
+
+    /**
+     * @brief Creates a ghost entity.
+     */
+    static std::unique_ptr<DynamicEntity> createGhost(float x, float y);
 
     /**
      * @brief Creates an item entity based on the character code.

@@ -50,15 +50,12 @@ void AudioManager::playSFX(const std::string& name) {
     if (it != sfxCache.end()) {
         SetSoundVolume(it->second, sfxVolume); // Ensure current volume is applied
         PlaySound(it->second);
-    } else {
-        std::cerr << "AudioManager Warning: SFX not found in cache: " << name << std::endl;
     }
 }
 
 void AudioManager::playBGM(const std::string& name) {
     auto it = bgmPaths.find(name);
     if (it == bgmPaths.end()) {
-        std::cerr << "AudioManager Warning: BGM not found in mapping: " << name << std::endl;
         return;
     }
 

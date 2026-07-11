@@ -38,7 +38,7 @@ void Bat::handleIdle(float dt, Player* player) {
     float dist = std::sqrt(dx*dx + dy*dy);
     float triggerDist = 7.0f * 32.0f;
 
-    if (dy > 0 && dist < triggerDist) {
+    if (dist < triggerDist) {
         changeState(Enemy::chaseState);
     }
 }
@@ -54,7 +54,7 @@ void Bat::handleChase(float dt, Player* player) {
 
     if (dist > loseAggroDist) {
         changeState(Enemy::returnState);
-    } else {
+    } else if (dist > 0.1f) {
         float speed = 80.0f;
         vx = (dx / dist) * speed;
         vy = (dy / dist) * speed;

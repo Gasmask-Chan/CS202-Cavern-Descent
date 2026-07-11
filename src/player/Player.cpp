@@ -13,6 +13,7 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     isSubmerged = false;
     isWhipping = false;
     whipTimer = 0.0f;
+    whipHitThisFrame = false;
     tileMap = nullptr;
     
     Image whipImg = LoadImage("assets/sprites/16x16/gfx_spike_collectibles_flame.png");
@@ -121,6 +122,8 @@ void Player::update(float dt, Player* player) {
         invincibilityTimer -= dt;
     }
     
+    whipHitThisFrame = false;
+    
     // Animation state machine
     AnimState newAnim = AnimState::IDLE;
     if (isWhipping) {
@@ -135,6 +138,7 @@ void Player::update(float dt, Player* player) {
             float hitX = isFacingRight ? (x + width) : (x - hitWidth);
             float hitY = y + 4.0f; // Upper-middle part of the player
             Rectangle whipHitbox = { hitX, hitY, hitWidth, hitHeight };
+            whipHitThisFrame = true;
             
             if (tileMap) {
                 int startTx = (int)(whipHitbox.x / 32.0f);
@@ -301,17 +305,19 @@ void Player::render(float lightLevel) {
             }
         }
 
-        // Draw Whip Wind-Back (Behind Player)
-        if (isWhipping && whipSprite.id != 0 && whipFrame == 0) {
-            DrawTexturePro(whipSprite, wSrc, wDest, Vector2{0.0f, 0.0f}, 0.0f, tint);
-        }
+        if (invincibilityTimer <= 0.0f || (int)(invincibilityTimer * 10) % 2 == 0) {
+            // Draw Whip Wind-Back (Behind Player)
+            if (isWhipping && whipSprite.id != 0 && whipFrame == 0) {
+                DrawTexturePro(whipSprite, wSrc, wDest, Vector2{0.0f, 0.0f}, 0.0f, tint);
+            }
 
-        // Draw Player
-        DrawTexturePro(sprite, frameRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, tint);
-        
-        // Draw Whip Lash-Forward (In front of Player)
-        if (isWhipping && whipSprite.id != 0 && whipFrame == 1) {
-            DrawTexturePro(whipSprite, wSrc, wDest, Vector2{0.0f, 0.0f}, 0.0f, tint);
+            // Draw Player
+            DrawTexturePro(sprite, frameRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, tint);
+            
+            // Draw Whip Lash-Forward (In front of Player)
+            if (isWhipping && whipSprite.id != 0 && whipFrame == 1) {
+                DrawTexturePro(whipSprite, wSrc, wDest, Vector2{0.0f, 0.0f}, 0.0f, tint);
+            }
         }
     } else {
         DrawRectangle(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height), tint);
@@ -323,6 +329,8 @@ void Player::takeDamage(int dmg) {
     
     health -= dmg;
     invincibilityTimer = 1.5f;
+    vy = -300.0f;
+    vx = isFacingRight ? -200.0f : 200.0f;
     
     EventData data;
     data.amount = dmg;
@@ -350,7 +358,12 @@ void Player::collectGold(int amount) {
 bool Player::useBomb() {
     if (bombs > 0) {
         bombs--;
-        // TODO: Create Bomb projectile entity 
+        EventData data;
+        data.worldX = x + width / 2.0f;
+        data.worldY = y + height / 2.0f;
+        data.vx = vx + (isFacingRight ? 150.0f : -150.0f);
+        data.vy = -150.0f;
+        EventBus::getInstance()->publish(EventType::EVENT_SPAWN_BOMB, data);
         return true;
     }
     return false;
@@ -390,5 +403,17 @@ int Player::getGold() { return gold; }
 
 void Player::addBomb(int amount) { bombs += amount; }
 void Player::addRope(int amount) { ropes += amount; }
+
+bool Player::getIsWhipHitThisFrame() const {
+    return whipHitThisFrame;
+}
+
+Rectangle Player::getWhipHitbox() const {
+    float hitWidth = 24.0f;
+    float hitHeight = 12.0f;
+    float hitX = isFacingRight ? (x + width) : (x - hitWidth);
+    float hitY = y + 4.0f;
+    return { hitX, hitY, hitWidth, hitHeight };
+}
 
 }

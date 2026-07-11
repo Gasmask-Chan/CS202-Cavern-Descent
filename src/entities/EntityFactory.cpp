@@ -22,6 +22,17 @@ static Texture2D getTexture(const std::string& path) {
     return textureCache[path];
 }
 
+void EntityFactory::preloadTextures() {
+    getTexture("assets/sprites/8x8/gfx_rubies.png");
+    getTexture("assets/sprites/16x16/gfx_spike_collectibles_flame.png");
+    getTexture("assets/sprites/8x8/gfx_bomb.png");
+    getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png");
+    getTexture("assets/sprites/16x16/gfx_goldbars.png");
+    getTexture("assets/sprites/16x16/gfx_bat_snake_jetpack.png");
+    getTexture("assets/sprites/16x16/gfx_spider_skeleton.png");
+    getTexture("assets/npc/Ghost.png");
+}
+
 std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, float y) {
     std::string texBatSnake = "assets/sprites/16x16/gfx_bat_snake_jetpack.png";
     std::string texSpider = "assets/sprites/16x16/gfx_spider_skeleton.png";
@@ -44,6 +55,12 @@ std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, fl
         default: return nullptr;
     }
     return enemy;
+}
+
+std::unique_ptr<DynamicEntity> EntityFactory::createGhost(float x, float y) {
+    auto ghost = std::make_unique<NemesisGhost>(x, y, 32.0f, 32.0f);
+    ghost->setSprite(getTexture("assets/npc/Ghost.png"), Rectangle{0, 0, 963, 646});
+    return ghost;
 }
 
 std::unique_ptr<Item> EntityFactory::createItem(char code, float x, float y) {
@@ -102,9 +119,12 @@ std::unique_ptr<Trap> EntityFactory::createTrap(char code, float x, float y) {
         trap = std::make_unique<Trap>(x, y, 32.0f, 32.0f, 1);
         trap->setSprite(getTexture(texSpikes), Rectangle{0, 0, 16, 16});
         return trap;
-    } else if (code == '>' || code == '<') {
-        // Arrow traps
-        return std::make_unique<Trap>(x, y, 64.0f, 64.0f, 1);
+    } else if (code == '>') {
+        // Arrow trap facing Right. Hitbox extends 1 tile to the right.
+        return std::make_unique<Trap>(x + 32.0f, y, 32.0f, 32.0f, 1);
+    } else if (code == '<') {
+        // Arrow trap facing Left. Hitbox extends 1 tile to the left.
+        return std::make_unique<Trap>(x - 32.0f, y, 32.0f, 32.0f, 1);
     }
     
     return nullptr;

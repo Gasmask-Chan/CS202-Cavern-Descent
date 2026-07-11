@@ -9,6 +9,7 @@ namespace Platformer {
 
 enum class EventType {
     EVENT_TERRAIN_DESTROYED,
+    EVENT_SPAWN_BOMB,
     EVENT_BOMB_EXPLODE,
     EVENT_PLAYER_DAMAGED,
     EVENT_PLAYER_DEATH,

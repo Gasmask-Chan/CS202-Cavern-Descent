@@ -27,10 +27,9 @@ void TileMap::setTile(int x, int y, TileType type) {
 }
 
 void TileMap::destroyBlock(int x, int y) {
-  if (isCracked(x, y)) {
-    setTile(x, y, TileType::NOTHING);
-    // TODO: spawn rubble particle effects here in the future
-  }
+  // Whip already checks isCracked, Bomb destroys indiscriminately.
+  setTile(x, y, TileType::NOTHING);
+  // TODO: spawn rubble particle effects here in the future
 }
 
 bool TileMap::isSolid(int x, int y) const {
