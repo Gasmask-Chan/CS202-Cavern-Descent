@@ -98,6 +98,8 @@ void PlayState::enter() {
     
     minimap = std::make_unique<Minimap>(tempLevel.exitPos);
     
+    lighting = std::make_unique<LightingSystem>(tempLevel.tileMap->getWidth(), tempLevel.tileMap->getHeight());
+    
     camera.target = Vector2{ player->getX(), player->getY() };
 }
 
@@ -153,6 +155,30 @@ void PlayState::update(float dt) {
         if (minimap) {
             minimap->update(player->getX(), player->getY());
         }
+        
+        if (lighting) {
+            lighting->clearLights();
+            
+            // Add Player Torch
+            // Use the exact float position (in tile coordinates) for smooth, sub-tile distance falloff
+            float trueX = (player->getX() + 16.0f) / 32.0f;
+            float trueY = (player->getY() + 16.0f) / 32.0f;
+            
+            // Create a smooth organic flicker using composite sine waves and a tiny bit of random noise
+            double time = GetTime();
+            float flicker = 0.0f;
+            flicker += std::sin(time * 12.0) * 0.02f;
+            flicker += std::sin(time * 23.0) * 0.015f;
+            flicker += std::sin(time * 5.0) * 0.01f;
+            flicker += ((float)GetRandomValue(-100, 100) / 100.0f) * 0.005f; // micro crackles
+            
+            float intensity = 1.0f + flicker;
+            float radius = 24.0f + (flicker * 15.0f);
+            
+            lighting->addLight(trueX, trueY, intensity, radius);
+            
+            lighting->update(tempLevel.tileMap.get());
+        }
     }
 }
 
@@ -169,8 +195,9 @@ void PlayState::render() {
 
     if (tempLevel.tileMap) {
         tempLevel.tileMap->renderParallaxBackground(camera);
-        std::vector<std::vector<float>> lightMap(tempLevel.tileMap->getHeight(), std::vector<float>(tempLevel.tileMap->getWidth(), 1.0f));
-        tempLevel.tileMap->render(camera, lightMap, false); // Background pass (Ladders, Doors)
+        if (lighting) {
+            tempLevel.tileMap->render(camera, lighting->getLightMap(), false); // Background pass
+        }
     }
 
     for (auto& item : tempLevel.items) {
@@ -188,9 +215,8 @@ void PlayState::render() {
     }
 
     // Render foreground tiles LAST so they overlap the player's head and entities
-    if (tempLevel.tileMap) {
-        std::vector<std::vector<float>> lightMap(tempLevel.tileMap->getHeight(), std::vector<float>(tempLevel.tileMap->getWidth(), 1.0f));
-        tempLevel.tileMap->render(camera, lightMap, true); // Foreground pass (Solid blocks)
+    if (tempLevel.tileMap && lighting) {
+        tempLevel.tileMap->render(camera, lighting->getLightMap(), true); // Foreground pass (Solid blocks)
     }
     
     EndMode2D();

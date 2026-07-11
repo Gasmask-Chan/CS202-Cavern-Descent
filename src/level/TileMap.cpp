@@ -1,4 +1,7 @@
 #include "TileMap.h"
+#include <cmath>
+#include <iostream>
+#include "rlgl.h"
 
 namespace Platformer {
 
@@ -66,12 +69,32 @@ void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& light
     for (int x = startX; x <= endX; ++x) {
       TileType type = getTile(x, y);
 
-      float light = 1.0f;
-      if (static_cast<size_t>(y) < lightMap.size() && static_cast<size_t>(x) < lightMap[y].size()) {
-        light = lightMap[y][x];
-      }
+      auto getVertexLight = [&](int vx, int vy) -> float {
+        float sum = 0.0f;
+        for (int dy = -1; dy <= 0; dy++) {
+            for (int dx = -1; dx <= 0; dx++) {
+                int tx = vx + dx;
+                int ty = vy + dy;
+                if (ty >= 0 && static_cast<size_t>(ty) < lightMap.size() && tx >= 0 && static_cast<size_t>(tx) < lightMap[ty].size()) {
+                    sum += lightMap[ty][tx];
+                } else {
+                    sum += 0.15f; // Ambient light for out-of-bounds tiles
+                }
+            }
+        }
+        return sum / 4.0f;
+      };
+
+      float lTL = getVertexLight(x, y);
+      float lTR = getVertexLight(x + 1, y);
+      float lBL = getVertexLight(x, y + 1);
+      float lBR = getVertexLight(x + 1, y + 1);
       
-      Color tint = Color{255, 255, 255, (unsigned char)(255 * light)};
+      Color cTL = Color{(unsigned char)(255 * lTL), (unsigned char)(255 * lTL), (unsigned char)(255 * lTL), 255};
+      Color cTR = Color{(unsigned char)(255 * lTR), (unsigned char)(255 * lTR), (unsigned char)(255 * lTR), 255};
+      Color cBL = Color{(unsigned char)(255 * lBL), (unsigned char)(255 * lBL), (unsigned char)(255 * lBL), 255};
+      Color cBR = Color{(unsigned char)(255 * lBR), (unsigned char)(255 * lBR), (unsigned char)(255 * lBR), 255};
+
       Rectangle dest = { (float)x * tileSize, (float)y * tileSize, (float)tileSize, (float)tileSize };
 
       if (dsTileset.id != 0) {
@@ -91,7 +114,26 @@ void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& light
             int pixel_x = (logical_index % 2) * 16;
             int pixel_y = (logical_index / 2) * 16;
             Rectangle dsSrc = { (float)pixel_x, (float)pixel_y, 16.0f, 16.0f };
-            DrawTexturePro(dsTileset, dsSrc, dest, Vector2{0, 0}, 0.0f, tint);
+            
+            rlSetTexture(dsTileset.id);
+            rlBegin(RL_QUADS);
+                rlColor4ub(cTL.r, cTL.g, cTL.b, cTL.a);
+                rlTexCoord2f(dsSrc.x / dsTileset.width, dsSrc.y / dsTileset.height);
+                rlVertex2f(dest.x, dest.y);
+
+                rlColor4ub(cBL.r, cBL.g, cBL.b, cBL.a);
+                rlTexCoord2f(dsSrc.x / dsTileset.width, (dsSrc.y + dsSrc.height) / dsTileset.height);
+                rlVertex2f(dest.x, dest.y + dest.height);
+
+                rlColor4ub(cBR.r, cBR.g, cBR.b, cBR.a);
+                rlTexCoord2f((dsSrc.x + dsSrc.width) / dsTileset.width, (dsSrc.y + dsSrc.height) / dsTileset.height);
+                rlVertex2f(dest.x + dest.width, dest.y + dest.height);
+
+                rlColor4ub(cTR.r, cTR.g, cTR.b, cTR.a);
+                rlTexCoord2f((dsSrc.x + dsSrc.width) / dsTileset.width, dsSrc.y / dsTileset.height);
+                rlVertex2f(dest.x + dest.width, dest.y);
+            rlEnd();
+            rlSetTexture(0);
         }
       }
     }

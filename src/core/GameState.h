@@ -3,6 +3,7 @@
 #include "../level/LevelGenerator.h"
 #include "../physics/PhysicsSystem.h"
 #include "../level/TileMap.h"
+#include "../level/LightingSystem.h"
 #include <vector>
 #include "../ui/Minimap.h"
 
@@ -85,6 +86,7 @@ private:
     GeneratedLevel tempLevel;
     PhysicsSystem* physics;
     std::unique_ptr<Minimap> minimap;
+    std::unique_ptr<LightingSystem> lighting;
     
 public:
     /**
