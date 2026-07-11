@@ -3,7 +3,9 @@
 #include "../level/LevelGenerator.h"
 #include "../physics/PhysicsSystem.h"
 #include "../level/TileMap.h"
+#include "../level/LightingSystem.h"
 #include <vector>
+#include "../ui/Minimap.h"
 
 namespace Platformer {
 
@@ -83,7 +85,13 @@ private:
     std::unique_ptr<LevelGenerator> tempGenerator;
     GeneratedLevel tempLevel;
     PhysicsSystem* physics;
+    std::unique_ptr<Minimap> minimap;
+    std::unique_ptr<LightingSystem> lighting;
     std::vector<std::unique_ptr<Item>> pendingItems;
+    std::vector<std::unique_ptr<DynamicEntity>> pendingEntities;
+    
+    float ghostTimer;
+    bool ghostSpawned;
     
 public:
     /**

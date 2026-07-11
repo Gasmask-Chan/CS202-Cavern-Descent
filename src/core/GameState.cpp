@@ -3,8 +3,15 @@
 #include "GameManager.h"
 #include "../audio/AudioManager.h"
 #include "../player/Player.h"
+#include "../ui/Minimap.h"
+#include "raymath.h"
 #include "../core/EventBus.h"
 #include "../entities/EntityFactory.h"
+#include "../entities/Item.h"
+#include "../entities/Trap.h"
+#include "../entities/Bomb.h"
+#include "../entities/enemies/Enemy.h"
+#include "../entities/enemies/NemesisGhost.h"
 
 namespace Platformer {
 
@@ -81,6 +88,7 @@ void MenuState::render() {
 */
 
 void PlayState::enter() {
+    EntityFactory::preloadTextures();
     // Initialize Camera
     camera.offset = Vector2{ 1280.0f / 2.0f, 720.0f / 2.0f }; // Center screen
     camera.rotation = 0.0f;
@@ -96,14 +104,72 @@ void PlayState::enter() {
     player = new Player(tempLevel.playerSpawn.x, tempLevel.playerSpawn.y, GameManager::getInstance()->getSelectedCharacter());
     player->setTileMap(tempLevel.tileMap.get());
     
+    minimap = std::make_unique<Minimap>(tempLevel.exitPos);
+    
+    lighting = std::make_unique<LightingSystem>(tempLevel.tileMap->getWidth(), tempLevel.tileMap->getHeight());
+    
     camera.target = Vector2{ player->getX(), player->getY() };
     
+    ghostTimer = 0.0f;
+    ghostSpawned = false;
+
     EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ITEM);
     EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_ITEM, [this](EventData data) {
         auto item = EntityFactory::createItem(data.amount, data.worldX, data.worldY);
         if (item) {
             item->setVelocity(data.vx, data.vy);
             this->pendingItems.push_back(std::move(item));
+        }
+    });
+
+    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_BOMB);
+    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_BOMB, [this](EventData data) {
+        auto bomb = std::make_unique<Bomb>(data.worldX, data.worldY, data.vx, data.vy);
+        this->pendingEntities.push_back(std::move(bomb));
+    });
+
+    EventBus::getInstance()->clearListeners(EventType::EVENT_BOMB_EXPLODE);
+    EventBus::getInstance()->subscribe(EventType::EVENT_BOMB_EXPLODE, [this](EventData data) {
+        AudioManager::getInstance()->playSFX("explosion");
+        float explosionRadius = 80.0f; // roughly 2.5 tiles (32 * 2.5 = 80)
+        
+        // 1. Destroy Terrain
+        int tx = (int)(data.worldX / 32.0f);
+        int ty = (int)(data.worldY / 32.0f);
+        for (int y = ty - 2; y <= ty + 2; y++) {
+            for (int x = tx - 2; x <= tx + 2; x++) {
+                if (x > 0 && x < tempLevel.tileMap->getWidth() - 1 && y > 0 && y < tempLevel.tileMap->getHeight() - 1) {
+                    if (tempLevel.tileMap->isSolid(x, y)) {
+                        tempLevel.tileMap->destroyBlock(x, y);
+                    }
+                }
+            }
+        }
+        
+        // 2. Damage Player
+        if (player) {
+            float dx = player->getX() + player->getAABB().width / 2.0f - data.worldX;
+            float dy = player->getY() + player->getAABB().height / 2.0f - data.worldY;
+            float dist = std::sqrt(dx*dx + dy*dy);
+            if (dist < explosionRadius) {
+                player->takeDamage(10);
+                player->setVelocity(dx > 0 ? 300.0f : -300.0f, -200.0f);
+            }
+        }
+        
+        // 3. Damage Entities
+        for (auto& entity : tempLevel.dynamicEntities) {
+            if (entity && entity->isAlive()) {
+                if (Enemy* enemy = dynamic_cast<Enemy*>(entity.get())) {
+                    float dx = enemy->getX() + enemy->getAABB().width / 2.0f - data.worldX;
+                    float dy = enemy->getY() + enemy->getAABB().height / 2.0f - data.worldY;
+                    float dist = std::sqrt(dx*dx + dy*dy);
+                    if (dist < explosionRadius) {
+                        enemy->takeDamage(10);
+                        enemy->setVelocity(dx > 0 ? 300.0f : -300.0f, -200.0f);
+                    }
+                }
+            }
         }
     });
 }
@@ -127,6 +193,28 @@ void PlayState::handleInput() {
 }
 
 void PlayState::update(float dt) {
+    if (!ghostSpawned) {
+        ghostTimer += dt;
+        if (ghostTimer >= 10.0f) { // 2.5 minutes
+            ghostSpawned = true;
+            auto ghost = EntityFactory::createGhost(player->getX() - 600.0f, player->getY() - 600.0f);
+            pendingEntities.push_back(std::move(ghost));
+            AudioManager::getInstance()->playSFX("ghost_spawn");
+        }
+    }
+
+    // Merge pending items
+    for (auto& item : pendingItems) {
+        tempLevel.items.push_back(std::move(item));
+    }
+    pendingItems.clear();
+
+    // Merge pending entities
+    for (auto& ent : pendingEntities) {
+        tempLevel.dynamicEntities.push_back(std::move(ent));
+    }
+    pendingEntities.clear();
+
     if (player) {
         player->update(dt, nullptr);
         
@@ -144,6 +232,84 @@ void PlayState::update(float dt) {
                 if (item && !item->isPickedUp()) {
                     item->update(dt, player);
                     physics->resolveEntityTileCollision(item.get());
+                }
+            }
+        }
+        
+        // ---- Entity Collisions ----
+        Rectangle pAABB = player->getAABB();
+        bool whipActive = player->getIsWhipHitThisFrame();
+        Rectangle whipBox = player->getWhipHitbox();
+        
+        // 1. Player vs DynamicEntities (Enemies/Ghost)
+        for (auto& entity : tempLevel.dynamicEntities) {
+            if (entity && entity->isAlive()) {
+                if (auto* enemy = dynamic_cast<Enemy*>(entity.get())) {
+                    if (whipActive && physics->checkAABBOverlap(whipBox, enemy->getAABB())) {
+                        enemy->takeDamage(1); // Whip does 1 damage
+                        AudioManager::getInstance()->playSFX("hit");
+                    }
+                    
+                    if (physics->checkAABBOverlap(pAABB, enemy->getAABB())) {
+                        player->takeDamage(enemy->getDamage());
+                    }
+                }
+            }
+        }
+
+        // 2. Player vs Traps
+        for (auto& trap : tempLevel.traps) {
+            if (trap) {
+                if (physics->checkAABBOverlap(pAABB, trap->getAABB())) {
+                    if (!player->isInvincible()) {
+                        player->takeDamage(trap->getDamage());
+                        player->setVelocity(player->getX() < trap->getX() ? -250.0f : 250.0f, -200.0f);
+                    }
+                }
+            }
+        }
+
+        // 3. Enemies vs Traps
+        for (auto& entity : tempLevel.dynamicEntities) {
+            if (entity && entity->isAlive()) {
+                Rectangle eAABB = entity->getAABB();
+                for (auto& trap : tempLevel.traps) {
+                    if (trap && physics->checkAABBOverlap(eAABB, trap->getAABB())) {
+                        if (auto* enemy = dynamic_cast<Enemy*>(entity.get())) {
+                            enemy->takeDamage(trap->getDamage());
+                            enemy->setVelocity(enemy->getX() < trap->getX() ? -200.0f : 200.0f, -150.0f);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Enemy vs Enemy (Soft Push-Out)
+        for (size_t i = 0; i < tempLevel.dynamicEntities.size(); ++i) {
+            if (!tempLevel.dynamicEntities[i] || !tempLevel.dynamicEntities[i]->isAlive()) continue;
+            for (size_t j = i + 1; j < tempLevel.dynamicEntities.size(); ++j) {
+                if (!tempLevel.dynamicEntities[j] || !tempLevel.dynamicEntities[j]->isAlive()) continue;
+                
+                Rectangle a = tempLevel.dynamicEntities[i]->getAABB();
+                Rectangle b = tempLevel.dynamicEntities[j]->getAABB();
+                if (physics->checkAABBOverlap(a, b)) {
+                    // Push apart horizontally
+                    if (a.x < b.x) {
+                        tempLevel.dynamicEntities[i]->setVelocity(tempLevel.dynamicEntities[i]->getVelocityX() - 50.0f, tempLevel.dynamicEntities[i]->getVelocityY());
+                        tempLevel.dynamicEntities[j]->setVelocity(tempLevel.dynamicEntities[j]->getVelocityX() + 50.0f, tempLevel.dynamicEntities[j]->getVelocityY());
+                    } else {
+                        tempLevel.dynamicEntities[i]->setVelocity(tempLevel.dynamicEntities[i]->getVelocityX() + 50.0f, tempLevel.dynamicEntities[i]->getVelocityY());
+                        tempLevel.dynamicEntities[j]->setVelocity(tempLevel.dynamicEntities[j]->getVelocityX() - 50.0f, tempLevel.dynamicEntities[j]->getVelocityY());
+                    }
+                }
+            }
+        }
+        
+        // 5. Player vs Items
+        for (auto& item : tempLevel.items) {
+            if (item && !item->isPickedUp()) {
+                if (physics->checkAABBOverlap(pAABB, item->getAABB())) {
+                    item->activate(player);
                 }
             }
         }
@@ -177,6 +343,34 @@ void PlayState::update(float dt) {
 
         camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
         
+        if (minimap) {
+            minimap->update(player->getX(), player->getY());
+        }
+        
+        if (lighting) {
+            lighting->clearLights();
+            
+            // Add Player Torch
+            // Use the exact float position (in tile coordinates) for smooth, sub-tile distance falloff
+            float trueX = (player->getX() + 16.0f) / 32.0f;
+            float trueY = (player->getY() + 16.0f) / 32.0f;
+            
+            // Create a smooth organic flicker using composite sine waves and a tiny bit of random noise
+            double time = GetTime();
+            float flicker = 0.0f;
+            flicker += std::sin(time * 12.0) * 0.02f;
+            flicker += std::sin(time * 23.0) * 0.015f;
+            flicker += std::sin(time * 5.0) * 0.01f;
+            flicker += ((float)GetRandomValue(-100, 100) / 100.0f) * 0.005f; // micro crackles
+            
+            float intensity = 1.0f + flicker;
+            float radius = 24.0f + (flicker * 15.0f);
+            
+            lighting->addLight(trueX, trueY, intensity, radius);
+            
+            lighting->update(tempLevel.tileMap.get());
+        }
+
         // Handle Shop Item Interaction (Y Key)
         if (IsKeyPressed(KEY_Y)) {
             for (auto& item : tempLevel.items) {
@@ -221,18 +415,19 @@ void PlayState::render() {
 
     if (tempLevel.tileMap) {
         tempLevel.tileMap->renderParallaxBackground(camera);
-        std::vector<std::vector<float>> lightMap(tempLevel.tileMap->getHeight(), std::vector<float>(tempLevel.tileMap->getWidth(), 1.0f));
-        tempLevel.tileMap->render(camera, lightMap, false); // Background pass (Ladders, Doors)
+        if (lighting) {
+            tempLevel.tileMap->render(camera, lighting->getLightMap(), false); // Background pass
+        }
     }
 
     for (auto& item : tempLevel.items) {
-        if (item) item->render(1.0f);
+        if (item && item->isAlive() && !item->isPickedUp()) item->render(1.0f);
     }
     for (auto& trap : tempLevel.traps) {
-        if (trap) trap->render(1.0f);
+        if (trap && trap->isAlive()) trap->render(1.0f);
     }
     for (auto& enemy : tempLevel.dynamicEntities) {
-        if (enemy) enemy->render(1.0f);
+        if (enemy && enemy->isAlive()) enemy->render(1.0f);
     }
 
     if (player) {
@@ -240,12 +435,15 @@ void PlayState::render() {
     }
 
     // Render foreground tiles LAST so they overlap the player's head and entities
-    if (tempLevel.tileMap) {
-        std::vector<std::vector<float>> lightMap(tempLevel.tileMap->getHeight(), std::vector<float>(tempLevel.tileMap->getWidth(), 1.0f));
-        tempLevel.tileMap->render(camera, lightMap, true); // Foreground pass (Solid blocks)
+    if (tempLevel.tileMap && lighting) {
+        tempLevel.tileMap->render(camera, lighting->getLightMap(), true); // Foreground pass (Solid blocks)
     }
     
     EndMode2D();
+    
+    if (minimap) {
+        minimap->render();
+    }
 }
 
 /*

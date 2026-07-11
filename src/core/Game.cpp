@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "../audio/AudioManager.h"
 
 namespace Platformer {
 
@@ -29,6 +30,9 @@ void Game::run() {
 void Game::init() {
     InitWindow(1280, 720, "Cavern Descent");
     SetTargetFPS(60);
+
+    // Initialize audio device early
+    AudioManager::getInstance();
 
     currentState = new MenuState;
     currentState->setGame(this);

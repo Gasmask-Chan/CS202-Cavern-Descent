@@ -74,6 +74,7 @@ std::shared_ptr<EnemyState> Enemy::getState() const { return currentStateObj; }
 
 void Enemy::takeDamage(int dmg) {
     health -= dmg;
+    vy = -150.0f;
 }
 
 void Enemy::changeState(std::shared_ptr<EnemyState> newState) {

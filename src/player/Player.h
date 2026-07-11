@@ -21,6 +21,7 @@ private:
 
     bool isWhipping;
     float whipTimer;
+    bool whipHitThisFrame;
     TileMap* tileMap;
     Texture2D whipSprite;
 
@@ -45,6 +46,7 @@ public:
     void addRope(int amount);
     bool useBomb();
     bool useRope();
+    bool isInvincible() const { return invincibilityTimer > 0.0f; }
     void whipAttack();
     void setMovementStrategy(MovementStrategy* s);
 
@@ -59,6 +61,9 @@ public:
     int getBombs();
     int getRopes();
     int getGold();
+    
+    bool getIsWhipHitThisFrame() const;
+    Rectangle getWhipHitbox() const;
 };
 
 }
