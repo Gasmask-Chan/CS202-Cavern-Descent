@@ -1132,7 +1132,11 @@ classDiagram
         <<abstract>>
         #ItemType type
         #bool isCollected
+        #float prevVy
+        +bool isShopItem
+        +bool isHeld
         +Item(float x, float y, float w, float h, ItemType type)
+        +virtual update(float dt, Player* player) void
         +virtual activate(Player* player) void
         +virtual render(float lightLevel) void
         +collect() void
@@ -1140,16 +1144,16 @@ classDiagram
         +getType() ItemType
     }
 
-    class Treasure {
-        -int goldValue
-        +Treasure(float x, float y, int value)
+    class LootPickup {
+        -int value
+        +LootPickup(float x, float y, float w, float h, int val)
         +activate(Player* player) void
-        +getGoldValue() int
     }
 
-    class HealthCrate {
-        -int healAmount
-        +HealthCrate(float x, float y, int amount)
+    class Chest {
+        -bool isOpened
+        +Chest(float x, float y, float w, float h)
+        +update(float dt, Player* player) void
         +activate(Player* player) void
     }
 
@@ -1186,7 +1190,7 @@ classDiagram
         +update(float dt) void
     }
 
-    Entity <|-- Item
+    DynamicEntity <|-- Item
     Item <|-- LootPickup
     Item <|-- Chest
     Item <|-- BombPickup
