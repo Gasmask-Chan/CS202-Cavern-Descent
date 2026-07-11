@@ -948,83 +948,31 @@ classDiagram
 
 ```mermaid
 classDiagram
+    class LightSource {
+        <<struct>>
+        +float fx
+        +float fy
+        +float intensity
+        +float radius
+    }
+
     class LightingSystem {
         -vector~vector~float~~ lightMap
-        -vector~LightSource*~ lights
-        -int mapWidth
-        -int mapHeight
-        -TileMap* tileMap
-        -bool isDirty
-        +LightingSystem(TileMap* map)
-        +~LightingSystem()
-        +addLight(LightSource* light) void
-        +removeLight(LightSource* light) void
-        +markDirty() void
-        +recalculate() void
+        -vector~LightSource~ sources
+        -float ambientLight
+        -int width
+        -int height
+        +LightingSystem(int mapWidth, int mapHeight)
+        +setAmbientLight(float level) void
+        +clearLights() void
+        +addLight(float fx, float fy, float intensity, float radius) void
+        +update(TileMap* map) void
         +getLightMap() vector~vector~float~~
-        +getLightAt(int gx, int gy) float
-        -clearMap() void
-        -castLight(LightSource* src) void
-        -recursiveShadowCast(int cx, int cy, int radius, int octant, float startSlope, float endSlope, int row) void
-        -applyFalloff(int cx, int cy, int tx, int ty, int radius) float
+        -castLight(TileMap* map, int cx, int cy, float fx, float fy, int row, float startSlope, float endSlope, float radius, int xx, int xy, int yx, int yy, float intensity) void
     }
-
-    class LightSource {
-        <<abstract>>
-        #float worldX
-        #float worldY
-        #float radius
-        #float intensity
-        #Color color
-        #bool isActive
-        +LightSource(float x, float y, float r, float i, Color c)
-        +virtual ~LightSource()
-        +virtual update(float dt) void
-        +getGridX(int tileSize) int
-        +getGridY(int tileSize) int
-        +getRadius() float
-        +setRadius(float r) void
-        +getIntensity() float
-        +getColor() Color
-        +isEmitting() bool
-        +setPosition(float x, float y) void
-    }
-
-    class PlayerTorch {
-        -float flickerTimer
-        -float flickerRange
-        -float baseRadius
-        +PlayerTorch(float x, float y)
-        +update(float dt) void
-        +applyDarkFloorModifier() void
-    }
-
-    class ExplosionFlash {
-        -float duration
-        -float elapsed
-        -float maxRadius
-        +ExplosionFlash(float x, float y, float maxR, float dur)
-        +update(float dt) void
-    }
-
-    class LavaGlow {
-        -float pulseSpeed
-        -float pulseRange
-        +LavaGlow(float x, float y)
-        +update(float dt) void
-    }
-
-    class AmbientLight {
-        +AmbientLight(float x, float y, float radius)
-        +update(float dt) void
-    }
-
-    LightingSystem --> LightSource : manages many
+    
+    LightingSystem --> LightSource : contains
     LightingSystem --> TileMap : reads opacity
-    LightSource <|-- PlayerTorch
-    LightSource <|-- ExplosionFlash
-    LightSource <|-- LavaGlow
-    LightSource <|-- AmbientLight
 ```
 
 #### Method Behavior Descriptions — Dynamic Lighting
@@ -1033,24 +981,10 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `addLight(LightSource* light)` | Pushes `light` pointer into the `lights` vector. Sets `isDirty = true` to trigger recalculation on the next frame. Does not take ownership — caller manages lifetime. |
-| `removeLight(LightSource* light)` | Erases `light` from the `lights` vector. Sets `isDirty = true`. Called when an `ExplosionFlash` expires or when transitioning floors. |
-| `markDirty()` | Sets `isDirty = true`. Called externally when terrain is destroyed (tile opacity changed) or a light source moves. Prevents redundant recalculations on frames where nothing changed. |
-| `recalculate()` | If `!isDirty`, returns immediately (optimization). Calls `clearMap()` to zero the entire `lightMap`. Iterates all active `LightSource*` in `lights` and calls `castLight(src)` for each. Sets `isDirty = false`. |
-| `clearMap()` | Sets every cell in `lightMap` (a `vector<vector<float>>`) to 0.0. O(width × height). |
-| `castLight(LightSource* src)` | Converts the light source's world position to grid coordinates via `getGridX/Y()`. Calls `recursiveShadowCast()` for each of the 8 octants (0–7) with `startSlope=1.0`, `endSlope=0.0`, `row=1`. The center tile always receives full intensity. |
-| `recursiveShadowCast(cx, cy, radius, octant, startSlope, endSlope, row)` | Recursive 8-octant shadowcasting algorithm. Scans outward row-by-row from light center. For each cell: transforms `(row, col)` to grid `(tx, ty)` based on octant. If the cell is opaque (`tileMap->isOpaque(tx,ty)`), narrows the visible arc by adjusting slopes, then recurses on the remaining open arc. If transparent, adds light intensity via `applyFalloff()`. Terminates when `row > radius` or `startSlope < endSlope`. See §5.4 for full pseudocode. |
-| `applyFalloff(cx, cy, tx, ty, radius)` | Calculates Euclidean distance from light center `(cx,cy)` to target tile `(tx,ty)`. Returns `intensity * (1.0 - dist/radius)²` (inverse-square falloff). This value is additively blended into `lightMap[ty][tx]`, allowing multiple light sources to combine naturally. |
-
-**LightSource Subclasses**
-
-| Class | `update(float dt)` Behavior |
-|---|---|
-| `PlayerTorch` | Updates `flickerTimer += dt`. Oscillates `radius` between `baseRadius ± flickerRange` using `sin(flickerTimer * 8.0f)` for a natural flame flicker effect. Position is synced to player's world position every frame via `setPosition()`. |
-| `PlayerTorch::applyDarkFloorModifier()` | Multiplies `baseRadius` by 0.5. Called once when a "Dark Floor" modifier is active. The flicker still oscillates, but around the reduced base. |
-| `ExplosionFlash` | Increments `elapsed += dt`. Radius grows from 0 to `maxRadius` over the first 0.1 seconds (burst), then intensity fades linearly to 0 over `duration` (typically 0.5s). When `elapsed >= duration`, sets `isActive = false` and `LightingSystem` removes it. |
-| `LavaGlow` | Oscillates `intensity` using `sin(time * pulseSpeed) * pulseRange` for a slow warm pulsation. Position is fixed (set once at lava tile location). Never deactivated — persists for the floor's lifetime. |
-| `AmbientLight` | No-op `update()`. Constant radius and intensity. Used for shop rooms and special areas. |
+| `clearLights()` | Clears the `sources` vector and resets the entire `lightMap` to the `ambientLight` level. Called every frame before adding new lights. |
+| `addLight(fx, fy, intensity, radius)` | Pushes a new `LightSource` struct into the `sources` vector for the current frame. |
+| `update(TileMap* map)` | Iterates all `LightSource`s in `sources`. For each source, it calculates the grid coordinates and invokes `castLight` for all 8 octants. |
+| `castLight(...)` | A highly optimized continuous floating-point shadowcasting algorithm. Uses angular visibility checks (`overlap / cell_width`) to generate anti-aliased soft shadows without grid snapping. Calculates inverse-square falloff and additively blends into `lightMap`. |
 
 ### 4.6 Liquid Physics Subsystem
 
