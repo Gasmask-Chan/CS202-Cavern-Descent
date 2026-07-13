@@ -9,9 +9,20 @@ Bomb::Bomb(float x, float y, float vx, float vy)
     this->vx = vx;
     this->vy = vy;
     gravity = 600.0f; // slightly lighter gravity for floaty throw
+    
+    Image img = LoadImage("assets/sprites/8x8/gfx_bomb.png");
+    ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    Color chromaKey = GetImageColor(img, 0, 0); 
+    ImageColorReplace(&img, chromaKey, BLANK);
+    sprite = LoadTextureFromImage(img);
+    UnloadImage(img);
+    
+    srcRect = {0.0f, 0.0f, 8.0f, 8.0f};
 }
 
-Bomb::~Bomb() {}
+Bomb::~Bomb() {
+    UnloadTexture(sprite);
+}
 
 void Bomb::update(float dt, Player* player) {
     fuseTimer -= dt;
@@ -43,10 +54,18 @@ void Bomb::update(float dt, Player* player) {
 }
 
 void Bomb::render(float lightLevel) {
-    // Draw a blinking bomb if close to exploding!
-    Color color = (std::fmod(fuseTimer, 0.2f) < 0.1f) ? RED : BLACK;
-    color = ColorTint(color, Color{ (unsigned char)(255 * lightLevel), (unsigned char)(255 * lightLevel), (unsigned char)(255 * lightLevel), 255 });
-    DrawCircleV(Vector2{x + width/2.0f, y + height/2.0f}, width/2.0f, color);
+    // Use the second frame (ticking bomb with red color) if close to exploding
+    if (fuseTimer < 1.0f && std::fmod(fuseTimer, 0.2f) < 0.1f) {
+        srcRect.x = 8.0f; // Ticking frame
+    } else {
+        srcRect.x = 0.0f; // Normal frame
+    }
+    
+    unsigned char lv = static_cast<unsigned char>(255.0f * lightLevel);
+    Color tint = Color{ lv, lv, lv, 255 };
+    
+    Rectangle destRec = { x, y, width, height };
+    DrawTexturePro(sprite, srcRect, destRec, Vector2{0.0f, 0.0f}, 0.0f, tint);
 }
 
 }
