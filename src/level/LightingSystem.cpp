@@ -37,6 +37,11 @@ void LightingSystem::update(TileMap* map) {
                 lightMap[cy][cx] = src.intensity;
             }
             
+            // If the light source itself is inside a wall, do not cast light outward to prevent bleeding.
+            if (map->isOpaque(cx, cy)) {
+                continue;
+            }
+            
             // Cast light into all 8 octants
             castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  1,  0,  0,  1, src.intensity);
             castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  1,  0,  0, -1, src.intensity);
@@ -64,8 +69,12 @@ void LightingSystem::castLight(TileMap* map, int cx, int cy, float fx, float fy,
             
             if (ax < 0 || ay < 0 || ax >= width || ay >= height) continue;
 
-            float diff_x = (ax + 0.5f) - fx;
-            float diff_y = (ay + 0.5f) - fy;
+            // Compute FOV slopes from the center of the origin tile (cx, cy) 
+            // rather than the exact sub-tile position (fx, fy).
+            // This prevents octant boundaries from sweeping across tiles and 
+            // artificially darkening them via the MAX blend when split.
+            float diff_x = (float)(ax - cx);
+            float diff_y = (float)(ay - cy);
             
             float octant_dx = diff_x * xx + diff_y * yx;
             float octant_dy = diff_x * xy + diff_y * yy;
@@ -86,8 +95,8 @@ void LightingSystem::castLight(TileMap* map, int cx, int cy, float fx, float fy,
             if (startSlope < r_slope) continue;
             else if (endSlope > l_slope) break;
 
-            float true_dx = (float)ax - fx;
-            float true_dy = (float)ay - fy;
+            float true_dx = (ax + 0.5f) - fx;
+            float true_dy = (ay + 0.5f) - fy;
             float distance = std::sqrt(true_dx * true_dx + true_dy * true_dy);
             
             if (distance <= radius) {
