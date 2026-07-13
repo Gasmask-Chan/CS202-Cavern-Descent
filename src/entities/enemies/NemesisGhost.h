@@ -11,6 +11,10 @@ public:
 
     void update(float dt, class Player* player = nullptr) override;
 
+protected:
+    void updateSpriteRect() override;
+
+public:
     void handleIdle(float dt, class Player* player) override;
     void handleChase(float dt, class Player* player) override;
     void handleReturn(float dt, class Player* player) override;

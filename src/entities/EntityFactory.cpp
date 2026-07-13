@@ -59,7 +59,7 @@ std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, fl
 
 std::unique_ptr<DynamicEntity> EntityFactory::createGhost(float x, float y) {
     auto ghost = std::make_unique<NemesisGhost>(x, y, 32.0f, 32.0f);
-    ghost->setSprite(getTexture("assets/npc/Ghost.png"), Rectangle{0, 0, 963, 646});
+    ghost->setSprite(getTexture("assets/npc/Ghost.png"), Rectangle{0, 0, 160, 160});
     return ghost;
 }
 
