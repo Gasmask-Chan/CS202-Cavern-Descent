@@ -14,7 +14,7 @@ Enemy::Enemy(float x, float y, float w, float h, int hp, int dmg)
 Enemy::~Enemy() {}
 
 void Enemy::setAnimation(int frames, float speed, int baseX, int baseY) {
-    if (baseFrameX != baseX || baseFrameY != baseY) {
+    if (baseFrameX != baseX || baseFrameY != baseY || numFrames != frames || animSpeed != speed) {
         numFrames = frames;
         animSpeed = speed;
         baseFrameX = baseX;
@@ -42,6 +42,10 @@ void Enemy::update(float dt, Player* player) {
         currentFrame = (currentFrame + 1) % numFrames;
     }
 
+    updateSpriteRect();
+}
+
+void Enemy::updateSpriteRect() {
     if (sprite.id != 0) {
         float absW = std::abs(srcRect.width);
         float absH = std::abs(srcRect.height);

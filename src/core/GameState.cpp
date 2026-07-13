@@ -352,8 +352,9 @@ void PlayState::update(float dt) {
             
             // Add Player Torch
             // Use the exact float position (in tile coordinates) for smooth, sub-tile distance falloff
-            float trueX = (player->getX() + 16.0f) / 32.0f;
-            float trueY = (player->getY() + 16.0f) / 32.0f;
+            Rectangle pRect = player->getAABB();
+            float trueX = (pRect.x + pRect.width / 2.0f) / 32.0f;
+            float trueY = (pRect.y + pRect.height / 2.0f) / 32.0f;
             
             // Create a smooth organic flicker using composite sine waves and a tiny bit of random noise
             double time = GetTime();

@@ -20,6 +20,8 @@ protected:
     int baseFrameX;
     int baseFrameY;
 
+    virtual void updateSpriteRect();
+
 public:
     Enemy(float x, float y, float w, float h, int hp = 1, int dmg = 1);
     virtual ~Enemy();

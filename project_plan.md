@@ -559,6 +559,8 @@ classDiagram
         -float frameTimer
         -int currentFrame
         -Rectangle frameRec
+        -bool whipHitThisFrame
+        -Texture2D whipSprite
         +Player(float x, float y, CharacterType type)
         +handleInput() void
         +update(float dt) void
@@ -576,6 +578,10 @@ classDiagram
         +getBombs() int
         +getRopes() int
         +getGold() int
+        +addBomb(int amount) void
+        +addRope(int amount) void
+        +getIsWhipHitThisFrame() bool
+        +getWhipHitbox() Rectangle
     }
 
     class Enemy {
@@ -601,6 +607,7 @@ classDiagram
         +handleIdle(float dt, Player* player) void
         +handleChase(float dt, Player* player) void
         +handleReturn(float dt, Player* player) void
+        #updateSpriteRect() void
     }
 
     class Bomb {
@@ -636,16 +643,7 @@ classDiagram
         +update(float dt) void
     }
 
-    class NemesisGhost {
-        -float flySpeed
-        -bool isSpawned
-        -float alpha
-        +NemesisGhost(float x, float y)
-        +update(float dt) void
-        +render(float lightLevel) void
-        +spawn(float startX, float startY) void
-        +isActive() bool
-    }
+
 
     Entity <|-- DynamicEntity
     Entity <|-- Trap
