@@ -436,10 +436,25 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
             break;
           }
           case 4: { // Spikes
-            if (spikesLeft > 0 && r == 1 && lastPlacement >= 2) {
-              map->setTile(tx, ty, TileType::SPIKE_TRAP);
-              auto trap = EntityFactory::createTrap('^', px, py);
-              if (trap) { tempTraps.push_back(std::move(trap)); spikesLeft--; lastPlacement = 0; }
+            int r3 = GetRandomValue(0, 2);
+            if (spikesLeft > 0 && r3 == 1) {
+              int tx = static_cast<int>(px / MAP_TILE_SIZE);
+              int ty = static_cast<int>(py / MAP_TILE_SIZE);
+              while (ty < (MAP_ROOMS_Y * ROOM_HEIGHT) && !map->isSolid(tx, ty)) {
+                  ty++;
+              }
+              if (ty >= (MAP_ROOMS_Y * ROOM_HEIGHT)) {
+                  ty = static_cast<int>(py / MAP_TILE_SIZE) + 1; // fallback
+              }
+              float actualY = (ty - 1) * MAP_TILE_SIZE;
+              // Y offset + 8.0f (so the bottom 8 pixels of transparent space are covered by the tile below)
+              auto enemyObj = EntityFactory::createEnemy('^', px, actualY + 8.0f);
+              if (enemyObj) {
+                  auto* e = static_cast<Enemy*>(enemyObj.get());
+                  e->setTileMap(map);
+                  tempEnemies.push_back(std::move(enemyObj));
+                  spikesLeft--;
+              }
             }
             break;
           }

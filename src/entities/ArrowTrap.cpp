@@ -1,4 +1,5 @@
 #include "ArrowTrap.h"
+#include "../level/TileMap.h"
 
 namespace Platformer {
 
@@ -8,7 +9,7 @@ ArrowTrap::ArrowTrap(float x, float y, bool facingRight)
     // The hitbox is 32x32 exactly over the tile.
 }
 
-void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::unique_ptr<DynamicEntity>>& enemies, const std::vector<std::unique_ptr<Item>>& items) {
+void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::unique_ptr<DynamicEntity>>& enemies, const std::vector<std::unique_ptr<Item>>& items, TileMap* tileMap) {
     if (activated) return;
 
     auto checkLOS = [&](float objX, float objY, float objW, float objH, float vx, float vy) {
@@ -20,9 +21,29 @@ void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::uniq
         float dist = objX - x;
         float maxDist = 7.0f * 32.0f; // 7 tiles
         if (facingRight) {
-            if (dist > 0 && dist <= maxDist) return true;
+            if (dist > 0 && dist <= maxDist) {
+                if (tileMap) {
+                    int startX = static_cast<int>((x + width) / 32.0f);
+                    int endX = static_cast<int>(objX / 32.0f);
+                    int ty = static_cast<int>((y + height / 2.0f) / 32.0f);
+                    for (int tx = startX; tx <= endX; ++tx) {
+                        if (tileMap->isSolid(tx, ty)) return false;
+                    }
+                }
+                return true;
+            }
         } else {
-            if (dist < 0 && -dist <= maxDist) return true;
+            if (dist < 0 && -dist <= maxDist) {
+                if (tileMap) {
+                    int startX = static_cast<int>((objX + objW) / 32.0f);
+                    int endX = static_cast<int>(x / 32.0f);
+                    int ty = static_cast<int>((y + height / 2.0f) / 32.0f);
+                    for (int tx = startX; tx <= endX; ++tx) {
+                        if (tileMap->isSolid(tx, ty)) return false;
+                    }
+                }
+                return true;
+            }
         }
         return false;
     };

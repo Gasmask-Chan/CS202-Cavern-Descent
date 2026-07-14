@@ -17,7 +17,7 @@ private:
 public:
     ArrowTrap(float x, float y, bool facingRight);
     
-    void updateTrap(float dt, class Player* player, const std::vector<std::unique_ptr<class DynamicEntity>>& enemies, const std::vector<std::unique_ptr<class Item>>& items) override;
+    void updateTrap(float dt, class Player* player, const std::vector<std::unique_ptr<class DynamicEntity>>& enemies, const std::vector<std::unique_ptr<class Item>>& items, class TileMap* tileMap = nullptr) override;
     
     void render(float lightLevel) override;
 };

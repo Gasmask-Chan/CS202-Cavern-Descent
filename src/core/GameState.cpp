@@ -13,6 +13,7 @@
 #include "../entities/Bomb.h"
 #include "../entities/enemies/Enemy.h"
 #include "../entities/enemies/NemesisGhost.h"
+#include "../entities/enemies/Spike.h"
 
 namespace Platformer {
 
@@ -258,7 +259,9 @@ void PlayState::update(float dt) {
                     }
                     
                     if (physics->checkAABBOverlap(pAABB, enemy->getAABB())) {
-                        player->takeDamage(enemy->getDamage());
+                        if (!dynamic_cast<Spike*>(enemy)) {
+                            player->takeDamage(enemy->getDamage());
+                        }
                     }
                 } else if (auto* arrow = dynamic_cast<Arrow*>(entity.get())) {
                     if (!arrow->isStuck() && std::abs(arrow->getVelocityX()) > 1.5f && physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
@@ -273,7 +276,7 @@ void PlayState::update(float dt) {
         // 2. Player vs Traps
         for (auto& trap : tempLevel.traps) {
             if (trap) {
-                trap->updateTrap(dt, player, tempLevel.dynamicEntities, tempLevel.items);
+                trap->updateTrap(dt, player, tempLevel.dynamicEntities, tempLevel.items, tempLevel.tileMap.get());
                 
                 if (trap->getDamage() > 0 && physics->checkAABBOverlap(pAABB, trap->getAABB())) {
                     if (!player->isInvincible()) {
@@ -322,7 +325,21 @@ void PlayState::update(float dt) {
                     if (arrow && enemy && !arrow->isStuck() && std::abs(arrow->getVelocityX()) > 1.5f) {
                         enemy->takeDamage(100); // Instantly kill enemy
                         arrow->destroy();
-                    } else if (dynamic_cast<Enemy*>(e1.get()) && dynamic_cast<Enemy*>(e2.get())) {
+                    } else if (dynamic_cast<Spike*>(e1.get()) && dynamic_cast<Enemy*>(e2.get())) {
+                        auto spike = dynamic_cast<Spike*>(e1.get());
+                        auto otherEnemy = dynamic_cast<Enemy*>(e2.get());
+                        if (otherEnemy->getVelocityY() > 50.0f) {
+                            otherEnemy->takeDamage(100);
+                            spike->setBlood();
+                        }
+                    } else if (dynamic_cast<Spike*>(e2.get()) && dynamic_cast<Enemy*>(e1.get())) {
+                        auto spike = dynamic_cast<Spike*>(e2.get());
+                        auto otherEnemy = dynamic_cast<Enemy*>(e1.get());
+                        if (otherEnemy->getVelocityY() > 50.0f) {
+                            otherEnemy->takeDamage(100);
+                            spike->setBlood();
+                        }
+                    } else if (dynamic_cast<Enemy*>(e1.get()) && dynamic_cast<Enemy*>(e2.get()) && !dynamic_cast<Spike*>(e1.get()) && !dynamic_cast<Spike*>(e2.get())) {
                         // Push apart horizontally
                         if (a.x < b.x) {
                             e1->setVelocity(e1->getVelocityX() - 50.0f, e1->getVelocityY());

@@ -87,8 +87,8 @@ void Chest::update(float dt, Player* player) {
                 data.worldY = this->y + (this->height / 2.0f);
                 data.amount = (GetRandomValue(0, 1) == 0) ? 'R' : 'G'; // R=Ruby Big, G=Ruby Small
                 
-                // Set burst velocity with slight variance to prevent overlapping
-                data.vy = -1.7f * 150.0f + (float)GetRandomValue(-30, 30); 
+                // Set burst velocity with high variance to pop out of the chest significantly
+                data.vy = -3.5f * 150.0f + (float)GetRandomValue(-50, 50); 
                 float baseVx = (GetRandomValue(0, 1) == 0 ? -0.8f : 0.8f) * 150.0f;
                 data.vx = baseVx + (float)GetRandomValue(-40, 40);
                 

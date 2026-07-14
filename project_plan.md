@@ -935,7 +935,7 @@ classDiagram
 | `generateFloor(int floor)` | Clears all entity vectors (`dynamicEntities`, `items`, `traps`). Determines `ZoneType` from floor number. Calls `generator->generate(floor, zone)` which returns a `GeneratedLevel` containing a populated `TileMap` and entity spawn lists. Iterates spawn lists to create entities via `EntityFactory` and pushes them into the correct typed vector. Creates the `Player` at the spawn position. Resets `ghost` to `nullptr`. Applies floor modifier if rolled. |
 | `destroyTile(int gx, int gy)` | Calls `tileMap->setTile(gx, gy, TileType::EMPTY)`. Publishes `EVENT_TERRAIN_DESTROYED` with coordinates to `EventBus`. This triggers: `LiquidSimulator::onTerrainDestroyed()` for flood fill, and `LightingSystem::markDirty()` for shadow recalculation. |
 | `breakCrackedBlock(int gx, int gy)` | Checks `tileMap->isCracked(gx, gy)`. If true, calls `destroyTile(gx, gy)`. May spawn a random item (30% chance) at the grid position via `EntityFactory`. Plays block-break SFX. |
-| `spawnGhost()` | Creates a `NemesisGhost` at a random map edge (left/right/top). Calls `ghost->spawn(edgeX, edgeY)`. Ghost begins chasing player immediately. |
+| `spawnGhost()` | Creates a `NemesisGhost` at a random map edge (left/right/top) after the 60-second timer expires. Calls `ghost->spawn(edgeX, edgeY)`. Ghost has `passesThroughWalls = true` and low opacity, chasing the player through all terrain. |
 | `removeDeadEntities()` | Uses erase-remove idiom on each typed vector: `dynamicEntities.erase(std::remove_if(begin, end, [](auto& e) { return !e->isAlive(); }), end)`. Same for `items` and `traps`. `unique_ptr` automatically frees memory for erased entities. |
 
 **LevelGenerator**
@@ -1109,6 +1109,7 @@ classDiagram
         +Chest(float x, float y, float w, float h)
         +update(float dt, Player* player) void
         +activate(Player* player) void
+        // Ejected items have high initial upward velocity (vy = -3.5f)
     }
 
     class BombPickup {
@@ -1132,16 +1133,15 @@ classDiagram
         +getDamage() int
     }
 
-    class SpikeTrap {
-        +SpikeTrap(float x, float y)
+    class Spike {
+        +Spike(float x, float y)
     }
 
     class ArrowTrap {
-        -Vec2f direction
-        -float cooldown
-        -float timer
-        +ArrowTrap(float x, float y, Vec2f dir)
-        +update(float dt) void
+        -bool facingRight
+        -bool activated
+        +ArrowTrap(float x, float y, bool facingRight)
+        +updateTrap(float dt, Player* player, ...) void
     }
 
     DynamicEntity <|-- Item
@@ -1150,7 +1150,7 @@ classDiagram
     Item <|-- BombPickup
     Item <|-- RopePickup
     Entity <|-- Trap
-    Trap <|-- SpikeTrap
+    Enemy <|-- Spike
     Trap <|-- ArrowTrap
     PhysicsSystem --> TileMap
     PhysicsSystem --> CollisionResult
@@ -1181,8 +1181,8 @@ classDiagram
 
 | Class | Behavior |
 |---|---|
-| `SpikeTrap` | Static entity. No `update()` logic. Deals `damage` on AABB overlap with any `DynamicEntity` (checked in the O(N²) loop). Triggers once per entity per second (cooldown timer prevents damage spam). Typically 1 HP damage. |
-| `ArrowTrap` | Has a directional facing (`direction` vector: left or right). Increments `timer += dt`. When `timer >= cooldown` (typically 2 seconds), calls `fireArrow()`: creates a fast-moving projectile entity in `direction` that deals `damage` on first contact, then destroys itself. Resets `timer = 0`. |
+| `Spike` (Enemy) | Static entity inheriting from Enemy instead of Trap. Ignores horizontal collision, deals instant kill damage (takeDamage(100)) only when Player falls onto it from above. Changes to a blood-stained sprite when dealing damage. Automatically snaps to the nearest ground floor during LevelGeneration using raycast. |
+| `ArrowTrap` | Has a directional facing (`facingRight`). Checks Line of Sight (using `TileMap::isSolid`) along the firing direction, and only triggers if there are no solid wall obstacles between the trap and the target. The trap itself is completely invisible and not rendered. |
 
 ### 4.8 Support Systems (Minimap, Combo, Shop, Editor, HUD, EventBus)
 
@@ -1308,7 +1308,7 @@ classDiagram
 | Method | Behavior |
 |---|---|
 | `subscribe(EventType type, EventCallback cb)` | Pushes `cb` (a `std::function<void(EventData)>`) into `listeners[type]` vector. Called during system initialization (e.g., `LiquidSimulator` subscribes to `EVENT_TERRAIN_DESTROYED`). |
-| `publish(EventType type, EventData data)` | Iterates all callbacks in `listeners[type]` and invokes each with `data`. Synchronous — all subscribers execute immediately. `EventData` is a lightweight struct with fields like `int gridX, gridY`, `float worldX, worldY`, `int amount`. |
+| `publish(EventType type, EventData data)` | Iterates all callbacks in `listeners[type]` and invokes each with `data`. Synchronous — all subscribers execute immediately. Available events: `EVENT_TERRAIN_DESTROYED`, `EVENT_SPAWN_BOMB`, `EVENT_BOMB_EXPLODE`, `EVENT_PLAYER_DAMAGED`, `EVENT_PLAYER_DEATH`, `EVENT_GOLD_COLLECTED`, `EVENT_GHOST_SPAWN`, `EVENT_ENEMY_KILLED`, `EVENT_SPAWN_ITEM`, `EVENT_SPAWN_ARROW`. `EventData` contains `gridX, gridY`, `worldX, worldY`, `amount`, `entityCode`. |
 
 **Minimap**
 
