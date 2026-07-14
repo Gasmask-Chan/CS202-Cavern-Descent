@@ -9,9 +9,11 @@
 #include "../entities/EntityFactory.h"
 #include "../entities/Item.h"
 #include "../entities/Trap.h"
+#include "../entities/Arrow.h"
 #include "../entities/Bomb.h"
 #include "../entities/enemies/Enemy.h"
 #include "../entities/enemies/NemesisGhost.h"
+#include "../entities/enemies/Spike.h"
 
 namespace Platformer {
 
@@ -128,6 +130,12 @@ void PlayState::enter() {
         this->pendingEntities.push_back(std::move(bomb));
     });
 
+    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ARROW);
+    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_ARROW, [this](EventData data) {
+        auto arrow = EntityFactory::createArrow(data.worldX, data.worldY, data.vx);
+        this->pendingEntities.push_back(std::move(arrow));
+    });
+
     EventBus::getInstance()->clearListeners(EventType::EVENT_BOMB_EXPLODE);
     EventBus::getInstance()->subscribe(EventType::EVENT_BOMB_EXPLODE, [this](EventData data) {
         AudioManager::getInstance()->playSFX("explosion");
@@ -195,7 +203,7 @@ void PlayState::handleInput() {
 void PlayState::update(float dt) {
     if (!ghostSpawned) {
         ghostTimer += dt;
-        if (ghostTimer >= 10.0f) { // 2.5 minutes
+        if (ghostTimer >= 60.0f) { // 1 minute
             ghostSpawned = true;
             auto ghost = EntityFactory::createGhost(player->getX() - 600.0f, player->getY() - 600.0f);
             pendingEntities.push_back(std::move(ghost));
@@ -251,7 +259,15 @@ void PlayState::update(float dt) {
                     }
                     
                     if (physics->checkAABBOverlap(pAABB, enemy->getAABB())) {
-                        player->takeDamage(enemy->getDamage());
+                        if (!dynamic_cast<Spike*>(enemy)) {
+                            player->takeDamage(enemy->getDamage());
+                        }
+                    }
+                } else if (auto* arrow = dynamic_cast<Arrow*>(entity.get())) {
+                    if (!arrow->isStuck() && std::abs(arrow->getVelocityX()) > 1.5f && physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
+                        player->takeDamage(2); // Take 2 hearts damage
+                        player->setVelocity(arrow->getVelocityX() > 0 ? 300.0f : -300.0f, -200.0f);
+                        arrow->destroy();
                     }
                 }
             }
@@ -260,7 +276,9 @@ void PlayState::update(float dt) {
         // 2. Player vs Traps
         for (auto& trap : tempLevel.traps) {
             if (trap) {
-                if (physics->checkAABBOverlap(pAABB, trap->getAABB())) {
+                trap->updateTrap(dt, player, tempLevel.dynamicEntities, tempLevel.items, tempLevel.tileMap.get());
+                
+                if (trap->getDamage() > 0 && physics->checkAABBOverlap(pAABB, trap->getAABB())) {
                     if (!player->isInvincible()) {
                         player->takeDamage(trap->getDamage());
                         player->setVelocity(player->getX() < trap->getX() ? -250.0f : 250.0f, -200.0f);
@@ -274,7 +292,7 @@ void PlayState::update(float dt) {
             if (entity && entity->isAlive()) {
                 Rectangle eAABB = entity->getAABB();
                 for (auto& trap : tempLevel.traps) {
-                    if (trap && physics->checkAABBOverlap(eAABB, trap->getAABB())) {
+                    if (trap && trap->getDamage() > 0 && physics->checkAABBOverlap(eAABB, trap->getAABB())) {
                         if (auto* enemy = dynamic_cast<Enemy*>(entity.get())) {
                             enemy->takeDamage(trap->getDamage());
                             enemy->setVelocity(enemy->getX() < trap->getX() ? -200.0f : 200.0f, -150.0f);
@@ -284,22 +302,52 @@ void PlayState::update(float dt) {
             }
         }
 
-        // 4. Enemy vs Enemy (Soft Push-Out)
+        // 4. DynamicEntity vs DynamicEntity (Soft Push-Out & Arrow Hits)
         for (size_t i = 0; i < tempLevel.dynamicEntities.size(); ++i) {
             if (!tempLevel.dynamicEntities[i] || !tempLevel.dynamicEntities[i]->isAlive()) continue;
             for (size_t j = i + 1; j < tempLevel.dynamicEntities.size(); ++j) {
                 if (!tempLevel.dynamicEntities[j] || !tempLevel.dynamicEntities[j]->isAlive()) continue;
                 
-                Rectangle a = tempLevel.dynamicEntities[i]->getAABB();
-                Rectangle b = tempLevel.dynamicEntities[j]->getAABB();
+                auto& e1 = tempLevel.dynamicEntities[i];
+                auto& e2 = tempLevel.dynamicEntities[j];
+                Rectangle a = e1->getAABB();
+                Rectangle b = e2->getAABB();
+                
                 if (physics->checkAABBOverlap(a, b)) {
-                    // Push apart horizontally
-                    if (a.x < b.x) {
-                        tempLevel.dynamicEntities[i]->setVelocity(tempLevel.dynamicEntities[i]->getVelocityX() - 50.0f, tempLevel.dynamicEntities[i]->getVelocityY());
-                        tempLevel.dynamicEntities[j]->setVelocity(tempLevel.dynamicEntities[j]->getVelocityX() + 50.0f, tempLevel.dynamicEntities[j]->getVelocityY());
-                    } else {
-                        tempLevel.dynamicEntities[i]->setVelocity(tempLevel.dynamicEntities[i]->getVelocityX() + 50.0f, tempLevel.dynamicEntities[i]->getVelocityY());
-                        tempLevel.dynamicEntities[j]->setVelocity(tempLevel.dynamicEntities[j]->getVelocityX() - 50.0f, tempLevel.dynamicEntities[j]->getVelocityY());
+                    Arrow* arrow = dynamic_cast<Arrow*>(e1.get());
+                    Enemy* enemy = dynamic_cast<Enemy*>(e2.get());
+                    
+                    if (!arrow) {
+                        arrow = dynamic_cast<Arrow*>(e2.get());
+                        enemy = dynamic_cast<Enemy*>(e1.get());
+                    }
+                    
+                    if (arrow && enemy && !arrow->isStuck() && std::abs(arrow->getVelocityX()) > 1.5f) {
+                        enemy->takeDamage(100); // Instantly kill enemy
+                        arrow->destroy();
+                    } else if (dynamic_cast<Spike*>(e1.get()) && dynamic_cast<Enemy*>(e2.get())) {
+                        auto spike = dynamic_cast<Spike*>(e1.get());
+                        auto otherEnemy = dynamic_cast<Enemy*>(e2.get());
+                        if (otherEnemy->getVelocityY() > 50.0f) {
+                            otherEnemy->takeDamage(100);
+                            spike->setBlood();
+                        }
+                    } else if (dynamic_cast<Spike*>(e2.get()) && dynamic_cast<Enemy*>(e1.get())) {
+                        auto spike = dynamic_cast<Spike*>(e2.get());
+                        auto otherEnemy = dynamic_cast<Enemy*>(e1.get());
+                        if (otherEnemy->getVelocityY() > 50.0f) {
+                            otherEnemy->takeDamage(100);
+                            spike->setBlood();
+                        }
+                    } else if (dynamic_cast<Enemy*>(e1.get()) && dynamic_cast<Enemy*>(e2.get()) && !dynamic_cast<Spike*>(e1.get()) && !dynamic_cast<Spike*>(e2.get())) {
+                        // Push apart horizontally
+                        if (a.x < b.x) {
+                            e1->setVelocity(e1->getVelocityX() - 50.0f, e1->getVelocityY());
+                            e2->setVelocity(e2->getVelocityX() + 50.0f, e2->getVelocityY());
+                        } else {
+                            e1->setVelocity(e1->getVelocityX() + 50.0f, e1->getVelocityY());
+                            e2->setVelocity(e2->getVelocityX() - 50.0f, e2->getVelocityY());
+                        }
                     }
                 }
             }
@@ -364,7 +412,7 @@ void PlayState::update(float dt) {
             flicker += std::sin(time * 5.0) * 0.01f;
             flicker += ((float)GetRandomValue(-100, 100) / 100.0f) * 0.005f; // micro crackles
             
-            float intensity = 1.0f + flicker;
+            float intensity = 0.95f + flicker;
             float radius = 24.0f + (flicker * 15.0f);
             
             lighting->addLight(trueX, trueY, intensity, radius);
@@ -421,23 +469,52 @@ void PlayState::render() {
         }
     }
 
+    auto getEntityLight = [&](float x, float y, float w, float h) -> float {
+        if (!lighting || !tempLevel.tileMap) return 1.0f;
+        int tx = static_cast<int>((x + w/2) / tempLevel.tileMap->getTileSize());
+        int ty = static_cast<int>((y + h/2) / tempLevel.tileMap->getTileSize());
+        const auto& lMap = lighting->getLightMap();
+        if (ty >= 0 && ty < lMap.size() && tx >= 0 && tx < lMap[ty].size()) {
+            return lMap[ty][tx];
+        }
+        return 1.0f;
+    };
+
     for (auto& item : tempLevel.items) {
-        if (item && item->isAlive() && !item->isPickedUp()) item->render(1.0f);
+        if (item && item->isAlive() && !item->isPickedUp()) {
+            item->render(getEntityLight(item->getX(), item->getY(), item->getAABB().width, item->getAABB().height));
+        }
     }
     for (auto& trap : tempLevel.traps) {
-        if (trap && trap->isAlive()) trap->render(1.0f);
+        if (trap && trap->isAlive()) {
+            trap->render(getEntityLight(trap->getX(), trap->getY(), trap->getAABB().width, trap->getAABB().height));
+        }
     }
     for (auto& enemy : tempLevel.dynamicEntities) {
-        if (enemy && enemy->isAlive()) enemy->render(1.0f);
+        if (enemy && enemy->isAlive()) {
+            // Draw all dynamic entities EXCEPT the ghost
+            if (!dynamic_cast<NemesisGhost*>(enemy.get())) {
+                enemy->render(getEntityLight(enemy->getX(), enemy->getY(), enemy->getAABB().width, enemy->getAABB().height));
+            }
+        }
     }
 
     if (player) {
-        player->render(1.0f); // Light level 1.0 (fully bright) for now
+        player->render(getEntityLight(player->getX(), player->getY(), player->getAABB().width, player->getAABB().height));
     }
 
     // Render foreground tiles LAST so they overlap the player's head and entities
     if (tempLevel.tileMap && lighting) {
         tempLevel.tileMap->render(camera, lighting->getLightMap(), true); // Foreground pass (Solid blocks)
+    }
+    
+    // Render Ghost OVER foreground tiles as a transparent shadow
+    for (auto& enemy : tempLevel.dynamicEntities) {
+        if (enemy && enemy->isAlive()) {
+            if (dynamic_cast<NemesisGhost*>(enemy.get())) {
+                enemy->render(getEntityLight(enemy->getX(), enemy->getY(), enemy->getAABB().width, enemy->getAABB().height));
+            }
+        }
     }
     
     EndMode2D();

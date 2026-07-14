@@ -1,10 +1,14 @@
 #include "EntityFactory.h"
 #include <map>
 #include <string>
+#include "Trap.h"
+#include "ArrowTrap.h"
+#include "Arrow.h"
 #include "enemies/Snake.h"
 #include "enemies/Bat.h"
 #include "enemies/Spider.h"
 #include "enemies/NemesisGhost.h"
+#include "enemies/Spike.h"
 
 namespace Platformer {
 
@@ -51,6 +55,10 @@ std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, fl
         case 'P': 
             enemy = std::make_unique<Spider>(x + 4.0f, y, 24.0f, 24.0f);
             enemy->setSprite(getTexture(texSpider), Rectangle{0, 0, 16, 16});
+            break;
+        case '^': 
+            enemy = std::make_unique<Spike>(x, y, 32.0f, 32.0f);
+            enemy->setSprite(getTexture("assets/sprites/16x16/gfx_spike_collectibles_flame.png"), Rectangle{0, 0, 16, 16});
             break;
         default: return nullptr;
     }
@@ -110,21 +118,23 @@ std::unique_ptr<Item> EntityFactory::createItem(char code, float x, float y) {
     return item;
 }
 
+std::unique_ptr<Arrow> EntityFactory::createArrow(float x, float y, float vx) {
+    auto arrow = std::make_unique<Arrow>(x, y, vx);
+    arrow->setSprite(getTexture("assets/sprites/8x8/gfx_arrow.png"), Rectangle{0, 0, 8, 8});
+    return arrow;
+}
+
 std::unique_ptr<Trap> EntityFactory::createTrap(char code, float x, float y) {
     std::string texSpikes = "assets/sprites/16x16/gfx_spike_collectibles_flame.png";
     
     std::unique_ptr<Trap> trap = nullptr;
     
-    if (code == '^') {
-        trap = std::make_unique<Trap>(x, y, 32.0f, 32.0f, 1);
-        trap->setSprite(getTexture(texSpikes), Rectangle{0, 0, 16, 16});
-        return trap;
-    } else if (code == '>') {
-        // Arrow trap facing Right. Hitbox extends 1 tile to the right.
-        return std::make_unique<Trap>(x + 32.0f, y, 32.0f, 32.0f, 1);
+    if (code == '>') {
+        // Arrow trap facing Right. 
+        return std::make_unique<ArrowTrap>(x, y, true);
     } else if (code == '<') {
-        // Arrow trap facing Left. Hitbox extends 1 tile to the left.
-        return std::make_unique<Trap>(x - 32.0f, y, 32.0f, 32.0f, 1);
+        // Arrow trap facing Left.
+        return std::make_unique<ArrowTrap>(x, y, false);
     }
     
     return nullptr;

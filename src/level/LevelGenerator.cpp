@@ -436,19 +436,36 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
             break;
           }
           case 4: { // Spikes
-            if (spikesLeft > 0 && r == 1 && lastPlacement >= 2) {
-              map->setTile(tx, ty, TileType::SPIKE_TRAP);
-              auto trap = EntityFactory::createTrap('^', px, py);
-              if (trap) { tempTraps.push_back(std::move(trap)); spikesLeft--; lastPlacement = 0; }
+            int r3 = GetRandomValue(0, 2);
+            if (spikesLeft > 0 && r3 == 1) {
+              int tx = static_cast<int>(px / MAP_TILE_SIZE);
+              int ty = static_cast<int>(py / MAP_TILE_SIZE);
+              while (ty < (MAP_ROOMS_Y * ROOM_HEIGHT) && !map->isSolid(tx, ty)) {
+                  ty++;
+              }
+              if (ty >= (MAP_ROOMS_Y * ROOM_HEIGHT)) {
+                  ty = static_cast<int>(py / MAP_TILE_SIZE) + 1; // fallback
+              }
+              float actualY = (ty - 1) * MAP_TILE_SIZE;
+              // Y offset + 8.0f (so the bottom 8 pixels of transparent space are covered by the tile below)
+              auto enemyObj = EntityFactory::createEnemy('^', px, actualY + 8.0f);
+              if (enemyObj) {
+                  auto* e = static_cast<Enemy*>(enemyObj.get());
+                  e->setTileMap(map);
+                  tempEnemies.push_back(std::move(enemyObj));
+                  spikesLeft--;
+              }
             }
             break;
           }
           case 9: { // ArrowTrap Left
+            map->setTile(tx, ty, TileType::ARROW_TRAP_LEFT);
             auto trap = EntityFactory::createTrap('<', px, py);
             if (trap) tempTraps.push_back(std::move(trap));
             break;
           }
           case 10: { // ArrowTrap Right
+            map->setTile(tx, ty, TileType::ARROW_TRAP_RIGHT);
             auto trap = EntityFactory::createTrap('>', px, py);
             if (trap) tempTraps.push_back(std::move(trap));
             break;
@@ -534,13 +551,16 @@ bool LevelGenerator::bfsReachability(TileMap* map, Vector2i from, Vector2i to) {
     if (curr.x == to.x && curr.y == to.y) return true;
 
     bool onGround = (curr.y + 1 < height) && map->isSolid(curr.x, curr.y + 1);
-    bool onLadder = (map->getTile(curr.x, curr.y) == TileType::LADDER);
+    bool onLadder = map->isLadder(curr.x, curr.y);
 
     if (onGround || onLadder) {
       pushState(curr.x - 1, curr.y, 4);
       pushState(curr.x + 1, curr.y, 4);
       pushState(curr.x, curr.y - 1, 3);
-      if (onLadder) pushState(curr.x, curr.y + 1, 0);
+      if (onLadder) {
+          pushState(curr.x, curr.y - 1, 0); // Climb up
+          pushState(curr.x, curr.y + 1, 0); // Climb down
+      }
     } else {
       pushState(curr.x, curr.y + 1, 0);
       pushState(curr.x - 1, curr.y, 0);

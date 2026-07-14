@@ -76,4 +76,18 @@ void NemesisGhost::handleReturn(float dt, Player* player) {
     changeState(Enemy::chaseState);
 }
 
+void NemesisGhost::render(float lightLevel) {
+    if (sprite.id != 0 && isActive) {
+        // Render with lower opacity to act like a transparent shadow
+        Color tint = { 
+            static_cast<unsigned char>(255 * lightLevel), 
+            static_cast<unsigned char>(255 * lightLevel), 
+            static_cast<unsigned char>(255 * lightLevel), 
+            160 // Semi-transparent opacity (0-255)
+        };
+        Rectangle dest = { x, y, width, height };
+        DrawTexturePro(sprite, srcRect, dest, Vector2{0, 0}, 0.0f, tint);
+    }
+}
+
 }
