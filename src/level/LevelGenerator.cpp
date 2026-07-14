@@ -534,13 +534,16 @@ bool LevelGenerator::bfsReachability(TileMap* map, Vector2i from, Vector2i to) {
     if (curr.x == to.x && curr.y == to.y) return true;
 
     bool onGround = (curr.y + 1 < height) && map->isSolid(curr.x, curr.y + 1);
-    bool onLadder = (map->getTile(curr.x, curr.y) == TileType::LADDER);
+    bool onLadder = map->isLadder(curr.x, curr.y);
 
     if (onGround || onLadder) {
       pushState(curr.x - 1, curr.y, 4);
       pushState(curr.x + 1, curr.y, 4);
       pushState(curr.x, curr.y - 1, 3);
-      if (onLadder) pushState(curr.x, curr.y + 1, 0);
+      if (onLadder) {
+          pushState(curr.x, curr.y - 1, 0); // Climb up
+          pushState(curr.x, curr.y + 1, 0); // Climb down
+      }
     } else {
       pushState(curr.x, curr.y + 1, 0);
       pushState(curr.x - 1, curr.y, 0);

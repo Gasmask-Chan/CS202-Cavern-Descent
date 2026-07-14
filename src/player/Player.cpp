@@ -26,6 +26,7 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     currentAnim = AnimState::IDLE;
     frameTimer = 0.0f;
     currentFrame = 0;
+    isClimbing = false;
     frameRec = {0.0f, 0.0f, 80.0f, 80.0f};
     switch (type) {
         case CharacterType::NINJA:
@@ -63,6 +64,52 @@ Player::~Player() {
 }
 
 void Player::handleInput() {
+    if (isWhipping || !moveStrategy) return;
+
+    bool onLadder = false;
+    if (tileMap) {
+        int tx = static_cast<int>((x + width / 2) / tileMap->getTileSize());
+        int ty = static_cast<int>((y + height / 2) / tileMap->getTileSize());
+        int feetTy = static_cast<int>((y + height + 2.0f) / tileMap->getTileSize());
+        
+        onLadder = tileMap->isLadder(tx, ty);
+        
+        // If we are standing ON a ladder deck, pressing down should let us climb
+        if (!onLadder && tileMap->isLadder(tx, feetTy) && IsKeyDown(KEY_S)) {
+            onLadder = true;
+        }
+    }
+
+    if (onLadder && (IsKeyDown(KEY_W) || IsKeyDown(KEY_S)) && !isClimbing) {
+        isClimbing = true;
+        // Snap to center horizontally
+        x = static_cast<int>((x + width / 2) / tileMap->getTileSize()) * tileMap->getTileSize() + tileMap->getTileSize() / 2.0f - width / 2.0f;
+        vx = 0.0f;
+        vy = 0.0f;
+    }
+
+    if (isClimbing) {
+        vx = 0.0f;
+        
+        // Cấp gia tốc dọc
+        if (IsKeyDown(KEY_W)) {
+            vy = -moveStrategy->getMoveSpeed() * 0.5f;
+        } else if (IsKeyDown(KEY_S)) {
+            vy = moveStrategy->getMoveSpeed() * 0.5f;
+        } else {
+            // Đứng yên trên thang (treo lơ lửng)
+            vy = 0.0f;
+        }
+
+        if (IsKeyPressed(KEY_SPACE)) {
+            isClimbing = false;
+            vy = -moveStrategy->getJumpForce() * 0.8f; // slightly weaker jump off ladder
+            isGrounded = false;
+        } else {
+            return; // Skip normal walking input
+        }
+    }
+
     if (IsKeyDown(KEY_A)) {
         vx = -moveStrategy->getMoveSpeed();
         isFacingRight = false;
@@ -103,6 +150,24 @@ void Player::handleInput() {
 }
 
 void Player::update(float dt, Player* player) {
+    if (!moveStrategy) return;
+    
+    if (isClimbing) {
+        bool onLadder = false;
+        if (tileMap) {
+            int tx = static_cast<int>((x + width / 2) / tileMap->getTileSize());
+            int ty = static_cast<int>((y + height / 2) / tileMap->getTileSize());
+            onLadder = tileMap->isLadder(tx, ty);
+        }
+        if (!onLadder) {
+            isClimbing = false;
+            gravity = 800.0f;
+        } else {
+            gravity = 0.0f; // Disable gravity while climbing
+        }
+    } else {
+        gravity = 800.0f;
+    }
     // Prevent physics instability/sinking during lag spikes or when game is backgrounded
     if (dt > 0.033f) dt = 0.033f; 
 
@@ -157,6 +222,8 @@ void Player::update(float dt, Player* player) {
                 }
             }
         }
+    } else if (isClimbing) {
+        newAnim = AnimState::CLIMB;
     } else if (!isGrounded) {
         if (vy < 0) newAnim = AnimState::JUMP;
         else newAnim = AnimState::FALL;
@@ -193,6 +260,13 @@ void Player::update(float dt, Player* player) {
             maxFrames = 1;
             row = 0;
             colOffset = 0;
+            break;
+        case AnimState::CLIMB:
+            maxFrames = 6;
+            row = 6;
+            colOffset = 0;
+            frameDuration = 0.15f;
+            if (vy == 0) maxFrames = 1; // Pause animation if not moving
             break;
         case AnimState::RUN:
             maxFrames = 8;

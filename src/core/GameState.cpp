@@ -195,7 +195,7 @@ void PlayState::handleInput() {
 void PlayState::update(float dt) {
     if (!ghostSpawned) {
         ghostTimer += dt;
-        if (ghostTimer >= 10.0f) { // 2.5 minutes
+        if (ghostTimer >= 150.0f) { // 2.5 minutes
             ghostSpawned = true;
             auto ghost = EntityFactory::createGhost(player->getX() - 600.0f, player->getY() - 600.0f);
             pendingEntities.push_back(std::move(ghost));
@@ -364,7 +364,7 @@ void PlayState::update(float dt) {
             flicker += std::sin(time * 5.0) * 0.01f;
             flicker += ((float)GetRandomValue(-100, 100) / 100.0f) * 0.005f; // micro crackles
             
-            float intensity = 1.0f + flicker;
+            float intensity = 0.95f + flicker;
             float radius = 24.0f + (flicker * 15.0f);
             
             lighting->addLight(trueX, trueY, intensity, radius);
@@ -421,18 +421,35 @@ void PlayState::render() {
         }
     }
 
+    auto getEntityLight = [&](float x, float y, float w, float h) -> float {
+        if (!lighting || !tempLevel.tileMap) return 1.0f;
+        int tx = static_cast<int>((x + w/2) / tempLevel.tileMap->getTileSize());
+        int ty = static_cast<int>((y + h/2) / tempLevel.tileMap->getTileSize());
+        const auto& lMap = lighting->getLightMap();
+        if (ty >= 0 && ty < lMap.size() && tx >= 0 && tx < lMap[ty].size()) {
+            return lMap[ty][tx];
+        }
+        return 1.0f;
+    };
+
     for (auto& item : tempLevel.items) {
-        if (item && item->isAlive() && !item->isPickedUp()) item->render(1.0f);
+        if (item && item->isAlive() && !item->isPickedUp()) {
+            item->render(getEntityLight(item->getX(), item->getY(), item->getAABB().width, item->getAABB().height));
+        }
     }
     for (auto& trap : tempLevel.traps) {
-        if (trap && trap->isAlive()) trap->render(1.0f);
+        if (trap && trap->isAlive()) {
+            trap->render(getEntityLight(trap->getX(), trap->getY(), trap->getAABB().width, trap->getAABB().height));
+        }
     }
     for (auto& enemy : tempLevel.dynamicEntities) {
-        if (enemy && enemy->isAlive()) enemy->render(1.0f);
+        if (enemy && enemy->isAlive()) {
+            enemy->render(getEntityLight(enemy->getX(), enemy->getY(), enemy->getAABB().width, enemy->getAABB().height));
+        }
     }
 
     if (player) {
-        player->render(1.0f); // Light level 1.0 (fully bright) for now
+        player->render(getEntityLight(player->getX(), player->getY(), player->getAABB().width, player->getAABB().height));
     }
 
     // Render foreground tiles LAST so they overlap the player's head and entities

@@ -1,4 +1,5 @@
 #include "PhysicsSystem.h"
+#include "../player/Player.h"
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
@@ -28,7 +29,18 @@ void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
 
     for (int y = startY; y <= endY; ++y) {
         for (int x = startX; x <= endX; ++x) {
-            if (tileMap->isSolid(x, y)) {
+            bool isSolid = tileMap->isSolid(x, y);
+            bool isPlatform = tileMap->isOneWayPlatform(x, y);
+            
+            if (isSolid || isPlatform) {
+                // If climbing, ignore platforms entirely
+                if (isPlatform) {
+                    Player* p = dynamic_cast<Player*>(e);
+                    if (p && p->getIsClimbing()) {
+                        continue;
+                    }
+                }
+
                 Rectangle tileRect = {
                     static_cast<float>(x * tileMap->getTileSize()),
                     static_cast<float>(y * tileMap->getTileSize()),
@@ -44,21 +56,33 @@ void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
 
                     float minPen = std::min({penLeft, penRight, penTop, penBottom});
 
-                    // If penTop is extremely small, it means the entity is just sliding along the floor.
-                    // Prioritize floor collision over wall collision to prevent getting stuck on flat tiles.
-                    if (minPen == penTop || (penTop < 2.0f && e->vy >= 0)) {
-                        e->move(0, -penTop);
-                        e->isGrounded = true;
-                        if (e->vy > 0) e->vy = 0;
-                    } else if (minPen == penBottom) {
-                        e->move(0, penBottom);
-                        if (e->vy < 0) e->vy = 0;
-                    } else if (minPen == penLeft) {
-                        e->move(-penLeft, 0);
-                        e->vx = 0;
-                    } else if (minPen == penRight) {
-                        e->move(penRight, 0);
-                        e->vx = 0;
+                    if (isPlatform) {
+                        // One-way platform logic: only collide if moving down, and hitting the top.
+                        // We also check penTop is relatively small to prevent snapping to platform if we are deep inside it.
+                        // We allow penTop < 2.0f to prioritize floor over wall, identical to normal solid logic.
+                        if ((minPen == penTop || penTop < 2.0f) && e->vy >= 0 && penTop <= 16.0f) {
+                            e->move(0, -penTop);
+                            e->isGrounded = true;
+                            if (e->vy > 0) e->vy = 0;
+                        }
+                    } else {
+                        // Normal solid logic
+                        // If penTop is extremely small, it means the entity is just sliding along the floor.
+                        // Prioritize floor collision over wall collision to prevent getting stuck on flat tiles.
+                        if (minPen == penTop || (penTop < 2.0f && e->vy >= 0)) {
+                            e->move(0, -penTop);
+                            e->isGrounded = true;
+                            if (e->vy > 0) e->vy = 0;
+                        } else if (minPen == penBottom) {
+                            e->move(0, penBottom);
+                            if (e->vy < 0) e->vy = 0;
+                        } else if (minPen == penLeft) {
+                            e->move(-penLeft, 0);
+                            e->vx = 0;
+                        } else if (minPen == penRight) {
+                            e->move(penRight, 0);
+                            e->vx = 0;
+                        }
                     }
                     
                     aabb = e->getAABB(); 

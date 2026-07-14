@@ -72,7 +72,7 @@ public:
     void destroyBlock(int x, int y);
 
     /**
-     * @brief Returns `true` if tile at `(x,y)` is `WALL`, `CRACKED`, or `PLATFORM`. Used by physics for collision and by BFS for reachability.
+     * @brief Returns `true` if tile at `(x,y)` is `WALL`, `CRACKED`. Used by physics for collision and by BFS for reachability.
      * 
      * @param x 
      * @param y 
@@ -80,6 +80,16 @@ public:
      * @return false 
      */
     bool isSolid(int x, int y) const;
+
+    /**
+     * @brief Returns `true` if tile at `(x,y)` is a one-way platform (can be stood on, but passed through from below).
+     * 
+     * @param x 
+     * @param y 
+     * @return true 
+     * @return false 
+     */
+    bool isOneWayPlatform(int x, int y) const;
 
     /**
      * @brief Returns `true` if tile blocks light (`WALL`, `CRACKED`). Used by `LightingSystem` shadowcasting. `PLATFORM` tiles are NOT opaque (light passes through).
@@ -100,6 +110,16 @@ public:
      * @return false 
      */
     bool isCracked(int x, int y) const;
+
+    /**
+     * @brief Returns `true` if tile is a ladder.
+     * 
+     * @param x 
+     * @param y 
+     * @return true 
+     * @return false 
+     */
+    bool isLadder(int x, int y) const;
 
     /**
      * @brief Iterates only tiles visible within the camera's viewport (culling). For each visible tile, draws the zone-appropriate sprite at grid position, tinted by `ColorTint(WHITE, lightMap[gy][gx])`. Empty tiles are not drawn (cave background is black).

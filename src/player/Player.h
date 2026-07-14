@@ -22,11 +22,12 @@ private:
     bool isWhipping;
     float whipTimer;
     bool whipHitThisFrame;
+    bool isClimbing;
     TileMap* tileMap;
     Texture2D whipSprite;
 
     // Animation state
-    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP } currentAnim;
+    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP, CLIMB } currentAnim;
     float frameTimer;
     int currentFrame;
     Rectangle frameRec;
@@ -64,6 +65,7 @@ public:
     
     bool getIsWhipHitThisFrame() const;
     Rectangle getWhipHitbox() const;
+    bool getIsClimbing() const { return isClimbing; }
 };
 
 }

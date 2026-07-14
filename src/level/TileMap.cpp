@@ -34,12 +34,16 @@ void TileMap::destroyBlock(int x, int y) {
 
 bool TileMap::isSolid(int x, int y) const {
   TileType type = getTile(x, y);
-  // In Spelunky DS:
-  // 1=CAVE_ROCK, 2=CAVE_REGULAR, 3=STONE_BLOCK, 4=CAVE_DOWN_ORIENTED (platform), 5-8 = Gold/Oriented walls
-  if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) || type == TileType::CAVE_SMOOTH) {
+  if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) || 
+      type == TileType::CAVE_SMOOTH) {
       return true; 
   }
   return false;
+}
+
+bool TileMap::isOneWayPlatform(int x, int y) const {
+    TileType type = getTile(x, y);
+    return type == TileType::LADDER_DECK;
 }
 
 bool TileMap::isOpaque(int x, int y) const {
@@ -53,6 +57,11 @@ bool TileMap::isOpaque(int x, int y) const {
 
 bool TileMap::isCracked(int x, int y) const {
   return getTile(x, y) == TileType::STONE_BLOCK;
+}
+
+bool TileMap::isLadder(int x, int y) const {
+  TileType type = getTile(x, y);
+  return type == TileType::LADDER || type == TileType::LADDER_DECK;
 }
 
 void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap, bool foregroundPass) {
