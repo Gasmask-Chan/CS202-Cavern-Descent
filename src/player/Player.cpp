@@ -405,6 +405,7 @@ void Player::takeDamage(int dmg) {
     invincibilityTimer = 1.5f;
     vy = -300.0f;
     vx = isFacingRight ? -200.0f : 200.0f;
+    isClimbing = false; // Fall off ladder when taking damage
     
     EventData data;
     data.amount = dmg;

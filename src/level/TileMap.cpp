@@ -35,7 +35,7 @@ void TileMap::destroyBlock(int x, int y) {
 bool TileMap::isSolid(int x, int y) const {
   TileType type = getTile(x, y);
   if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) || 
-      type == TileType::CAVE_SMOOTH) {
+      type == TileType::CAVE_SMOOTH || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT) {
       return true; 
   }
   return false;
@@ -49,7 +49,8 @@ bool TileMap::isOneWayPlatform(int x, int y) const {
 bool TileMap::isOpaque(int x, int y) const {
   TileType type = getTile(x, y);
   // Opaque blocks light
-  if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED && type != TileType::CAVE_DOWN_ORIENTED) || type == TileType::CAVE_SMOOTH) {
+  if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED && type != TileType::CAVE_DOWN_ORIENTED) || 
+      type == TileType::CAVE_SMOOTH || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT) {
       return true; 
   }
   return false;

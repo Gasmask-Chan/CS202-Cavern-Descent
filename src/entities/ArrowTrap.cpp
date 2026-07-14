@@ -1,0 +1,54 @@
+#include "ArrowTrap.h"
+
+namespace Platformer {
+
+ArrowTrap::ArrowTrap(float x, float y, bool facingRight) 
+    : Trap(x, y, 32.0f, 32.0f, 0), facingRight(facingRight) {
+    // We set damage to 0 because the trap itself doesn't hurt you anymore; the arrow does.
+    // The hitbox is 32x32 exactly over the tile.
+}
+
+void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::unique_ptr<DynamicEntity>>& enemies, const std::vector<std::unique_ptr<Item>>& items) {
+    if (activated) return;
+
+    auto checkLOS = [&](float objX, float objY, float objW, float objH, float vx, float vy) {
+        if (vx == 0 && vy == 0) return false;
+        
+        // Check if on same row (y matches). The object's Y bounds must overlap with the trap's Y bounds.
+        if (!(objY + objH > y && objY < y + height)) return false;
+        
+        float dist = objX - x;
+        float maxDist = 7.0f * 32.0f; // 7 tiles
+        if (facingRight) {
+            if (dist > 0 && dist <= maxDist) return true;
+        } else {
+            if (dist < 0 && -dist <= maxDist) return true;
+        }
+        return false;
+    };
+    
+    bool trigger = false;
+    if (player && player->isAlive() && checkLOS(player->getX(), player->getY(), player->getAABB().width, player->getAABB().height, player->getVelocityX(), player->getVelocityY())) {
+        trigger = true;
+    }
+    
+    if (trigger) {
+        activated = true;
+        
+        EventData data;
+        // Spawn slightly outside the trap so it doesn't get stuck inside its own wall tile
+        data.worldX = facingRight ? x + width + 2.0f : x - 18.0f;
+        data.worldY = y + 8.0f; // Center arrow vertically (arrow is 16x16, trap is 32x32, so 8+16 = 24. Actually, middle is y+8)
+        data.vx = facingRight ? 400.0f : -400.0f;
+        data.vy = 0.0f;
+        
+        EventBus::getInstance()->publish(EventType::EVENT_SPAWN_ARROW, data);
+        AudioManager::getInstance()->playSFX("hit"); // Fallback sound, you can change to arrow_trap later
+    }
+}
+
+void ArrowTrap::render(float lightLevel) {
+    // Completely invisible! Render nothing.
+}
+
+}
