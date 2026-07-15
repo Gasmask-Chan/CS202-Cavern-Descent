@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include "DynamicEntity.h"
 #include "Item.h"
 #include "Trap.h"
@@ -13,6 +14,7 @@ namespace Platformer {
  */
 class EntityFactory {
 public:
+    static Texture2D getTexture(const std::string& path);
     static void preloadTextures();
 
     /**

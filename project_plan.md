@@ -512,6 +512,15 @@ classDiagram
 
 ```mermaid
 classDiagram
+    class EntityFactory {
+        +static preloadTextures() void
+        +static getTexture(string path) Texture2D
+        +static createEnemy(char code, float x, float y) DynamicEntity*
+        +static createGhost(float x, float y) DynamicEntity*
+        +static createItem(char code, float x, float y) Item*
+        +static createTrap(char code, float x, float y) Trap*
+    }
+
     class Entity {
         #float x
         #float y
