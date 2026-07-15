@@ -42,6 +42,9 @@ public:
      */
     void setGame(Game* g);
 
+    void drawCenteredText(const char* text, float y, float fontSize, Color color);
+    void drawCenteredAt(const char* text, float centerX, float y, float fontSize, Color color);
+
     virtual void enter() = 0;
 
     virtual void exit() = 0;
@@ -92,6 +95,9 @@ private:
     
     float ghostTimer;
     bool ghostSpawned;
+    
+    Texture2D hudIcons;
+    Font hudFont;
     
 public:
     /**

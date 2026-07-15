@@ -33,6 +33,40 @@ void Game::init() {
 
     // Initialize audio device early
     AudioManager::getInstance();
+    Image fontImg = LoadImage("assets/fonts/font.png");
+    ImageFormat(&fontImg, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    ImageColorReplace(&fontImg, BLACK, BLANK);
+    
+    globalFont = { 0 };
+    globalFont.baseSize = 8;
+    globalFont.glyphCount = 85; // 59 uppercase/symbols + 26 lowercase
+    globalFont.glyphPadding = 0;
+    globalFont.texture = LoadTextureFromImage(fontImg);
+    globalFont.recs = (Rectangle *)MemAlloc(85 * sizeof(Rectangle));
+    globalFont.glyphs = (GlyphInfo *)MemAlloc(85 * sizeof(GlyphInfo));
+    
+    // Uppercase and symbols (ASCII 32 to 90)
+    for (int i = 0; i < 59; i++) {
+        globalFont.recs[i] = { 0.0f, (float)(i * 8), 8.0f, 8.0f };
+        globalFont.glyphs[i].value = 32 + i;
+        globalFont.glyphs[i].offsetX = 0;
+        globalFont.glyphs[i].offsetY = 0;
+        globalFont.glyphs[i].advanceX = 8;
+        globalFont.glyphs[i].image.data = nullptr; 
+    }
+    
+    // Lowercase 'a' to 'z' mapped to 'A' to 'Z'
+    for (int i = 0; i < 26; i++) {
+        int idx = 59 + i;
+        int upperIndex = 33 + i; // 'A' is 33rd char (65 - 32)
+        globalFont.recs[idx] = { 0.0f, (float)(upperIndex * 8), 8.0f, 8.0f };
+        globalFont.glyphs[idx].value = 97 + i; // 'a' is 97
+        globalFont.glyphs[idx].offsetX = 0;
+        globalFont.glyphs[idx].offsetY = 0;
+        globalFont.glyphs[idx].advanceX = 8;
+        globalFont.glyphs[idx].image.data = nullptr; 
+    }
+    UnloadImage(fontImg);
 
     currentState = new MenuState;
     currentState->setGame(this);
@@ -61,6 +95,8 @@ void Game::cleanup() {
     if (currentState) {
         currentState->exit();
     }
+    
+    UnloadFont(globalFont);
 
     CloseWindow();
 }

@@ -19,6 +19,16 @@ void GameState::setGame(Game* game) {
     this->game = game;
 }
 
+void GameState::drawCenteredText(const char* text, float y, float fontSize, Color color) {
+    Vector2 size = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
+    DrawTextEx(game->getFont(), text, { (1280.0f - size.x) / 2.0f, y }, fontSize, 2.0f, color);
+}
+
+void GameState::drawCenteredAt(const char* text, float centerX, float y, float fontSize, Color color) {
+    Vector2 size = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
+    DrawTextEx(game->getFont(), text, { centerX - size.x / 2.0f, y }, fontSize, 2.0f, color);
+}
+
 /*
 =======================================================
 =========================MENU==========================
@@ -68,17 +78,17 @@ void MenuState::render() {
 
     // Placeholder: draw background texture here
 
-    DrawText("CAVERN DESCENT", 400, 150, 60, RAYWHITE);
+    drawCenteredText("CAVERN DESCENT", 150.0f, 60.0f, RAYWHITE);
 
     Color startColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
     Color editorColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
     Color quitColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
 
-    DrawText("START GAME", 500, 350, 40, startColor);
-    DrawText("LEVEL EDITOR", 500, 420, 40, editorColor);
-    DrawText("QUIT", 500, 490, 40, quitColor);
+    drawCenteredText("START GAME", 350.0f, 40.0f, startColor);
+    drawCenteredText("LEVEL EDITOR", 420.0f, 40.0f, editorColor);
+    drawCenteredText("QUIT", 490.0f, 40.0f, quitColor);
 
-    DrawText("Use UP/DOWN to navigate, ENTER to select", 400, 650, 20, GRAY);
+    drawCenteredText("Use UP/DOWN to navigate, ENTER to select", 650.0f, 20.0f, GRAY);
 }
 
 /*
@@ -89,6 +99,13 @@ void MenuState::render() {
 
 void PlayState::enter() {
     EntityFactory::preloadTextures();
+    
+    Image hudImg = LoadImage("assets/sprites/16x16/gfx_hud.png");
+    ImageFormat(&hudImg, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    Color chromaKey = GetImageColor(hudImg, 0, 0); 
+    ImageColorReplace(&hudImg, chromaKey, BLANK);
+    hudIcons = LoadTextureFromImage(hudImg);
+    UnloadImage(hudImg);
     // Initialize Camera
     camera.offset = Vector2{ 1280.0f / 2.0f, 720.0f / 2.0f }; // Center screen
     camera.rotation = 0.0f;
@@ -175,6 +192,8 @@ void PlayState::enter() {
 }
 
 void PlayState::exit() {
+    UnloadTexture(hudIcons);
+    
     if (physics) {
         delete physics;
         physics = nullptr;
@@ -445,6 +464,39 @@ void PlayState::render() {
     if (minimap) {
         minimap->render();
     }
+
+    // ---- Render HUD ----
+    if (player) {
+        float scale = 4.0f; // Scale up the HUD
+        float iconSize = 16.0f * scale;
+        float fontSize = 30.0f;
+        
+        // Helper lambda to draw an icon and text
+        auto drawHudElement = [&](int iconIndex, const char* text, float x, float y) {
+            Rectangle src = { iconIndex * 16.0f, 0.0f, 16.0f, 16.0f };
+            Rectangle dest = { x, y, iconSize, iconSize };
+            DrawTexturePro(hudIcons, src, dest, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+            
+            // Text offset to align with the icon
+            float textY = y + (iconSize / 2.0f) - (fontSize / 2.0f);
+            DrawTextEx(game->getFont(), text, {x + iconSize + 10.0f, textY}, fontSize, 2.0f, WHITE);
+        };
+        
+        float startX = 20.0f;
+        float startY = 20.0f;
+        
+        // 0: Heart, 2: Rope, 3: Bomb, 4: Gold
+        drawHudElement(0, TextFormat("%d", player->getHealth()), startX, startY);
+        drawHudElement(3, TextFormat("%d", player->getBombs()), startX + 180.0f, startY);
+        drawHudElement(2, TextFormat("%d", player->getRopes()), startX + 360.0f, startY);
+        drawHudElement(4, TextFormat("%d", player->getGold()), startX + 540.0f, startY);
+        
+        // Floor on the right side
+        float floorY = startY + (iconSize / 2.0f) - (fontSize / 2.0f);
+        const char* floorText = TextFormat("FLOOR %d", GameManager::getInstance()->getFloor());
+        Vector2 floorSize = MeasureTextEx(game->getFont(), floorText, fontSize, 2.0f);
+        DrawTextEx(game->getFont(), floorText, {1280.0f - 20.0f - floorSize.x, floorY}, fontSize, 2.0f, WHITE);
+    }
 }
 
 /*
@@ -536,17 +588,17 @@ void CharSelectState::update(float dt) {
 void CharSelectState::render() {
     ClearBackground(BLACK);
     
-    DrawText("CHARACTER SELECT", 450, 200, 40, RAYWHITE);
-    
+    drawCenteredText("CHARACTER SELECT", 200.0f, 40.0f, RAYWHITE);
+
     Color expColor = (selectedIndex == 0) ? YELLOW : DARKGRAY;
-    Color ninColor = (selectedIndex == 1) ? BLUE : DARKGRAY;
-    Color tnkColor = (selectedIndex == 2) ? RED : DARKGRAY;
-    
-    DrawText("EXPLORER", 300, 400, 30, expColor);
-    DrawText("NINJA", 600, 400, 30, ninColor);
-    DrawText("TANK", 900, 400, 30, tnkColor);
-    
-    DrawText("Press ENTER to start, ESC to return", 420, 600, 20, GRAY);
+    Color ninColor = (selectedIndex == 1) ? YELLOW : DARKGRAY;
+    Color tnkColor = (selectedIndex == 2) ? YELLOW : DARKGRAY;
+
+    drawCenteredAt("EXPLORER", 320.0f, 400.0f, 30.0f, expColor);
+    drawCenteredAt("NINJA", 640.0f, 400.0f, 30.0f, ninColor);
+    drawCenteredAt("TANK", 960.0f, 400.0f, 30.0f, tnkColor);
+
+    drawCenteredText("Press ENTER to start, ESC to return", 600.0f, 20.0f, GRAY);
 }
 
 /*

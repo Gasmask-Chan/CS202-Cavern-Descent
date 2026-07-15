@@ -370,6 +370,8 @@ classDiagram
         <<abstract>>
         #Game* game
         +setGame(Game* g) void
+        #drawCenteredText(string text, float y, float fontSize, Color color) void
+        #drawCenteredAt(string text, float centerX, float y, float fontSize, Color color) void
         +enter() void*
         +exit() void*
         +handleInput() void*

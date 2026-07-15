@@ -11,8 +11,12 @@ private:
     bool isRunning;
     float deltaTime;
 
+    Font globalFont;
+
 public:
     Game();
+    
+    Font getFont() const { return globalFont; }
     
     ~Game();
 
