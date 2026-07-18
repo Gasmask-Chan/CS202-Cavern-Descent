@@ -309,7 +309,7 @@ Player throws a Bomb at a wall holding back water
 ```mermaid
 classDiagram
     class Game {
-        -GameState* currentState
+        -vector~GameState*~ stateStack
         -bool isRunning
         -float deltaTime
         +Game()
@@ -320,6 +320,8 @@ classDiagram
         -update(float dt) void
         -render() void
         -cleanup() void
+        +pushState(GameStateType state) void
+        +popState() void
         +changeState(GameStateType state) void
         +quit() void
     }
@@ -329,6 +331,10 @@ classDiagram
         -int currentFloor
         -int score
         -int playerLives
+        -int playerHealth
+        -int playerBombs
+        -int playerRopes
+        -int playerGold
         -CharacterType selectedCharacter
         -float ghostTimer
         -FloorModifier currentModifier
@@ -337,6 +343,11 @@ classDiagram
         +getFloor() int
         +getScore() int
         +addScore(int points) void
+        +getPlayerHealth() int
+        +getPlayerBombs() int
+        +getPlayerRopes() int
+        +getPlayerGold() int
+        +syncPlayerStats(int hp, int b, int r, int g) void
         +nextFloor() void
         +resetRun() void
         +getSelectedCharacter() CharacterType
@@ -346,6 +357,13 @@ classDiagram
         +getFloorModifier() FloorModifier
         +saveHighScore(string name) void
         +loadHighScores() vector~HighScoreEntry~
+    }
+
+    class HighScoreEntry {
+        <<struct>>
+        +string name
+        +int score
+        +int floorsReached
     }
 
     class AudioManager {
@@ -370,6 +388,8 @@ classDiagram
         <<abstract>>
         #Game* game
         +setGame(Game* g) void
+        #drawCenteredText(string text, float y, float fontSize, Color color) void
+        #drawCenteredAt(string text, float centerX, float y, float fontSize, Color color) void
         +enter() void*
         +exit() void*
         +handleInput() void*
@@ -416,6 +436,23 @@ classDiagram
     class GameOverState {
         -int finalScore
         -int floorsReached
+        -char[4] nameInput
+        -int letterCount
+        -bool nameEntered
+        -vector~HighScoreEntry~ leaderboard
+        +enter() void
+        +exit() void
+        +handleInput() void
+        +update(float dt) void
+        +render() void
+    }
+
+    class TransitionState {
+        -unique_ptr~Player~ player
+        -unique_ptr~PhysicsSystem~ physics
+        -unique_ptr~TileMap~ tunnelMap
+        -unique_ptr~LightingSystem~ lighting
+        -Camera2D camera
         +enter() void
         +exit() void
         +handleInput() void
@@ -442,11 +479,12 @@ classDiagram
         +render() void
     }
 
-    Game --> GameState : currentState
+    Game "1" *-- "many" GameState : stateStack
     GameState <|.. MenuState
     GameState <|.. PlayState
     GameState <|.. PauseState
     GameState <|.. GameOverState
+    GameState <|.. TransitionState
     GameState <|.. CharSelectState
     GameState <|.. EditorState
     Game ..> GameManager : uses
@@ -461,11 +499,13 @@ classDiagram
 |---|---|
 | `run()` | Main entry point. Calls `init()`, then enters the main `while (!WindowShouldClose())` loop calling `handleInput()`, `update(dt)`, `render()` each frame. Calls `cleanup()` on exit. |
 | `init()` | Initializes Raylib window (`InitWindow`), sets target FPS to 60, initializes `GameManager` and `AudioManager` singletons, loads all shared textures and sounds, creates the initial `MenuState`, calls `setGame(this)` and `enter()` on the initial state. |
-| `handleInput()` | Delegates to `currentState->handleInput()`. No game-level input processing — all input is state-specific. |
-| `update(float dt)` | Passes `GetFrameTime()` delta to `currentState->update(dt)`. Checks for pending state transitions queued by `changeState()`. |
-| `render()` | Calls `BeginDrawing()`, `ClearBackground(BLACK)`, delegates to `currentState->render()`, then `EndDrawing()`. |
-| `changeState(GameStateType state)` | Calls `currentState->exit()`, deletes old state, creates a new state based on the `GameStateType` enum via a switch statement, calls `setGame(this)` and `enter()` on the new state. Ensures clean resource handoff between states. |
-| `cleanup()` | Deletes current `GameState`, calls `CloseAudioDevice()`, unloads all textures via Raylib, calls `CloseWindow()`. |
+| `handleInput()` | Delegates to `stateStack.back()->handleInput()`. No game-level input processing — all input is state-specific. |
+| `update(float dt)` | Passes `GetFrameTime()` delta to `stateStack.back()->update(dt)`. |
+| `render()` | Calls `BeginDrawing()`, iterates through `stateStack` from bottom to top and calls `render()` on each, then `EndDrawing()`. Allows transparent overlays (like pausing) to draw on top. |
+| `pushState(GameStateType state)` | Instantiates a new state and pushes it onto the `stateStack` without destroying the state below it. |
+| `popState()` | Deletes the topmost state in `stateStack`, automatically resuming the state beneath it. |
+| `changeState(GameStateType state)` | Clears the entire `stateStack` (deleting all active states), then creates a new state based on the `GameStateType` enum via a switch statement, calls `setGame(this)` and `enter()` on the new state. |
+| `cleanup()` | Iterates through `stateStack`, calls `exit()` and deletes them, calls `CloseAudioDevice()`, unloads all textures via Raylib, calls `CloseWindow()`. |
 
 **GameManager (Singleton)**
 
@@ -510,6 +550,15 @@ classDiagram
 
 ```mermaid
 classDiagram
+    class EntityFactory {
+        +static preloadTextures() void
+        +static getTexture(string path) Texture2D
+        +static createEnemy(char code, float x, float y) DynamicEntity*
+        +static createGhost(float x, float y) DynamicEntity*
+        +static createItem(char code, float x, float y) Item*
+        +static createTrap(char code, float x, float y) Trap*
+    }
+
     class Entity {
         #float x
         #float y
@@ -1360,7 +1409,6 @@ classDiagram
 | `drawRopeCount()` | Draws a rope icon + `player->getRopes()` count next to bomb count. |
 | `drawGoldCount()` | Draws a gold coin icon + `player->getGold()` value. Flashes briefly when gold increases (combo feedback). |
 | `drawFloorIndicator()` | Draws "FLOOR X" text at top-center, where X is `GameManager::getInstance()->getFloor()`. Also shows zone name (Cave/Jungle/Temple). |
-| `drawGhostTimer()` | Draws remaining ghost timer as "⏱ XXs" at top-right. Color transitions: white (>60s) → yellow (30–60s) → red (<30s, pulsing). When timer hits 0 and ghost is active, displays "👻 THE GHOST IS HERE" in flashing red. |
 | `drawComboMeter()` | If `combo->getComboCount() > 1`, draws a "×N COMBO" badge near the gold counter with a shrinking timer bar showing remaining combo time. Badge size pulses on increment. |
 | `drawModifierIcon()` | If floor has an active modifier, draws an icon + label at top-left: 🌑 for Dark Floor, 🌊 for Flooded Floor, 💀 for Cursed Floor. Helps player immediately understand the floor's special rule. |
 
@@ -1571,8 +1619,7 @@ BeginDrawing()
   EndMode2D()
 
    9. HUD::render()                        — health, bombs, ropes, gold, floor,
-                                              ghost timer, combo meter,
-                                              modifier icon
+                                              combo meter, modifier icon
   10. Minimap::render()                     — 4×4 room grid with fog of war
   11. ShopSystem::render() (if in shop)     — shop overlay
 EndDrawing()
@@ -1649,8 +1696,8 @@ EndDrawing()
 
 | Person A | Person B |
 |---|---|
-| Implement `HUD` (health, bombs, ropes, gold, floor, ghost timer) (S12) | **Implement `LiquidSimulator` (CA + BFS flood) (A7)** |
-| Implement `PauseState` and `GameOverState` | **Wire bomb → terrain destroyed → liquid flood** |
+| Implement `HUD` (health, bombs, ropes, gold, floor) (S12) | **Implement `LiquidSimulator` (CA + BFS flood) (A7)** |
+| ✅ Implement `PauseState` and `GameOverState` | **Wire bomb → terrain destroyed → liquid flood** |
 | **Implement `ExplosionFlash` + `LavaGlow` lights** | **Apply `FloorModifier`: Dark Floor → torch radius, Flooded Floor → water fill (A10)** |
 | **Implement `ComboSystem` + floating text (A11)** | Implement `ShopSystem` (A12) |
 | Implement save/load high scores (file I/O) | **Implement `LevelEditor` (A8)** |

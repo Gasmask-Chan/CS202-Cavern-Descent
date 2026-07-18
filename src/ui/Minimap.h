@@ -15,7 +15,7 @@ private:
 
     // Visual configurations
     float mapX = 16.0f;
-    float mapY = 16.0f;
+    float mapY = 630.0f;
     float roomSize = 16.0f;
     float margin = 2.0f;
 

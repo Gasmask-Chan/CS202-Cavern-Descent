@@ -14,7 +14,7 @@ namespace Platformer {
 
 static std::map<std::string, Texture2D> textureCache;
 
-static Texture2D getTexture(const std::string& path) {
+Texture2D EntityFactory::getTexture(const std::string& path) {
     if (textureCache.find(path) == textureCache.end()) {
         Image img = LoadImage(path.c_str());
         ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
