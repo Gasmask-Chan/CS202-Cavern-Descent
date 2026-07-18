@@ -16,7 +16,8 @@ enum class EventType {
     EVENT_GOLD_COLLECTED,
     EVENT_GHOST_SPAWN,
     EVENT_ENEMY_KILLED,
-    EVENT_SPAWN_ITEM
+    EVENT_SPAWN_ITEM,
+    EVENT_SPAWN_ARROW
 };
 
 struct EventData {

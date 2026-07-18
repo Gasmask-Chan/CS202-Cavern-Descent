@@ -6,7 +6,12 @@ Trap::Trap(float x, float y, float w, float h, int dmg)
     : Entity(x, y, w, h), damage(dmg) {}
 
 void Trap::update(float dt, Player* player) {
-    Entity::update(dt, player);
+    // Base trap logic (static damage) doesn't need to do much here since collision is handled in GameState
+}
+
+void Trap::updateTrap(float dt, Player* player, const std::vector<std::unique_ptr<DynamicEntity>>& enemies, const std::vector<std::unique_ptr<Item>>& items, TileMap* tileMap) {
+    // Call the basic update by default
+    update(dt, player);
 }
 
 void Trap::render(float lightLevel) {

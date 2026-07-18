@@ -39,6 +39,8 @@ public:
      * Returns nullptr if the code does not correspond to a trap.
      */
     static std::unique_ptr<Trap> createTrap(char code, float x, float y);
+    
+    static std::unique_ptr<class Arrow> createArrow(float x, float y, float vx);
 };
 
 }
