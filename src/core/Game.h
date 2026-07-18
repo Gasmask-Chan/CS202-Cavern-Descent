@@ -2,12 +2,13 @@
 
 #include "../Config.h"
 #include "GameState.h"
+#include <vector>
 
 namespace Platformer {
 
 class Game {
 private:
-    GameState* currentState;
+    std::vector<GameState*> stateStack;
     bool isRunning;
     float deltaTime;
 
@@ -58,7 +59,17 @@ public:
     void cleanup();
 
     /**
-     * @brief Calls `currentState->exit()`, deletes old state, creates a new state based on the `GameStateType` enum via a switch statement, calls `setGame(this)` and `enter()` on the new state. Ensures clean resource handoff between states.
+     * @brief Pushes a new state onto the state stack (e.g., PauseMenu over PlayState).
+     */
+    void pushState(GameStateType state);
+
+    /**
+     * @brief Pops the current state off the stack, resuming the one below it.
+     */
+    void popState();
+
+    /**
+     * @brief Cleans up and clears the state stack, pushes the new state as the sole active state.
      * 
      * @param state 
      */

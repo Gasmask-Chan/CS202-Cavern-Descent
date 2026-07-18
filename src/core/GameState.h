@@ -121,6 +121,8 @@ public:
 };
 
 class PauseState : public GameState {
+private:
+    int selectedIndex = 0;
 public:
     void enter() override;
 
@@ -138,6 +140,9 @@ public:
 };
 
 class GameOverState : public GameState {
+private:
+    int finalScore = 0;
+    int finalFloor = 0;
 public:
     /**
      * @brief Captures final score and floors reached from `GameManager`. Prompts for name entry for high score save.

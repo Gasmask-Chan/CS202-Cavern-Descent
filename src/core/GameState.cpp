@@ -214,6 +214,10 @@ void PlayState::exit() {
 }
 
 void PlayState::handleInput() {
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        game->pushState(GameStateType::PAUSE);
+        return;
+    }
     if (player) {
         player->handleInput();
     }
@@ -467,6 +471,12 @@ void PlayState::update(float dt) {
                 }
             }
         }
+        
+        // Death check
+        if (player->getHealth() <= 0) {
+            game->changeState(GameStateType::GAME_OVER);
+            return;
+        }
     }
 }
 
@@ -591,7 +601,17 @@ void PauseState::exit() {
 }
 
 void PauseState::handleInput() {
-
+    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_DOWN)) {
+        selectedIndex = (selectedIndex == 0) ? 1 : 0;
+    }
+    
+    if (IsKeyPressed(KEY_ENTER)) {
+        if (selectedIndex == 0) {
+            game->popState();
+        } else {
+            game->changeState(GameStateType::MENU);
+        }
+    }
 }
 
 void PauseState::update(float dt) {
@@ -599,7 +619,15 @@ void PauseState::update(float dt) {
 }
 
 void PauseState::render() {
-    ClearBackground(GREEN);
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 150});
+    
+    drawCenteredText("PAUSED", GetScreenHeight() / 2 - 100, 60.0f, WHITE);
+    
+    Color resumeColor = (selectedIndex == 0) ? YELLOW : GRAY;
+    Color quitColor = (selectedIndex == 1) ? YELLOW : GRAY;
+    
+    drawCenteredText("RESUME", GetScreenHeight() / 2, 40.0f, resumeColor);
+    drawCenteredText("QUIT", GetScreenHeight() / 2 + 60, 40.0f, quitColor);
 }
 
 /*
@@ -609,7 +637,8 @@ void PauseState::render() {
 */
 
 void GameOverState::enter() {
-
+    finalScore = GameManager::getInstance()->getScore();
+    finalFloor = GameManager::getInstance()->getFloor();
 }
 
 void GameOverState::exit() {
@@ -617,7 +646,9 @@ void GameOverState::exit() {
 }
 
 void GameOverState::handleInput() {
-
+    if (IsKeyPressed(KEY_ENTER)) {
+        game->changeState(GameStateType::MENU);
+    }
 }
 
 void GameOverState::update(float dt) {
@@ -625,7 +656,16 @@ void GameOverState::update(float dt) {
 }
 
 void GameOverState::render() {
-    ClearBackground(GREEN);
+    ClearBackground(MAROON);
+    
+    drawCenteredText("GAME OVER", GetScreenHeight() / 2 - 120, 70.0f, WHITE);
+    
+    drawCenteredText(TextFormat("SCORE: %d", finalScore), GetScreenHeight() / 2 - 20, 40.0f, GOLD);
+    drawCenteredText(TextFormat("FLOOR REACHED: %d", finalFloor), GetScreenHeight() / 2 + 40, 30.0f, LIGHTGRAY);
+    
+    if (((int)(GetTime() * 2)) % 2 == 0) {
+        drawCenteredText("PRESS ENTER TO CONTINUE", GetScreenHeight() / 2 + 150, 20.0f, WHITE);
+    }
 }
 
 /*

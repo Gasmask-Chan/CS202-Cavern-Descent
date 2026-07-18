@@ -4,15 +4,15 @@
 namespace Platformer {
 
 Game::Game() {
-    currentState = nullptr;
     isRunning = false;
     deltaTime = 0.0;
 }
 
 Game::~Game() {
-    if (currentState) {
-        delete currentState;
+    for (auto state : stateStack) {
+        delete state;
     }
+    stateStack.clear();
 }
 
 void Game::run() {
@@ -29,6 +29,7 @@ void Game::run() {
 
 void Game::init() {
     InitWindow(1280, 720, "Cavern Descent");
+    SetExitKey(0); // Disable closing window on ESC so we can use it for Pause
     SetTargetFPS(60);
 
     // Initialize audio device early
@@ -68,33 +69,41 @@ void Game::init() {
     }
     UnloadImage(fontImg);
 
-    currentState = new MenuState;
-    currentState->setGame(this);
-    currentState->enter();
+    GameState* initialState = new MenuState;
+    initialState->setGame(this);
+    initialState->enter();
+    stateStack.push_back(initialState);
 
     isRunning = true;
 }
 
 void Game::handleInput() {
-    currentState->handleInput();
+    if (!stateStack.empty()) {
+        stateStack.back()->handleInput();
+    }
 }
 
 void Game::update(float dt) {
-    currentState->update(dt);
+    if (!stateStack.empty()) {
+        stateStack.back()->update(dt);
+    }
 }
 
 void Game::render() {
     BeginDrawing();
-
-    currentState->render();
+    for (auto state : stateStack) {
+        state->render();
+    }
 
     EndDrawing();
 }
 
 void Game::cleanup() {
-    if (currentState) {
-        currentState->exit();
+    for (auto state : stateStack) {
+        state->exit();
+        delete state;
     }
+    stateStack.clear();
     
     UnloadFont(globalFont);
 
@@ -102,38 +111,51 @@ void Game::cleanup() {
 }
 
 void Game::changeState(GameStateType state) {
-    if (currentState) {
-        currentState->exit();
-        delete currentState;
-        currentState = nullptr;
+    for (auto s : stateStack) {
+        s->exit();
+        delete s;
     }
+    stateStack.clear();
+    pushState(state);
+}
 
+void Game::pushState(GameStateType state) {
+    GameState* newState = nullptr;
     switch (state) {
         case GameStateType::MENU:
-            currentState = new MenuState();
+            newState = new MenuState();
             break;
         case GameStateType::PLAY:
-            currentState = new PlayState();
+            newState = new PlayState();
             break;
         case GameStateType::PAUSE:
-            currentState = new PauseState();
+            newState = new PauseState();
             break;
         case GameStateType::GAME_OVER:   
-            currentState = new GameOverState();
+            newState = new GameOverState();
             break;
         case GameStateType::CHAR_SELECT:
-            currentState = new CharSelectState();
+            newState = new CharSelectState();
             break;
         case GameStateType::EDITOR:
-            currentState = new EditorState();
+            newState = new EditorState();
             break;
         default: 
             break;
+    }
+
+    if (newState) {
+        newState->setGame(this);
+        newState->enter();
+        stateStack.push_back(newState);
+    }
 }
 
-    if (currentState) {
-        currentState->setGame(this);
-        currentState->enter();
+void Game::popState() {
+    if (!stateStack.empty()) {
+        stateStack.back()->exit();
+        delete stateStack.back();
+        stateStack.pop_back();
     }
 }
 
