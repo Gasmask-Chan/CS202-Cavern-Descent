@@ -15,6 +15,8 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     whipTimer = 0.0f;
     whipHitThisFrame = false;
     tileMap = nullptr;
+    liquidSim = nullptr;
+    bubbleTimer = 0;
     
     Image whipImg = LoadImage("assets/sprites/16x16/gfx_spike_collectibles_flame.png");
     ImageFormat(&whipImg, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8); // Ensure alpha channel exists
@@ -138,6 +140,15 @@ void Player::handleInput() {
         }
     }
     
+    if (isSwimming) {
+        if (IsKeyDown(KEY_W)) {
+            vy -= 600.0f * GetFrameTime();
+        }
+        if (IsKeyDown(KEY_S)) {
+            vy += 600.0f * GetFrameTime(); // Diving
+        }
+    }
+    
     if (IsKeyPressed(KEY_J)) {
         whipAttack();
     }
@@ -151,7 +162,13 @@ void Player::handleInput() {
 
 void Player::update(float dt, Player* player) {
     if (!moveStrategy) return;
-    
+    // Check water submersion
+    if (liquidSim) {
+        isSubmerged = liquidSim->isWaterAt(getAABB());
+        isSwimming = isSubmerged;
+        isDiving = isSubmerged && vy > 0;
+    }
+
     if (isClimbing) {
         bool onLadder = false;
         if (tileMap) {
@@ -165,6 +182,8 @@ void Player::update(float dt, Player* player) {
         } else {
             gravity = 0.0f; // Disable gravity while climbing
         }
+    } else if (isSwimming) {
+        gravity = 0.0f; // Disable gravity while swimming
     } else {
         gravity = 800.0f;
     }
@@ -177,8 +196,40 @@ void Player::update(float dt, Player* player) {
     vy += (gravity * moveStrategy->getGravityScale()) * dt;
 
     float currentVx = vx;
-    if (isSubmerged) {
-        currentVx *= 0.5f;
+    if (isSwimming) {
+        currentVx *= 0.6f; // Heavy friction (60% speed)
+        vy *= 0.85f;       // Water drag dampens movement
+        
+        Rectangle upperHalf = getAABB();
+        upperHalf.height /= 2.0f;
+        
+        if (IsKeyDown(KEY_S)) {
+            vy += 500.0f * dt; // Actively swim down
+        } else if (liquidSim->isWaterAt(upperHalf)) {
+            vy -= 250.0f * dt; // Deep underwater, float up naturally
+        } else {
+            vy += 200.0f * dt; // At surface, sink slightly to maintain half-air half-water
+        }
+
+        // Swimming Jump (stroke up)
+        if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_K)) {
+            vy = -180.0f;
+        }
+        
+        // Spelunky-style Bubble Spawning (Multiple bubbles)
+        bubbleTimer -= 1;
+        if (bubbleTimer <= 0) {
+            int numBubbles = GetRandomValue(1, 3);
+            for(int i = 0; i < numBubbles; i++) {
+                EventData ed;
+                ed.worldX = x + width / 2.0f + GetRandomValue(-6, 6);
+                ed.worldY = y - 4.0f + GetRandomValue(-4, 4);
+                EventBus::getInstance()->publish(EventType::EVENT_SPAWN_BUBBLE, ed);
+            }
+            bubbleTimer = GetRandomValue(15, 40); 
+        }
+    } else {
+        bubbleTimer = 0;
     }
     
     move(currentVx * dt, vy * dt);
@@ -222,6 +273,8 @@ void Player::update(float dt, Player* player) {
                 }
             }
         }
+    } else if (isSwimming) {
+        newAnim = AnimState::SWIM;
     } else if (isClimbing) {
         newAnim = AnimState::CLIMB;
     } else if (!isGrounded) {
@@ -312,6 +365,12 @@ void Player::update(float dt, Player* player) {
             row = 4;
             colOffset = 0;
             frameDuration = 0.05f;
+            break;
+        case AnimState::SWIM:
+            maxFrames = 4;
+            row = 2;
+            colOffset = 0;
+            frameDuration = 0.15f;
             break;
     }
     

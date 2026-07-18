@@ -12,6 +12,7 @@ protected:
     int damage;
     std::shared_ptr<EnemyState> currentStateObj;
     class TileMap* tileMap = nullptr;
+    class LiquidSimulator* liquidSim = nullptr;
 
     float animTimer;
     float animSpeed;
@@ -28,6 +29,7 @@ public:
 
     void setAnimation(int frames, float speed, int baseX, int baseY);
     void setTileMap(class TileMap* map) { tileMap = map; }
+    void setLiquidSim(class LiquidSimulator* sim) { liquidSim = sim; }
 
     virtual void update(float dt, class Player* player = nullptr) override;
     virtual void render(float lightLevel) override;

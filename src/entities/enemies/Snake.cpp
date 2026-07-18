@@ -1,5 +1,6 @@
 #include "Snake.h"
 #include "../../level/TileMap.h"
+#include "../../liquid/LiquidSimulator.h"
 #include <raylib.h>
 #include <cstdio>
 
@@ -41,6 +42,7 @@ void Snake::handleIdle(float dt, Player* player) {
         // it means we hit a wall.
         bool hitWall = (vx == 0);
         bool ledgeAhead = false;
+        bool waterAhead = false;
         
         if (tileMap && !hitWall) {
             // Check ledge ahead
@@ -50,9 +52,17 @@ void Snake::handleIdle(float dt, Player* player) {
             if (!tileMap->isSolid(nextGridX, nextGridY)) {
                 ledgeAhead = true;
             }
+            
+            // Check water ahead
+            if (liquidSim) {
+                Rectangle nextAABB = {x + direction * 16.0f, y, width, height};
+                if (liquidSim->isWaterAt(nextAABB)) {
+                    waterAhead = true;
+                }
+            }
         }
 
-        if (hitWall || ledgeAhead) {
+        if (hitWall || ledgeAhead || waterAhead) {
             waitTimer = GetRandomValue(50, 150) / 100.0f; // Wait 0.5s to 1.5s
             direction *= -1; // Turn around
             isFacingRight = (direction == 1);

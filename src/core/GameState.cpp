@@ -110,6 +110,12 @@ void PlayState::enter() {
     
     lighting = std::make_unique<LightingSystem>(tempLevel.tileMap->getWidth(), tempLevel.tileMap->getHeight());
     
+    liquids = std::make_unique<LiquidSimulator>(tempLevel.tileMap.get());
+    player->setLiquidSimulator(liquids.get());
+    for (const auto& liq : tempLevel.initialLiquids) {
+        liquids->addLiquid(liq.gx, liq.gy, 255, liq.type);
+    }
+    
     camera.target = Vector2{ player->getX(), player->getY() };
     
     ghostTimer = 0.0f;
@@ -180,6 +186,13 @@ void PlayState::enter() {
             }
         }
     });
+    
+    // 4. Pass liquids to enemies
+    for (auto& entity : tempLevel.dynamicEntities) {
+        if (Enemy* enemy = dynamic_cast<Enemy*>(entity.get())) {
+            enemy->setLiquidSim(liquids.get());
+        }
+    }
 }
 
 void PlayState::exit() {
@@ -391,6 +404,10 @@ void PlayState::update(float dt) {
 
         camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
         
+        if (liquids) {
+            liquids->update(dt);
+        }
+        
         if (minimap) {
             minimap->update(player->getX(), player->getY());
         }
@@ -505,6 +522,7 @@ void PlayState::render() {
 
     // Render foreground tiles LAST so they overlap the player's head and entities
     if (tempLevel.tileMap && lighting) {
+        if (liquids) liquids->render(camera);
         tempLevel.tileMap->render(camera, lighting->getLightMap(), true); // Foreground pass (Solid blocks)
     }
     
