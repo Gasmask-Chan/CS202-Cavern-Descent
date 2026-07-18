@@ -331,6 +331,10 @@ classDiagram
         -int currentFloor
         -int score
         -int playerLives
+        -int playerHealth
+        -int playerBombs
+        -int playerRopes
+        -int playerGold
         -CharacterType selectedCharacter
         -float ghostTimer
         -FloorModifier currentModifier
@@ -339,6 +343,11 @@ classDiagram
         +getFloor() int
         +getScore() int
         +addScore(int points) void
+        +getPlayerHealth() int
+        +getPlayerBombs() int
+        +getPlayerRopes() int
+        +getPlayerGold() int
+        +syncPlayerStats(int hp, int b, int r, int g) void
         +nextFloor() void
         +resetRun() void
         +getSelectedCharacter() CharacterType
@@ -348,6 +357,13 @@ classDiagram
         +getFloorModifier() FloorModifier
         +saveHighScore(string name) void
         +loadHighScores() vector~HighScoreEntry~
+    }
+
+    class HighScoreEntry {
+        <<struct>>
+        +string name
+        +int score
+        +int floorsReached
     }
 
     class AudioManager {
@@ -420,6 +436,23 @@ classDiagram
     class GameOverState {
         -int finalScore
         -int floorsReached
+        -char[4] nameInput
+        -int letterCount
+        -bool nameEntered
+        -vector~HighScoreEntry~ leaderboard
+        +enter() void
+        +exit() void
+        +handleInput() void
+        +update(float dt) void
+        +render() void
+    }
+
+    class TransitionState {
+        -unique_ptr~Player~ player
+        -unique_ptr~PhysicsSystem~ physics
+        -unique_ptr~TileMap~ tunnelMap
+        -unique_ptr~LightingSystem~ lighting
+        -Camera2D camera
         +enter() void
         +exit() void
         +handleInput() void
@@ -451,6 +484,7 @@ classDiagram
     GameState <|.. PlayState
     GameState <|.. PauseState
     GameState <|.. GameOverState
+    GameState <|.. TransitionState
     GameState <|.. CharSelectState
     GameState <|.. EditorState
     Game ..> GameManager : uses

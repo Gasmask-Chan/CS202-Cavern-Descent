@@ -5,9 +5,17 @@
 #include "../level/TileMap.h"
 #include "../level/LightingSystem.h"
 #include <vector>
+#include <string>
+#include <memory>
 #include "../ui/Minimap.h"
 
 namespace Platformer {
+
+struct HighScoreEntry {
+    std::string name;
+    int score;
+    int floorsReached;
+};
 
 class Game;
 class Player;
@@ -19,6 +27,7 @@ enum class GameStateType {
     GAME_OVER,
     CHAR_SELECT,
     EDITOR,
+    TRANSITION,
     NONE
 };
 
@@ -143,6 +152,10 @@ class GameOverState : public GameState {
 private:
     int finalScore = 0;
     int finalFloor = 0;
+    char nameInput[4] = "\0\0\0";
+    int letterCount = 0;
+    bool nameEntered = false;
+    std::vector<HighScoreEntry> leaderboard;
 public:
     /**
      * @brief Captures final score and floors reached from `GameManager`. Prompts for name entry for high score save.
@@ -156,6 +169,28 @@ public:
 
     void update(float dt) override;
 
+    void render() override;
+};
+
+class TransitionState : public GameState {
+private:
+    std::unique_ptr<Player> player;
+    std::unique_ptr<PhysicsSystem> physics;
+    std::unique_ptr<TileMap> tunnelMap;
+    std::unique_ptr<LightingSystem> lighting;
+    Camera2D camera = {0};
+    
+public:
+    TransitionState();
+    ~TransitionState() override;
+    TransitionState(const TransitionState&) = delete;
+    TransitionState& operator=(const TransitionState&) = delete;
+    TransitionState(TransitionState&&) = delete;
+    TransitionState& operator=(TransitionState&&) = delete;
+    void enter() override;
+    void exit() override;
+    void handleInput() override;
+    void update(float dt) override;
     void render() override;
 };
 

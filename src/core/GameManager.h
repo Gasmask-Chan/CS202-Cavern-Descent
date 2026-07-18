@@ -1,8 +1,9 @@
 #pragma once
 
 #include "../Config.h"
+#include <string>
+#include <vector>
 #include "GameState.h"
-#include "string"
 
 namespace Platformer {
 
@@ -11,6 +12,10 @@ private:
     int currentFloor;
     int score;
     int playerLives;
+    int playerHealth;
+    int playerBombs;
+    int playerRopes;
+    int playerGold;
     CharacterType selectedCharacter;
     float ghostTimer;
     // FloorModifier currentModifier;
@@ -26,14 +31,13 @@ public:
     int getFloor();
 
     int getScore();
-
-    /**
-     * @brief Adds `points` to the running `score` total. Called when enemies are killed or treasure is collected.
-     * 
-     * @param points 
-     * @return int 
-     */
     void addScore(int points);
+    
+    int getPlayerHealth() const;
+    int getPlayerBombs() const;
+    int getPlayerRopes() const;
+    int getPlayerGold() const;
+    void syncPlayerStats(int hp, int b, int r, int g);
 
     /**
      * @brief Increments `currentFloor` by 1. Determines `ZoneType` from floor number (1–3=Cave, 4–6=Jungle, 7–9=Temple). Resets `ghostTimer` to the new floor's timer value from `DifficultyConfig`.
@@ -65,7 +69,7 @@ public:
 
     void saveHighScore(const std::string &name);
 
-    // std::vector<HighScoreEntry> loadHighScores();
+    std::vector<HighScoreEntry> loadHighScores();
 };
 
 }

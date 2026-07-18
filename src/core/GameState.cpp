@@ -436,7 +436,7 @@ void PlayState::update(float dt) {
             flicker += ((float)GetRandomValue(-100, 100) / 100.0f) * 0.005f; // micro crackles
             
             float intensity = 0.95f + flicker;
-            float radius = 24.0f + (flicker * 15.0f);
+            float radius = 4.5f + (flicker * 1.5f);
             
             lighting->addLight(trueX, trueY, intensity, radius);
             
@@ -476,6 +476,23 @@ void PlayState::update(float dt) {
         if (player->getHealth() <= 0) {
             game->changeState(GameStateType::GAME_OVER);
             return;
+        }
+        
+        // Exit check (requires manual UP+Y input)
+        if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
+            Rectangle pRect = player->getAABB();
+            int cx = pRect.x + pRect.width / 2;
+            int cy = pRect.y + pRect.height / 2;
+            int tx = cx / tempLevel.tileMap->getTileSize();
+            int ty = cy / tempLevel.tileMap->getTileSize();
+            
+            if (tx >= 0 && tx < tempLevel.tileMap->getWidth() && ty >= 0 && ty < tempLevel.tileMap->getHeight()) {
+                if (tempLevel.tileMap->getTile(tx, ty) == TileType::EXIT) {
+                    GameManager::getInstance()->syncPlayerStats(player->getHealth(), player->getBombs(), player->getRopes(), player->getGold());
+                    game->changeState(GameStateType::TRANSITION);
+                    return;
+                }
+            }
         }
     }
 }
@@ -639,32 +656,84 @@ void PauseState::render() {
 void GameOverState::enter() {
     finalScore = GameManager::getInstance()->getScore();
     finalFloor = GameManager::getInstance()->getFloor();
+    nameEntered = false;
+    letterCount = 0;
+    nameInput[0] = '\0';
 }
 
 void GameOverState::exit() {
-
 }
 
 void GameOverState::handleInput() {
-    if (IsKeyPressed(KEY_ENTER)) {
-        game->changeState(GameStateType::MENU);
+    if (!nameEntered) {
+        int key = GetCharPressed();
+        while (key > 0) {
+            if ((key >= 32) && (key <= 125) && (letterCount < 3)) {
+                nameInput[letterCount] = (char)key;
+                nameInput[letterCount + 1] = '\0';
+                letterCount++;
+            }
+            key = GetCharPressed();
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+            if (letterCount > 0) {
+                letterCount--;
+                nameInput[letterCount] = '\0';
+            }
+        }
+
+        if (IsKeyPressed(KEY_ENTER) && letterCount > 0) {
+            nameEntered = true;
+            GameManager::getInstance()->saveHighScore(std::string(nameInput));
+            leaderboard = GameManager::getInstance()->loadHighScores();
+        }
+        
+        if (IsKeyPressed(KEY_ESCAPE)) {
+            nameEntered = true;
+            leaderboard = GameManager::getInstance()->loadHighScores();
+        }
+    } else {
+        if (IsKeyPressed(KEY_ENTER)) {
+            game->changeState(GameStateType::MENU);
+        }
     }
 }
 
 void GameOverState::update(float dt) {
-
 }
 
 void GameOverState::render() {
     ClearBackground(MAROON);
     
-    drawCenteredText("GAME OVER", GetScreenHeight() / 2 - 120, 70.0f, WHITE);
-    
-    drawCenteredText(TextFormat("SCORE: %d", finalScore), GetScreenHeight() / 2 - 20, 40.0f, GOLD);
-    drawCenteredText(TextFormat("FLOOR REACHED: %d", finalFloor), GetScreenHeight() / 2 + 40, 30.0f, LIGHTGRAY);
-    
-    if (((int)(GetTime() * 2)) % 2 == 0) {
-        drawCenteredText("PRESS ENTER TO CONTINUE", GetScreenHeight() / 2 + 150, 20.0f, WHITE);
+    if (!nameEntered) {
+        drawCenteredText("GAME OVER", GetScreenHeight() / 2 - 120, 70.0f, WHITE);
+        drawCenteredText(TextFormat("SCORE: %d", finalScore), GetScreenHeight() / 2 - 20, 40.0f, GOLD);
+        drawCenteredText(TextFormat("FLOOR REACHED: %d", finalFloor), GetScreenHeight() / 2 + 40, 30.0f, LIGHTGRAY);
+        drawCenteredText("ENTER INITIALS:", GetScreenHeight() / 2 + 110, 30.0f, WHITE);
+        
+        std::string displayStr = nameInput;
+        if (((int)(GetTime() * 2)) % 2 == 0 && letterCount < 3) {
+            displayStr += "_";
+        }
+        drawCenteredText(displayStr.c_str(), GetScreenHeight() / 2 + 150, 50.0f, YELLOW);
+        drawCenteredText("PRESS ESC TO SKIP", GetScreenHeight() - 100.0f, 20.0f, LIGHTGRAY);
+    } else {
+        drawCenteredText("HIGH SCORES", 80.0f, 60.0f, GOLD);
+        
+        int yOffset = 180;
+        int count = 0;
+        for (const auto& entry : leaderboard) {
+            if (count >= 5) break;
+            std::string text = TextFormat("%d. %s - %d pts (Floor %d)", count + 1, entry.name.c_str(), entry.score, entry.floorsReached);
+            drawCenteredText(text.c_str(), yOffset, 30.0f, WHITE);
+            yOffset += 60;
+            count++;
+        }
+        
+        if (((int)(GetTime() * 2)) % 2 == 0) {
+            drawCenteredText("PRESS ENTER TO CONTINUE", GetScreenHeight() - 100.0f, 20.0f, LIGHTGRAY);
+        }
     }
 }
 
@@ -742,6 +811,96 @@ void EditorState::update(float dt) {
 
 void EditorState::render() {
     ClearBackground(GREEN);
+}
+
+/*
+=======================================================
+=========================TRANSITION======================
+=======================================================
+*/
+
+TransitionState::TransitionState() = default;
+TransitionState::~TransitionState() = default;
+
+void TransitionState::enter() {
+    tunnelMap = std::make_unique<TileMap>(40, 15, 32);
+    for (int y = 0; y < 15; y++) {
+        for (int x = 0; x < 40; x++) {
+            tunnelMap->setTile(x, y, TileType::CAVE_ROCK);
+        }
+    }
+    for (int y = 8; y <= 11; y++) {
+        for (int x = 15; x <= 25; x++) {
+            tunnelMap->setTile(x, y, TileType::NOTHING);
+        }
+    }
+    tunnelMap->setTile(16, 11, TileType::ENTRANCE);
+    tunnelMap->setTile(24, 11, TileType::EXIT);
+    physics = std::make_unique<PhysicsSystem>(tunnelMap.get());
+    player = std::make_unique<Player>(16 * 32.0f, 11 * 32.0f, GameManager::getInstance()->getSelectedCharacter());
+    lighting = std::make_unique<LightingSystem>(40, 15);
+    lighting->setAmbientLight(0.25f);
+    camera.target = { (20 * 32.0f), (10 * 32.0f) };
+    camera.offset = { (float)GetScreenWidth()/2.0f, (float)GetScreenHeight()/2.0f };
+    camera.rotation = 0.0f;
+    camera.zoom = 2.0f;
+}
+
+void TransitionState::exit() {
+    // std::unique_ptr handles cleanup automatically
+}
+
+void TransitionState::handleInput() {
+    if (player) player->handleInput();
+}
+
+void TransitionState::update(float dt) {
+    if (player && physics && tunnelMap) {
+        player->update(dt);
+        player->applyGravity(dt);
+        physics->resolveEntityTileCollision(player.get());
+        if (lighting) {
+            lighting->clearLights();
+            float trueX = (player->getX() + player->getAABB().width / 2.0f) / tunnelMap->getTileSize();
+            float trueY = (player->getY() + player->getAABB().height / 2.0f) / tunnelMap->getTileSize();
+            double time = GetTime();
+            float flicker = std::sin(time * 12.0) * 0.02f + std::sin(time * 23.0) * 0.015f;
+            lighting->addLight(trueX, trueY, 0.95f + flicker, 4.5f + (flicker * 1.5f));
+            lighting->update(tunnelMap.get());
+        }
+        if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
+            Rectangle pRect = player->getAABB();
+            int tx = (pRect.x + pRect.width / 2) / tunnelMap->getTileSize();
+            int ty = (pRect.y + pRect.height / 2) / tunnelMap->getTileSize();
+            if (tx >= 0 && tx < tunnelMap->getWidth() && ty >= 0 && ty < tunnelMap->getHeight()) {
+                if (tunnelMap->getTile(tx, ty) == TileType::EXIT) {
+                    GameManager::getInstance()->syncPlayerStats(player->getHealth(), player->getBombs(), player->getRopes(), player->getGold());
+                    GameManager::getInstance()->nextFloor();
+                    game->changeState(GameStateType::PLAY);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+void TransitionState::render() {
+    ClearBackground(BLACK);
+    BeginMode2D(camera);
+    if (tunnelMap) {
+        tunnelMap->renderParallaxBackground(camera);
+        if (lighting) tunnelMap->render(camera, lighting->getLightMap(), false);
+    }
+    if (player) player->render(1.0f);
+    if (tunnelMap && lighting) tunnelMap->render(camera, lighting->getLightMap(), true);
+    EndMode2D();
+    
+    drawCenteredText(TextFormat("FLOOR %d COMPLETE", GameManager::getInstance()->getFloor()), 100.0f, 40.0f, GOLD);
+    drawCenteredText(TextFormat("SCORE: %d", GameManager::getInstance()->getScore()), 160.0f, 30.0f, WHITE);
+
+    if (((int)(GetTime() * 2)) % 2 == 0) {
+        drawCenteredText("Proceed to exit", GetScreenHeight() - 100.0f, 20.0f, LIGHTGRAY);
+    }
 }
 
 }

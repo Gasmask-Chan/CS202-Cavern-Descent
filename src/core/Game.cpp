@@ -140,6 +140,9 @@ void Game::pushState(GameStateType state) {
         case GameStateType::EDITOR:
             newState = new EditorState();
             break;
+        case GameStateType::TRANSITION:
+            newState = new TransitionState();
+            break;
         default: 
             break;
     }
