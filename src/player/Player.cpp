@@ -429,10 +429,11 @@ void Player::heal(int amount) {
 
 void Player::collectGold(int amount) {
     gold += amount;
-    GameManager::getInstance()->addScore(amount); // Gold directly adds to your score!
     
     EventData data;
     data.amount = amount;
+    data.worldX = x + width / 2.0f;
+    data.worldY = y - 10.0f; // Float above player
     EventBus::getInstance()->publish(EventType::EVENT_GOLD_COLLECTED, data);
 }
 

@@ -99,6 +99,7 @@ private:
     PhysicsSystem* physics;
     std::unique_ptr<Minimap> minimap;
     std::unique_ptr<LightingSystem> lighting;
+    std::unique_ptr<class ComboSystem> combo;
     std::vector<std::unique_ptr<Item>> pendingItems;
     std::vector<std::unique_ptr<DynamicEntity>> pendingEntities;
     
@@ -109,6 +110,11 @@ private:
     Font hudFont;
     
 public:
+    PlayState();
+    ~PlayState();
+    PlayState(const PlayState&) = delete;
+    PlayState& operator=(const PlayState&) = delete;
+
     /**
      * @brief 	Creates `LevelManager`, `PhysicsSystem`, `LightingSystem`, `LiquidSimulator`, `ComboSystem`, `Minimap`, `HUD`. Calls `levelManager->generateFloor(1)`. Starts zone BGM.
      * 

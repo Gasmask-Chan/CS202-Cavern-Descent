@@ -4,6 +4,7 @@
 #include "../audio/AudioManager.h"
 #include "../player/Player.h"
 #include "../ui/Minimap.h"
+#include "../ui/ComboSystem.h"
 #include "raymath.h"
 #include "../core/EventBus.h"
 #include "../entities/EntityFactory.h"
@@ -99,6 +100,9 @@ void MenuState::render() {
 =======================================================
 */
 
+PlayState::PlayState() = default;
+PlayState::~PlayState() = default;
+
 void PlayState::enter() {
     EntityFactory::preloadTextures();
     
@@ -131,6 +135,18 @@ void PlayState::enter() {
     
     ghostTimer = 0.0f;
     ghostSpawned = false;
+    
+    combo = std::make_unique<ComboSystem>();
+    
+    EventBus::getInstance()->clearListeners(EventType::EVENT_GOLD_COLLECTED);
+    EventBus::getInstance()->subscribe(EventType::EVENT_GOLD_COLLECTED, [this](EventData data) {
+        if (this->combo) this->combo->onTreasureCollected(data.amount, data.worldX, data.worldY);
+    });
+    
+    EventBus::getInstance()->clearListeners(EventType::EVENT_ENEMY_KILLED);
+    EventBus::getInstance()->subscribe(EventType::EVENT_ENEMY_KILLED, [this](EventData data) {
+        if (this->combo) this->combo->onEnemyKilled(data.amount, data.worldX, data.worldY);
+    });
 
     EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ITEM);
     EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_ITEM, [this](EventData data) {
@@ -472,6 +488,10 @@ void PlayState::update(float dt) {
             }
         }
         
+        if (combo) {
+            combo->update(dt);
+        }
+
         // Death check
         if (player->getHealth() <= 0) {
             game->changeState(GameStateType::GAME_OVER);
@@ -563,6 +583,10 @@ void PlayState::render() {
         }
     }
     
+    if (combo) {
+        combo->render(game->getFont());
+    }
+    
     EndMode2D();
     
     if (minimap) {
@@ -600,6 +624,10 @@ void PlayState::render() {
         const char* floorText = TextFormat("FLOOR %d", GameManager::getInstance()->getFloor());
         Vector2 floorSize = MeasureTextEx(game->getFont(), floorText, fontSize, 2.0f);
         DrawTextEx(game->getFont(), floorText, {1280.0f - 20.0f - floorSize.x, floorY}, fontSize, 2.0f, WHITE);
+    }
+    
+    if (combo) {
+        combo->renderHUD(game->getFont());
     }
 }
 
