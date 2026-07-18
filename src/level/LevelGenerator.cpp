@@ -26,7 +26,30 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
   bool isValid   = false;
 
   for (int attempt = 0; attempt < maxRetries; ++attempt) {
-    generateMacroGrid();
+    bool wantsLake = (GetRandomValue(1, 100) <= 70);
+    bool hasValidLakeRoom = false;
+
+    // Retry macro grid until it satisfies our lake requirements
+    for (int macroAttempt = 0; macroAttempt < 20; ++macroAttempt) {
+        generateMacroGrid();
+        
+        hasValidLakeRoom = false;
+        for (int gy = 1; gy < MAP_ROOMS_Y; ++gy) {
+            for (int gx = 0; gx < MAP_ROOMS_X; ++gx) {
+                bool isEntrance = (gx == startRoomX && gy == startRoomY);
+                bool isExit = (gx == exitRoomX && gy == exitRoomY);
+                if (macroGrid[gy][gx] == RoomRole::TYPE_1 && !isEntrance && !isExit) {
+                    hasValidLakeRoom = true;
+                    break;
+                }
+            }
+            if (hasValidLakeRoom) break;
+        }
+        
+        if (!wantsLake || hasValidLakeRoom) {
+            break; // Valid macro grid for our requirements!
+        }
+    }
 
     int mapW = MAP_ROOMS_X * ROOM_WIDTH;
     int mapH = MAP_ROOMS_Y * ROOM_HEIGHT;
@@ -64,15 +87,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
         int v         = roomVariations[gy][gx];
         bool isEntrance = (gx == startRoomX && gy == startRoomY);
 
-        // Procedurally turn some unused closed rooms (TYPE_0) into lake/lava rooms
-        if (role == RoomRole::TYPE_0 && gy >= 2) {
-            float r = GetRandomValue(1, 100) / 100.0f;
-            if (r <= level.difficulty.liquidProbability) {
-                LiquidType lType = (zone == ZoneType::TEMPLE) ? LiquidType::LAVA : LiquidType::WATER;
-                instantiateLakeRoom(gx, gy, level.tileMap.get(), lType, level.initialLiquids);
-                continue; // Skip the normal room instantiation
-            }
-        }
+        // TYPE_0 lakes removed to ensure lakes only spawn in the golden path
 
         int tileGrid[ROOM_HEIGHT][ROOM_WIDTH];
         
@@ -178,7 +193,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
 
     // Step 3.5: Golden Path Lake Generation
     int lakeGx = -1, lakeGy = -1;
-    if (GetRandomValue(1, 100) <= 70) { // 70% chance for a lake on the map
+    if (wantsLake) {
         std::vector<std::pair<int, int>> validLakeRooms;
         
         for (int gy = 1; gy < MAP_ROOMS_Y; ++gy) { // Don't put it in the very top row
