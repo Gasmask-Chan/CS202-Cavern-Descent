@@ -22,7 +22,7 @@ void Spike::update(float dt, Player* player) {
         // Spike kill condition: player falling onto the spike
         if (CheckCollisionRecs(pAABB, myAABB)) {
             // instant kill only if player is falling (y_speed > 1) and not standing
-            if (!player->getIsGrounded() && player->getVelocityY() > 50.0f) { // 50.0f to be safe against slight jumps
+            if (!player->getIsGrounded() && player->getVelocityY() > 10.0f) { // 10.0f to be safe against slight jumps but trigger on small falls
                 player->takeDamage(100);
                 setBlood();
             }

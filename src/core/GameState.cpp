@@ -341,14 +341,14 @@ void PlayState::update(float dt) {
                     } else if (dynamic_cast<Spike*>(e1.get()) && dynamic_cast<Enemy*>(e2.get())) {
                         auto spike = dynamic_cast<Spike*>(e1.get());
                         auto otherEnemy = dynamic_cast<Enemy*>(e2.get());
-                        if (otherEnemy->getVelocityY() > 50.0f) {
+                        if (otherEnemy->getVelocityY() > 10.0f) {
                             otherEnemy->takeDamage(100);
                             spike->setBlood();
                         }
                     } else if (dynamic_cast<Spike*>(e2.get()) && dynamic_cast<Enemy*>(e1.get())) {
                         auto spike = dynamic_cast<Spike*>(e2.get());
                         auto otherEnemy = dynamic_cast<Enemy*>(e1.get());
-                        if (otherEnemy->getVelocityY() > 50.0f) {
+                        if (otherEnemy->getVelocityY() > 10.0f) {
                             otherEnemy->takeDamage(100);
                             spike->setBlood();
                         }
