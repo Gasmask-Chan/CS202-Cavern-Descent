@@ -83,11 +83,13 @@ void Player::handleInput() {
     }
 
     if (onLadder && (IsKeyDown(KEY_W) || IsKeyDown(KEY_S)) && !isClimbing) {
-        isClimbing = true;
-        // Snap to center horizontally
-        x = static_cast<int>((x + width / 2) / tileMap->getTileSize()) * tileMap->getTileSize() + tileMap->getTileSize() / 2.0f - width / 2.0f;
-        vx = 0.0f;
-        vy = 0.0f;
+        if (!IsKeyDown(KEY_A) && !IsKeyDown(KEY_D)) {
+            isClimbing = true;
+            // Snap to center horizontally
+            x = static_cast<int>((x + width / 2) / tileMap->getTileSize()) * tileMap->getTileSize() + tileMap->getTileSize() / 2.0f - width / 2.0f;
+            vx = 0.0f;
+            vy = 0.0f;
+        }
     }
 
     if (isClimbing) {
@@ -107,6 +109,9 @@ void Player::handleInput() {
             isClimbing = false;
             vy = -moveStrategy->getJumpForce() * 0.8f; // slightly weaker jump off ladder
             isGrounded = false;
+        } else if (IsKeyDown(KEY_A) || IsKeyDown(KEY_D)) {
+            isClimbing = false;
+            vy = 0.0f; // Detach without jumping
         } else {
             return; // Skip normal walking input
         }
