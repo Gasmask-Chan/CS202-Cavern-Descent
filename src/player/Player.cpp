@@ -1,14 +1,16 @@
 #include "Player.h"
 #include "../entities/Item.h"
 #include "../core/EventBus.h"
+#include "../core/GameManager.h"
 #include <algorithm>
 
 namespace Platformer {
 
 Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f, 24.0f) {
-    bombs = 3;
-    ropes = 3;
-    gold = 0;
+    health = GameManager::getInstance()->getPlayerHealth();
+    bombs = GameManager::getInstance()->getPlayerBombs();
+    ropes = GameManager::getInstance()->getPlayerRopes();
+    gold = GameManager::getInstance()->getPlayerGold();
     invincibilityTimer = 0.0f;
     isSubmerged = false;
     isWhipping = false;
@@ -54,7 +56,9 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     }
     
     maxHealth = moveStrategy->getMaxHealth();
-    health = maxHealth;
+    if (health > maxHealth) {
+        health = maxHealth; // Cap it only if it exceeds max for some reason
+    }
 }
 
 Player::~Player() {
@@ -489,8 +493,11 @@ void Player::heal(int amount) {
 
 void Player::collectGold(int amount) {
     gold += amount;
+    
     EventData data;
     data.amount = amount;
+    data.worldX = x + width / 2.0f;
+    data.worldY = y - 10.0f; // Float above player
     EventBus::getInstance()->publish(EventType::EVENT_GOLD_COLLECTED, data);
 }
 

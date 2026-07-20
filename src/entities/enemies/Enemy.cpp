@@ -1,5 +1,5 @@
 #include "Enemy.h"
-
+#include "../../core/EventBus.h"
 namespace Platformer {
 
 std::shared_ptr<EnemyState> Enemy::idleState = std::make_shared<IdleState>();
@@ -27,7 +27,13 @@ void Enemy::setAnimation(int frames, float speed, int baseX, int baseY) {
 void Enemy::update(float dt, Player* player) {
     DynamicEntity::update(dt, player);
 
-    if (health <= 0) {
+    if (health <= 0 && isAlive()) {
+        EventData data;
+        data.amount = 100; // Base points for an enemy, could be customizable later
+        data.worldX = x + width / 2.0f;
+        data.worldY = y;
+        EventBus::getInstance()->publish(EventType::EVENT_ENEMY_KILLED, data);
+        
         destroy();
         return;
     }
