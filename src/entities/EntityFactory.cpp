@@ -9,6 +9,7 @@
 #include "enemies/Spider.h"
 #include "enemies/NemesisGhost.h"
 #include "enemies/Spike.h"
+#include "enemies/Flame.h"
 
 namespace Platformer {
 
@@ -59,6 +60,10 @@ std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, fl
         case '^': 
             enemy = std::make_unique<Spike>(x, y, 32.0f, 32.0f);
             enemy->setSprite(getTexture("assets/sprites/16x16/gfx_spike_collectibles_flame.png"), Rectangle{0, 0, 16, 16});
+            break;
+        case 'F':
+            enemy = std::make_unique<Flame>(x, y, -400.0f); // Default vy
+            enemy->setSprite(getTexture("assets/sprites/16x16/gfx_spike_collectibles_flame.png"), Rectangle{16, 16, 16, 16}); // Fallback rectangle
             break;
         default: return nullptr;
     }

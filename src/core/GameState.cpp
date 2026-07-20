@@ -14,7 +14,9 @@
 #include "../entities/Bomb.h"
 #include "../entities/enemies/Enemy.h"
 #include "../entities/enemies/NemesisGhost.h"
+#include "../entities/LavaDrip.h"
 #include "../entities/enemies/Spike.h"
+#include "../level/LevelGenerator.h"
 
 namespace Platformer {
 
@@ -175,6 +177,30 @@ void PlayState::enter() {
         this->pendingEntities.push_back(std::move(arrow));
     });
 
+    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_FLAME);
+    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_FLAME, [this](EventData data) {
+        auto flame = EntityFactory::createEnemy('F', data.worldX, data.worldY);
+        if (flame) {
+            if (data.vy != 0.0f) {
+                flame->setVelocity(0.0f, data.vy);
+            }
+            this->pendingEntities.push_back(std::move(flame));
+        }
+    });
+
+    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_LAVA_DRIP);
+    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_LAVA_DRIP, [this](EventData data) {
+        auto drip = std::make_unique<LavaDrip>(data.worldX, data.worldY);
+        this->pendingEntities.push_back(std::move(drip));
+    });
+
+    EventBus::getInstance()->clearListeners(EventType::EVENT_ADD_LIQUID);
+    EventBus::getInstance()->subscribe(EventType::EVENT_ADD_LIQUID, [this](EventData data) {
+        if (this->liquids) {
+            this->liquids->addLiquid(data.gridX, data.gridY, 0, (LiquidType)data.amount);
+        }
+    });
+
     EventBus::getInstance()->clearListeners(EventType::EVENT_BOMB_EXPLODE);
     EventBus::getInstance()->subscribe(EventType::EVENT_BOMB_EXPLODE, [this](EventData data) {
         AudioManager::getInstance()->playSFX("explosion");
@@ -285,6 +311,13 @@ void PlayState::update(float dt) {
                 if (entity && entity->isAlive()) {
                     entity->update(dt, player);
                     physics->resolveEntityTileCollision(entity.get());
+                    
+                    if (liquids && liquids->isLavaAt(entity->getAABB())) {
+                        if (auto* enemy = dynamic_cast<Enemy*>(entity.get())) {
+                            // Only destroy enemies that aren't immune to lava (like Flame)
+                            enemy->takeDamage(999); 
+                        }
+                    }
                 }
             }
             
@@ -445,6 +478,7 @@ void PlayState::update(float dt) {
         
         if (liquids) {
             liquids->update(dt);
+            liquids->updateSpurts(dt, player->getX(), player->getY());
         }
         
         if (minimap) {

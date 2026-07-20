@@ -1,4 +1,5 @@
 #include "TileMap.h"
+#include "../core/EventBus.h"
 #include <cmath>
 #include <iostream>
 #include "rlgl.h"
@@ -29,6 +30,10 @@ void TileMap::setTile(int x, int y, TileType type) {
 void TileMap::destroyBlock(int x, int y) {
   // Whip already checks isCracked, Bomb destroys indiscriminately.
   setTile(x, y, TileType::NOTHING);
+  EventData data;
+  data.gridX = x;
+  data.gridY = y;
+  EventBus::getInstance()->publish(EventType::EVENT_TERRAIN_DESTROYED, data);
   // TODO: spawn rubble particle effects here in the future
 }
 

@@ -171,11 +171,16 @@ void Player::handleInput() {
 
 void Player::update(float dt, Player* player) {
     if (!moveStrategy) return;
-    // Check water submersion
     if (liquidSim) {
         isSubmerged = liquidSim->isWaterAt(getAABB());
         isSwimming = isSubmerged;
         isDiving = isSubmerged && vy > 0;
+        
+        if (isAlive() && liquidSim->isLavaAt(getAABB())) {
+            takeDamage(99);
+            vy = -200.0f; // Bouncing slightly upward out of the lava
+            isSwimming = false;
+        }
     }
 
     if (isClimbing) {
@@ -220,9 +225,15 @@ void Player::update(float dt, Player* player) {
             vy += 200.0f * dt; // At surface, sink slightly to maintain half-air half-water
         }
 
-        // Swimming Jump (stroke up)
-        if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_K)) {
-            vy = -180.0f;
+        // Swimming Jump (stroke up or leap out)
+        if (IsKeyPressed(KEY_SPACE)) {
+            if (!liquidSim->isWaterAt(upperHalf)) {
+                // Surface leap
+                vy = -moveStrategy->getJumpForce();
+            } else {
+                // Underwater stroke
+                vy = -200.0f;
+            }
         }
         
         // Spelunky-style Bubble Spawning (Multiple bubbles)

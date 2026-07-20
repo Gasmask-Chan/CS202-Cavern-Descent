@@ -26,7 +26,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
   bool isValid   = false;
 
   for (int attempt = 0; attempt < maxRetries; ++attempt) {
-    bool wantsLake = (GetRandomValue(1, 100) <= 70);
+    bool wantsLake = true; // 100% chance for testing
     bool hasValidLakeRoom = false;
 
     // Retry macro grid until it satisfies our lake requirements
@@ -61,12 +61,12 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempPlayerSpawn = Vector2{0, 0};
     tempExitPos     = Vector2{0, 0};
 
-    // Reset entity limits (Spelunky-DS style)
-    snakesLeft    = 4;
-    batsLeft      = 4;
-    spidersLeft   = 4;
-    cavemenLeft   = 3;
-    skeletonsLeft = 3;
+    // Reset entity limits (Reduced for testing lava)
+    snakesLeft    = 1;
+    batsLeft      = 1;
+    spidersLeft   = 1;
+    cavemenLeft   = 1;
+    skeletonsLeft = 1;
     damselsLeft   = 1;
     spikesLeft    = 4;
     lastPlacement = 3;
@@ -242,13 +242,25 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
             }
             
             // Fill water basin. Water fills the inside from floorY - 1 up to floorY - targetHeight
-            LiquidType lType = (zone == ZoneType::TEMPLE) ? LiquidType::LAVA : LiquidType::WATER;
+            LiquidType lType = LiquidType::WATER;
+            if (zone == ZoneType::TEMPLE) {
+                lType = LiquidType::LAVA;
+            } else {
+                lType = LiquidType::LAVA; // 100% lava for testing
+            }
+            
             for (int y = floorY - 1; y >= floorY - targetHeight; --y) {
                 for (int x = startX + 1; x < endX - 1; ++x) {
                     if (!level.tileMap->isSolid(x, y)) {
                         level.initialLiquids.push_back(LiquidSpawn{x, y, lType});
                     }
                 }
+            }
+            
+            // Add exactly one floating block in the middle of the lava surface to keep difficulty high
+            if (lType == LiquidType::LAVA) {
+                int midX = startX + ROOM_WIDTH / 2;
+                level.tileMap->setTile(midX, floorY - targetHeight, TileType::STONE_BLOCK);
             }
             
             // 50% chance to spawn treasure in the lake (as requested)

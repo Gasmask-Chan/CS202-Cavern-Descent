@@ -9,7 +9,9 @@ namespace Platformer {
 
 enum class EventType {
     EVENT_TERRAIN_DESTROYED,
+    EVENT_SPAWN_FLAME,
     EVENT_SPAWN_BOMB,
+    EVENT_SPAWN_LAVA_DRIP,
     EVENT_BOMB_EXPLODE,
     EVENT_PLAYER_DAMAGED,
     EVENT_PLAYER_DEATH,
@@ -18,7 +20,8 @@ enum class EventType {
     EVENT_ENEMY_KILLED,
     EVENT_SPAWN_ITEM,
     EVENT_SPAWN_ARROW,
-    EVENT_SPAWN_BUBBLE
+    EVENT_SPAWN_BUBBLE,
+    EVENT_ADD_LIQUID
 };
 
 struct EventData {

@@ -20,14 +20,18 @@ enum class LiquidType {
 class LiquidSimulator {
     std::vector<std::vector<bool>> hasLiquid;
     std::vector<std::vector<LiquidType>> typeGrid;
-    std::vector<std::vector<int8_t>> flowDir;
+    bool checkLiquid;
     int width;
     int height;
     TileMap* tileMap;
     
     bool isWaterDirty;
+    std::vector<std::vector<bool>> isSpurtBlock;
+    std::vector<std::vector<float>> spurtTimer;
 
     Texture2D waterTex;
+    Texture2D lavaTex;
+    Texture2D lavaTopTex;
 
     void onTerrainDestroyed(EventData data);
 
@@ -40,8 +44,11 @@ public:
     
     void addLiquid(int gx, int gy, uint8_t amount, LiquidType type);
     void removeLiquid(int gx, int gy);
+    bool hasLiquidAt(int gx, int gy) const;
     bool isWaterAt(Rectangle rect) const;
-    void applyFloodedFloorModifier(int bottomRows);
+    bool isLavaAt(Rectangle rect) const;
+    void applyFloodedFloorModifier(int bottomRows, LiquidType type = LiquidType::WATER);
+    void updateSpurts(float dt, float playerX, float playerY);
 };
 
 } // namespace Platformer
