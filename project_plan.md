@@ -286,11 +286,11 @@ Exactly **5 design patterns**, each mapped to a concrete system:
 ### Pattern Interaction Example
 
 ```text
-Player throws a Bomb at a wall holding back water
+Player throws a Bomb at a wall holding back lava
   → Timer expires → Observer publishes EVENT_BOMB_EXPLODE
-  → TerrainSystem destroys 3×3 tiles
+  → TerrainSystem destroys 3×3 tiles and publishes EVENT_TERRAIN_DESTROYED
   → LightingSystem creates ExplosionFlash
-  → LiquidSimulator runs BFS flood-fill
+  → LiquidSimulator wakes up and triggers Cascade Drainage
   → AudioManager plays explosion SFX
   → Meanwhile, combo timer is ticking...
   → Player grabs treasure near the blast → ComboSystem: "×2!"
@@ -1073,12 +1073,8 @@ classDiagram
         +removeLiquid(int gx, int gy) void
         +getLiquidLevel(int gx, int gy) uint8
         +getLiquidType(int gx, int gy) LiquidType
-        +onTerrainDestroyed(int gx, int gy) void
+        +onTerrainDestroyed(EventData data) void
         +applyFloodedFloorModifier(int bottomRows) void
-        -simulateTick() void
-        -flowDown(int x, int y) void
-        -flowSideways(int x, int y) void
-        -bfsFlood(int startX, int startY) void
     }
 
     class LiquidType {
@@ -1098,17 +1094,13 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `update(float dt)` | Accumulates `dt` into `tickAccumulator`. When `tickAccumulator >= tickInterval` (e.g., every 50ms = 20 ticks/sec), calls `simulateTick()` and subtracts `tickInterval`. This fixed-rate tick prevents liquid from flowing faster at higher FPS. |
-| `render(Camera2D cam)` | Iterates all cells in `liquidGrid`. For cells with `level > 0`, draws a translucent filled rectangle at the grid position. Height is proportional to level: `rectHeight = (level / 255.0f) * tileSize`. Color is `{0, 100, 255, 120}` for WATER (blue, semi-transparent) or `{255, 80, 0, 160}` for LAVA (orange, more opaque). Only renders cells within camera viewport (culling). |
-| `addLiquid(int gx, int gy, uint8 amount, LiquidType type)` | Sets `liquidGrid[gy][gx] = min(255, liquidGrid[gy][gx] + amount)` and `typeGrid[gy][gx] = type`. Used during level generation to place water pools and lava pits, and by `applyFloodedFloorModifier()`. |
-| `removeLiquid(int gx, int gy)` | Sets `liquidGrid[gy][gx] = 0` and `typeGrid[gy][gx] = NONE`. |
-| `getLiquidLevel(int gx, int gy)` | Returns `liquidGrid[gy][gx]`. Used by `PlayState` to check if player/enemies are submerged (level > 128 = submerged). |
-| `onTerrainDestroyed(int gx, int gy)` | Called via `EventBus` when a tile is destroyed. Checks all 4 orthogonal neighbors of `(gx, gy)`. If any neighbor has `liquidLevel > 0`, calls `bfsFlood(neighborX, neighborY)` to propagate liquid into the newly empty space. This creates the dramatic "bomb wall → water floods in" interaction. |
-| `applyFloodedFloorModifier(int bottomRows)` | Fills the bottom `bottomRows` rows (typically 2) of the liquid grid with `level=255, type=WATER`. Called once during floor generation when `FloorModifier::FLOODED_FLOOR` is active. |
-| `simulateTick()` | Iterates the grid **bottom-to-top, left-to-right**. For each cell with `level > 0`: (1) calls `flowDown(x, y)` — if the cell below is empty/not-solid and not full, transfers liquid downward. (2) If below is full or solid, calls `flowSideways(x, y)` — splits remaining liquid equally left and right. |
-| `flowDown(int x, int y)` | If `!tileMap->isSolid(x, y+1)` and `liquidGrid[y+1][x] < 255`: transfer up to `min(level, 255 - belowLevel)` from current cell to cell below. This simulates gravity-driven flow. |
-| `flowSideways(int x, int y)` | Calculates half the current cell's level. If left neighbor is not solid and has lower level, transfers half to left. Same for right. If only one direction is open, transfers full amount. This creates natural horizontal spreading. |
-| `bfsFlood(int startX, int startY)` | BFS starting from `(startX, startY)`. Enqueues cells with `liquidLevel > 0`. For each dequeued cell, spreads liquid to empty non-solid orthogonal neighbors up to 3 cells away. Limits spread per call to prevent lag. Creates the "water rushes through gap" visual effect. |
+| `update(float dt)` | If `checkLiquid` is true, iterates the grid. If a block is completely exposed to empty air on the left, right, or bottom, it flags it for destruction. At the end of the frame, flagged blocks are destroyed, `LavaDrip` particles are spawned, and `isWaterDirty` triggers a mesh rebuild. Continues checking until no blocks drain, then goes dormant. |
+| `render(Camera2D cam)` | Renders the static liquid meshes (water and lava) generated from `buildMesh()` to minimize draw calls, rather than rendering tile-by-tile. |
+| `addLiquid(int gx, int gy, uint8 amount, LiquidType type)` | Sets `hasLiquid[gy][gx] = true` and `typeGrid[gy][gx] = type`. Rebuilds the mesh and sets `checkLiquid = true` to check for immediate cascade drainage. |
+| `removeLiquid(int gx, int gy)` | Sets `hasLiquid[gy][gx] = false` and `typeGrid[gy][gx] = NONE`. |
+| `getLiquidLevel(int gx, int gy)` | Returns whether a tile contains liquid. Used by `PlayState` to check if player/enemies are submerged. |
+| `onTerrainDestroyed(EventData data)` | Subscribed to `EVENT_TERRAIN_DESTROYED`. When a bomb breaks a block, this triggers `checkLiquid = true` and `isWaterDirty = true` to wake up the Cascade algorithm and re-evaluate holes. |
+| `applyFloodedFloorModifier(int bottomRows)` | Fills the bottom `bottomRows` rows (typically 2) of the grid with `WATER`. Called once during floor generation when `FloorModifier::FLOODED_FLOOR` is active. |
 
 ### 4.7 Physics & Items Subsystem
 
@@ -1433,7 +1425,7 @@ classDiagram
 | `std::vector<std::vector<uint8_t>>` | Liquid grid | Per-tile liquid level (0–255) for CA |
 | `std::unordered_map<int, std::vector<int>>` | Level graph (adjacency list) | O(1) avg neighbor lookup |
 | `std::vector<int>` | Golden Path | Ordered room-index sequence from DFS |
-| `std::queue<int>` | BFS validation + BFS liquid flood | Standard BFS frontier |
+| `std::queue<std::pair<int, int>>` | BFS validation + Cascade Drainage | Standard BFS frontier + list of blocks to destroy per frame |
 | `std::stack<int>` | DFS golden-path generation | Standard DFS traversal |
 | `std::vector<unique_ptr<DynamicEntity>>` | **PlayState/GameState typed ownership** | Enemies — iterate without `dynamic_cast` |
 | `std::vector<unique_ptr<Item>>` | **PlayState/GameState typed ownership** | Items — type-safe iteration |
@@ -1694,7 +1686,7 @@ EndDrawing()
 
 | Person A | Person B |
 |---|---|
-| Implement `HUD` (health, bombs, ropes, gold, floor) (S12) | **Implement `LiquidSimulator` (CA + BFS flood) (A7)** |
+| Implement `HUD` (health, bombs, ropes, gold, floor) (S12) | **Implement `LiquidSimulator` (Cascade Drainage) (A7)** |
 | ✅ Implement `PauseState` and `GameOverState` | **Wire bomb → terrain destroyed → liquid flood** |
 | **Implement `ExplosionFlash` + `LavaGlow` lights** | **Apply `FloorModifier`: Dark Floor → torch radius, Flooded Floor → water fill (A10)** |
 | **Implement `ComboSystem` + floating text (A11)** | Implement `ShopSystem` (A12) |
@@ -1741,8 +1733,7 @@ EndDrawing()
 
 ### Automated Tests
 - **BFS validator** — known solvable/unsolvable grids.
-- **Golden path DFS** — path always reaches bottom row.
-- **Liquid CA** — water flows down, spreads, stops at walls, BFS flood works.
+- **Liquid Drainage** — bombs drain lava/water frame-by-frame cascade.
 - **Shadowcasting** — walls block light, open areas lit, boundary edge cases.
 - **Level editor serialization** — save → load → grids match.
 - **AABB collision** — overlap detection, push-out resolution.
