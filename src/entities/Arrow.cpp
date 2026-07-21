@@ -4,11 +4,12 @@
 namespace Platformer {
 
 Arrow::Arrow(float x, float y, float vx) 
-    : DynamicEntity(x, y, 16.0f, 16.0f), _stuck(false) {
+    : DynamicEntity(x, y, 16.0f, 16.0f), _stuck(false), _isLethal(true) {
     this->vx = vx;
     this->vy = 0;
     this->_prevVx = vx;
     this->_prevVy = 0;
+    this->gravity = 0.0f; // Arrow doesn't fall initially
     
     // 90 is right, 270 is left
     _angle = (vx > 0) ? 90.0f : 270.0f;
@@ -23,11 +24,12 @@ void Arrow::update(float dt, Player* player) {
     // Apply gravity
     applyGravity(dt);
     
-    // Check for collisions by seeing if velocity was zeroed by PhysicsSystem in the last frame
     if (vx == 0 && _prevVx != 0) {
         // Hit a wall
         vx = -_prevVx * 0.4f; // bounce and lose speed
         _angle += 180.0f; // reverse angle roughly
+        gravity = 800.0f; // Enable gravity after hitting wall
+        _isLethal = false; // Arrow is no longer lethal after bouncing
     }
     
     if (vy == 0 && _prevVy > 0) {

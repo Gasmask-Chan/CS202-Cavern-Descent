@@ -147,24 +147,22 @@ For each of 8 octants around the light source:
 
 All sources additively blended into a 2D float grid → `ColorTint(tileColor, lightLevel)` in Raylib.
 
-### 2.5 Liquid Physics Simulation (A7)
+### 2.5 Liquid Simulation (A7)
 
-Water and lava simulated as a **cellular automaton** overlaying the tile map.
+Water and lava simulated using the **Spelunky Classic Cascade Drainage** algorithm overlaying the tile map.
 
-**CA Flow Rules (per tick, bottom-to-top):**
+**Cascade Drainage Rules:**
 
 ```text
-For each liquid cell:
-  1. Cell below empty → flow DOWN (transfer level)
-  2. Below full       → flow LEFT and RIGHT equally
-  3. Level per cell = uint8 (0–255) for smooth sub-tile flow
-  4. Render as translucent colored rectangle (height ∝ level)
+1. The Alarm Bell: When terrain is destroyed by an explosion, a global alarm (checkLiquid = true) rings.
+2. Hole Detection: For every liquid block in the lake, if its Left, Right, or Bottom neighbor is empty (air), it marks itself for destruction.
+3. The Cascade: At the end of the frame, marked blocks instantly destroy themselves and spawn a Drip particle.
+4. Domino Effect: On the next frame, the blocks behind them are now exposed, so they destroy themselves. The lake rapidly drains frame-by-frame until empty.
 ```
 
 **Interactions:**
-- **Bomb + Wall → Flood:** BFS propagation into newly empty space.
 - **Water:** Slows player by 50%. Drowns enemies at depth threshold.
-- **Lava:** Continuous damage. Emits light into lighting system.
+- **Lava:** Continuous damage. Emits light into lighting system. 25% chance to hide a secret "Spurt" trigger that erupts flames when the player is near!
 
 ### 2.6 The Nemesis Ghost (A9)
 

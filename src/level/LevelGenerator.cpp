@@ -26,7 +26,30 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
   bool isValid   = false;
 
   for (int attempt = 0; attempt < maxRetries; ++attempt) {
-    generateMacroGrid();
+    bool wantsLake = true; // 100% chance for testing
+    bool hasValidLakeRoom = false;
+
+    // Retry macro grid until it satisfies our lake requirements
+    for (int macroAttempt = 0; macroAttempt < 20; ++macroAttempt) {
+        generateMacroGrid();
+        
+        hasValidLakeRoom = false;
+        for (int gy = 1; gy < MAP_ROOMS_Y; ++gy) {
+            for (int gx = 0; gx < MAP_ROOMS_X; ++gx) {
+                bool isEntrance = (gx == startRoomX && gy == startRoomY);
+                bool isExit = (gx == exitRoomX && gy == exitRoomY);
+                if (macroGrid[gy][gx] == RoomRole::TYPE_1 && !isEntrance && !isExit) {
+                    hasValidLakeRoom = true;
+                    break;
+                }
+            }
+            if (hasValidLakeRoom) break;
+        }
+        
+        if (!wantsLake || hasValidLakeRoom) {
+            break; // Valid macro grid for our requirements!
+        }
+    }
 
     int mapW = MAP_ROOMS_X * ROOM_WIDTH;
     int mapH = MAP_ROOMS_Y * ROOM_HEIGHT;
@@ -38,12 +61,12 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempPlayerSpawn = Vector2{0, 0};
     tempExitPos     = Vector2{0, 0};
 
-    // Reset entity limits (Spelunky-DS style)
-    snakesLeft    = 4;
-    batsLeft      = 4;
-    spidersLeft   = 4;
-    cavemenLeft   = 3;
-    skeletonsLeft = 3;
+    // Reset entity limits (Reduced for testing lava)
+    snakesLeft    = 1;
+    batsLeft      = 1;
+    spidersLeft   = 1;
+    cavemenLeft   = 1;
+    skeletonsLeft = 1;
     damselsLeft   = 1;
     spikesLeft    = 4;
     lastPlacement = 3;
@@ -63,6 +86,8 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
         RoomRole role = macroGrid[gy][gx];
         int v         = roomVariations[gy][gx];
         bool isEntrance = (gx == startRoomX && gy == startRoomY);
+
+        // TYPE_0 lakes removed to ensure lakes only spawn in the golden path
 
         int tileGrid[ROOM_HEIGHT][ROOM_WIDTH];
         
@@ -166,6 +191,99 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempExitPos = Vector2{(float)(exitGx * MAP_TILE_SIZE),
                           (float)(exitGy * MAP_TILE_SIZE)};
 
+    // Step 3.5: Golden Path Lake Generation
+    int lakeGx = -1, lakeGy = -1;
+    if (wantsLake) {
+        std::vector<std::pair<int, int>> validLakeRooms;
+        
+        for (int gy = 1; gy < MAP_ROOMS_Y; ++gy) { // Don't put it in the very top row
+            for (int gx = 0; gx < MAP_ROOMS_X; ++gx) {
+                bool isEntrance = (gx == startRoomX && gy == startRoomY);
+                bool isExit = (gx == exitRoomX && gy == exitRoomY);
+                if (macroGrid[gy][gx] == RoomRole::TYPE_1 && !isEntrance && !isExit) {
+                    validLakeRooms.push_back({gx, gy});
+                }
+            }
+        }
+        
+        if (!validLakeRooms.empty()) {
+            TraceLog(LOG_INFO, "Found %zu valid lake rooms. Spawning lake.", validLakeRooms.size());
+            int idx = GetRandomValue(0, validLakeRooms.size() - 1);
+            auto room = validLakeRooms[idx];
+            lakeGx = room.first;
+            lakeGy = room.second;
+            
+            int startX = lakeGx * ROOM_WIDTH;
+            int startY = lakeGy * ROOM_HEIGHT;
+            int endX = startX + ROOM_WIDTH;
+            int endY = startY + ROOM_HEIGHT;
+            
+            // Randomly choose height 3 or 4 for the lake
+            int targetHeight = GetRandomValue(3, 4);
+            
+            // The floor is at endY - 1. We want the walls to go UP from the floor.
+            int floorY = endY - 1;
+            
+            // Ensure the floor is solid across the room
+            for (int x = startX; x < endX; ++x) {
+                level.tileMap->setTile(x, floorY, TileType::CAVE_REGULAR);
+            }
+            
+            // Build solid walls on the left and right to hold the water
+            // Walls start at floorY - 1 and go up to floorY - targetHeight
+            for (int y = floorY - 1; y >= floorY - targetHeight; --y) {
+                level.tileMap->setTile(startX, y, TileType::CAVE_REGULAR);
+                level.tileMap->setTile(endX - 1, y, TileType::CAVE_REGULAR);
+                
+                // Clear the inside to ensure a deep lake
+                for (int x = startX + 1; x < endX - 1; ++x) {
+                    level.tileMap->setTile(x, y, TileType::NOTHING);
+                }
+            }
+            
+            // Fill water basin. Water fills the inside from floorY - 1 up to floorY - targetHeight
+            LiquidType lType = LiquidType::WATER;
+            if (zone == ZoneType::TEMPLE) {
+                lType = LiquidType::LAVA;
+            } else {
+                lType = LiquidType::LAVA; // 100% lava for testing
+            }
+            
+            for (int y = floorY - 1; y >= floorY - targetHeight; --y) {
+                for (int x = startX + 1; x < endX - 1; ++x) {
+                    if (!level.tileMap->isSolid(x, y)) {
+                        level.initialLiquids.push_back(LiquidSpawn{x, y, lType});
+                    }
+                }
+            }
+            
+            // Add exactly one floating block in the middle of the lava surface to keep difficulty high
+            if (lType == LiquidType::LAVA) {
+                int midX = startX + ROOM_WIDTH / 2;
+                level.tileMap->setTile(midX, floorY - targetHeight, TileType::STONE_BLOCK);
+            }
+            
+            // 50% chance to spawn treasure in the lake (as requested)
+            if (GetRandomValue(1, 100) <= 50) {
+                int tx = startX + GetRandomValue(2, ROOM_WIDTH - 3);
+                int ty = floorY - 1;
+                while (ty > startY && level.tileMap->isSolid(tx, ty)) {
+                    ty--;
+                }
+                float px = tx * MAP_TILE_SIZE;
+                float py = ty * MAP_TILE_SIZE;
+                auto treasure = EntityFactory::createItem('$', px, py);
+                if (treasure) {
+                    tempItems.push_back(std::move(treasure));
+                }
+            }
+        } else {
+            TraceLog(LOG_INFO, "No valid lake rooms found!");
+        }
+    } else {
+        TraceLog(LOG_INFO, "Failed 70%% chance to spawn lake.");
+    }
+
     // Step 4: Populating
     for (int gy = 0; gy < MAP_ROOMS_Y; ++gy) {
       for (int gx = 0; gx < MAP_ROOMS_X; ++gx) {
@@ -205,6 +323,20 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
                 break;
             }
         }
+        
+        if (gx == lakeGx && gy == lakeGy) {
+            // It's a lake room! No enemies, no traps.
+            memset(npcGrid, 0, sizeof(npcGrid));
+            
+            // 50% chance for treasure per bottom tile
+            memset(lootGrid, 0, sizeof(lootGrid));
+            for (int x = 0; x < ROOM_WIDTH; ++x) {
+                if (GetRandomValue(1, 100) <= 50) {
+                    lootGrid[ROOM_HEIGHT - 2][x] = 1; // 1 usually means gold
+                }
+            }
+        }
+        
         populateEntities(npcGrid, lootGrid, gx, gy, role, level.tileMap.get());
       }
     }
@@ -372,6 +504,46 @@ void LevelGenerator::instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH
 
       int tileVal = tileGrid[cy][cx];
       map->setTile(tx, ty, static_cast<TileType>(tileVal));
+    }
+  }
+}
+
+void LevelGenerator::instantiateLakeRoom(int gx, int gy, TileMap* map, LiquidType lType, std::vector<LiquidSpawn>& initialLiquids) {
+  // String template parsing using Spelunky Classic style ('w' for water, '3' for 50/50 block/water)
+  std::string lakeTemplate = 
+      "0000000000"
+      "0000000000"
+      "0000000000"
+      "11wwwwww11"
+      "11wwwwww11"
+      "113wwww311"
+      "113wwww311"
+      "113wwww311"
+      "1133331111"
+      "1111111111";
+
+  for (int cy = 0; cy < ROOM_HEIGHT; ++cy) {
+    for (int cx = 0; cx < ROOM_WIDTH; ++cx) {
+      int tx = gx * ROOM_WIDTH  + cx;
+      int ty = gy * ROOM_HEIGHT + cy;
+      
+      char c = lakeTemplate[cy * ROOM_WIDTH + cx];
+      
+      if (c == '0') {
+          map->setTile(tx, ty, TileType::NOTHING);
+      } else if (c == '1') {
+          map->setTile(tx, ty, TileType::CAVE_ROCK);
+      } else if (c == 'w') {
+          map->setTile(tx, ty, TileType::NOTHING);
+          initialLiquids.push_back({tx, ty, lType});
+      } else if (c == '3') {
+          if (GetRandomValue(0, 1) == 0) {
+              map->setTile(tx, ty, TileType::CAVE_ROCK);
+          } else {
+              map->setTile(tx, ty, TileType::NOTHING);
+              initialLiquids.push_back({tx, ty, lType});
+          }
+      }
     }
   }
 }

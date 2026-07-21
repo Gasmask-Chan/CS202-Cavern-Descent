@@ -4,6 +4,7 @@
 #include "../physics/PhysicsSystem.h"
 #include "../level/TileMap.h"
 #include "../level/LightingSystem.h"
+#include "../liquid/LiquidSimulator.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -99,6 +100,7 @@ private:
     PhysicsSystem* physics;
     std::unique_ptr<Minimap> minimap;
     std::unique_ptr<LightingSystem> lighting;
+    std::unique_ptr<LiquidSimulator> liquids;
     std::unique_ptr<class ComboSystem> combo;
     std::vector<std::unique_ptr<Item>> pendingItems;
     std::vector<std::unique_ptr<DynamicEntity>> pendingEntities;

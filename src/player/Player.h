@@ -5,6 +5,7 @@
 #include "MovementStrategy.h"
 #include "../core/GameState.h" 
 #include "../level/TileMap.h"
+#include "../liquid/LiquidSimulator.h"
 
 namespace Platformer {
 
@@ -18,16 +19,20 @@ private:
     MovementStrategy* moveStrategy;
     float invincibilityTimer;
     bool isSubmerged;
-
+    bool isSwimming;
+    bool isDiving;
     bool isWhipping;
     float whipTimer;
     bool whipHitThisFrame;
     bool isClimbing;
     TileMap* tileMap;
+    LiquidSimulator* liquidSim;
     Texture2D whipSprite;
+    
+    int bubbleTimer;
 
     // Animation state
-    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP, CLIMB } currentAnim;
+    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP, CLIMB, SWIM } currentAnim;
     float frameTimer;
     int currentFrame;
     Rectangle frameRec;
@@ -57,6 +62,13 @@ public:
      * @param map Pointer to the active TileMap.
      */
     void setTileMap(TileMap* map) { tileMap = map; }
+    
+    /**
+     * @brief Sets the liquid simulator reference for the player, allowing interaction with water (swimming).
+     * 
+     * @param sim Pointer to the active LiquidSimulator.
+     */
+    void setLiquidSimulator(LiquidSimulator* sim) { liquidSim = sim; }
     
     int getHealth();
     int getBombs();

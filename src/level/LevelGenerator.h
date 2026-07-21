@@ -8,8 +8,15 @@
 #include "../entities/DynamicEntity.h"
 #include "../entities/Item.h"
 #include "../entities/Trap.h"
+#include "../liquid/LiquidSimulator.h"
 
 namespace Platformer {
+
+struct LiquidSpawn {
+    int gx;
+    int gy;
+    LiquidType type;
+};
 
 constexpr int ROOM_WIDTH  = 10;
 constexpr int ROOM_HEIGHT = 10;
@@ -26,6 +33,7 @@ struct GeneratedLevel {
     Vector2 exitPos;
     DifficultyConfig difficulty;
     FloorModifier modifier;
+    std::vector<LiquidSpawn> initialLiquids;
 };
 
 class LevelGenerator {
@@ -67,6 +75,7 @@ private:
 
     // ---- Room population ----
     void instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map);
+    void instantiateLakeRoom(int gx, int gy, TileMap* map, LiquidType lType, std::vector<LiquidSpawn>& initialLiquids);
     void populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH], const int lootGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map);
 
     // ---- Post-passes ----

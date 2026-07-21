@@ -61,6 +61,16 @@ void Spider::handleChase(float dt, Player* player) {
             
             vx = jumpVx;
             vy = jumpVy;
+            
+            if (liquidSim) {
+                Rectangle nextAABB = getAABB();
+                nextAABB.x += vx * dt * 20.0f; // Predict landing
+                if (liquidSim->isWaterAt(nextAABB)) {
+                    vx = -vx; // Jump away from water
+                    isFacingRight = (vx > 0);
+                }
+            }
+            
             isGrounded = false;
             isFacingRight = (vx > 0);
         }

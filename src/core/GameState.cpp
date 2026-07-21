@@ -14,7 +14,9 @@
 #include "../entities/Bomb.h"
 #include "../entities/enemies/Enemy.h"
 #include "../entities/enemies/NemesisGhost.h"
+#include "../entities/LavaDrip.h"
 #include "../entities/enemies/Spike.h"
+#include "../level/LevelGenerator.h"
 
 namespace Platformer {
 
@@ -131,6 +133,12 @@ void PlayState::enter() {
     
     lighting = std::make_unique<LightingSystem>(tempLevel.tileMap->getWidth(), tempLevel.tileMap->getHeight());
     
+    liquids = std::make_unique<LiquidSimulator>(tempLevel.tileMap.get());
+    player->setLiquidSimulator(liquids.get());
+    for (const auto& liq : tempLevel.initialLiquids) {
+        liquids->addLiquid(liq.gx, liq.gy, 255, liq.type);
+    }
+    
     camera.target = Vector2{ player->getX(), player->getY() };
     
     ghostTimer = 0.0f;
@@ -167,6 +175,30 @@ void PlayState::enter() {
     EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_ARROW, [this](EventData data) {
         auto arrow = EntityFactory::createArrow(data.worldX, data.worldY, data.vx);
         this->pendingEntities.push_back(std::move(arrow));
+    });
+
+    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_FLAME);
+    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_FLAME, [this](EventData data) {
+        auto flame = EntityFactory::createEnemy('F', data.worldX, data.worldY);
+        if (flame) {
+            if (data.vy != 0.0f) {
+                flame->setVelocity(0.0f, data.vy);
+            }
+            this->pendingEntities.push_back(std::move(flame));
+        }
+    });
+
+    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_LAVA_DRIP);
+    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_LAVA_DRIP, [this](EventData data) {
+        auto drip = std::make_unique<LavaDrip>(data.worldX, data.worldY);
+        this->pendingEntities.push_back(std::move(drip));
+    });
+
+    EventBus::getInstance()->clearListeners(EventType::EVENT_ADD_LIQUID);
+    EventBus::getInstance()->subscribe(EventType::EVENT_ADD_LIQUID, [this](EventData data) {
+        if (this->liquids) {
+            this->liquids->addLiquid(data.gridX, data.gridY, 0, (LiquidType)data.amount);
+        }
     });
 
     EventBus::getInstance()->clearListeners(EventType::EVENT_BOMB_EXPLODE);
@@ -213,6 +245,13 @@ void PlayState::enter() {
             }
         }
     });
+    
+    // 4. Pass liquids to enemies
+    for (auto& entity : tempLevel.dynamicEntities) {
+        if (Enemy* enemy = dynamic_cast<Enemy*>(entity.get())) {
+            enemy->setLiquidSim(liquids.get());
+        }
+    }
 }
 
 void PlayState::exit() {
@@ -272,6 +311,13 @@ void PlayState::update(float dt) {
                 if (entity && entity->isAlive()) {
                     entity->update(dt, player);
                     physics->resolveEntityTileCollision(entity.get());
+                    
+                    if (liquids && liquids->isLavaAt(entity->getAABB())) {
+                        if (auto* enemy = dynamic_cast<Enemy*>(entity.get())) {
+                            // Only destroy enemies that aren't immune to lava (like Flame)
+                            enemy->takeDamage(999); 
+                        }
+                    }
                 }
             }
             
@@ -303,7 +349,7 @@ void PlayState::update(float dt) {
                         }
                     }
                 } else if (auto* arrow = dynamic_cast<Arrow*>(entity.get())) {
-                    if (!arrow->isStuck() && std::abs(arrow->getVelocityX()) > 1.5f && physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
+                    if (arrow->isLethal() && physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
                         player->takeDamage(2); // Take 2 hearts damage
                         player->setVelocity(arrow->getVelocityX() > 0 ? 300.0f : -300.0f, -200.0f);
                         arrow->destroy();
@@ -361,20 +407,20 @@ void PlayState::update(float dt) {
                         enemy = dynamic_cast<Enemy*>(e1.get());
                     }
                     
-                    if (arrow && enemy && !arrow->isStuck() && std::abs(arrow->getVelocityX()) > 1.5f) {
+                    if (arrow && enemy && arrow->isLethal()) {
                         enemy->takeDamage(100); // Instantly kill enemy
                         arrow->destroy();
                     } else if (dynamic_cast<Spike*>(e1.get()) && dynamic_cast<Enemy*>(e2.get())) {
                         auto spike = dynamic_cast<Spike*>(e1.get());
                         auto otherEnemy = dynamic_cast<Enemy*>(e2.get());
-                        if (otherEnemy->getVelocityY() > 50.0f) {
+                        if (otherEnemy->getVelocityY() > 10.0f) {
                             otherEnemy->takeDamage(100);
                             spike->setBlood();
                         }
                     } else if (dynamic_cast<Spike*>(e2.get()) && dynamic_cast<Enemy*>(e1.get())) {
                         auto spike = dynamic_cast<Spike*>(e2.get());
                         auto otherEnemy = dynamic_cast<Enemy*>(e1.get());
-                        if (otherEnemy->getVelocityY() > 50.0f) {
+                        if (otherEnemy->getVelocityY() > 10.0f) {
                             otherEnemy->takeDamage(100);
                             spike->setBlood();
                         }
@@ -430,6 +476,11 @@ void PlayState::update(float dt) {
 
         camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
         
+        if (liquids) {
+            liquids->update(dt);
+            liquids->updateSpurts(dt, player->getX(), player->getY());
+        }
+        
         if (minimap) {
             minimap->update(player->getX(), player->getY());
         }
@@ -453,6 +504,10 @@ void PlayState::update(float dt) {
             
             float intensity = 0.95f + flicker;
             float radius = 4.5f + (flicker * 1.5f);
+            
+            if (tempLevel.modifier == FloorModifier::DARK_FLOOR) {
+                radius *= 0.5f;
+            }
             
             lighting->addLight(trueX, trueY, intensity, radius);
             
@@ -571,6 +626,7 @@ void PlayState::render() {
 
     // Render foreground tiles LAST so they overlap the player's head and entities
     if (tempLevel.tileMap && lighting) {
+        if (liquids) liquids->render(camera);
         tempLevel.tileMap->render(camera, lighting->getLightMap(), true); // Foreground pass (Solid blocks)
     }
     

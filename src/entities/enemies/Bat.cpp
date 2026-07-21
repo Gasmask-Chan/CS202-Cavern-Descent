@@ -59,6 +59,16 @@ void Bat::handleChase(float dt, Player* player) {
         vx = (dx / dist) * speed;
         vy = (dy / dist) * speed;
         isFacingRight = (vx > 0);
+        
+        if (liquidSim) {
+            Rectangle nextAABB = getAABB();
+            nextAABB.x += vx * dt * 5.0f; // Look slightly ahead
+            nextAABB.y += vy * dt * 5.0f;
+            if (liquidSim->isWaterAt(nextAABB)) {
+                vx = 0;
+                vy = -speed; // Fly straight up to avoid water
+            }
+        }
     }
 }
 
