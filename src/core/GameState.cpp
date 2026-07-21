@@ -349,7 +349,7 @@ void PlayState::update(float dt) {
                         }
                     }
                 } else if (auto* arrow = dynamic_cast<Arrow*>(entity.get())) {
-                    if (!arrow->isStuck() && std::abs(arrow->getVelocityX()) > 1.5f && physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
+                    if (arrow->isLethal() && physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
                         player->takeDamage(2); // Take 2 hearts damage
                         player->setVelocity(arrow->getVelocityX() > 0 ? 300.0f : -300.0f, -200.0f);
                         arrow->destroy();
@@ -407,7 +407,7 @@ void PlayState::update(float dt) {
                         enemy = dynamic_cast<Enemy*>(e1.get());
                     }
                     
-                    if (arrow && enemy && !arrow->isStuck() && std::abs(arrow->getVelocityX()) > 1.5f) {
+                    if (arrow && enemy && arrow->isLethal()) {
                         enemy->takeDamage(100); // Instantly kill enemy
                         arrow->destroy();
                     } else if (dynamic_cast<Spike*>(e1.get()) && dynamic_cast<Enemy*>(e2.get())) {
@@ -504,6 +504,10 @@ void PlayState::update(float dt) {
             
             float intensity = 0.95f + flicker;
             float radius = 4.5f + (flicker * 1.5f);
+            
+            if (tempLevel.modifier == FloorModifier::DARK_FLOOR) {
+                radius *= 0.5f;
+            }
             
             lighting->addLight(trueX, trueY, intensity, radius);
             

@@ -51,6 +51,22 @@ void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::uniq
     if (player && player->isAlive() && checkLOS(player->getX(), player->getY(), player->getAABB().width, player->getAABB().height)) {
         trigger = true;
     }
+    if (!trigger) {
+        for (const auto& enemy : enemies) {
+            if (enemy && enemy->isAlive() && checkLOS(enemy->getX(), enemy->getY(), enemy->getAABB().width, enemy->getAABB().height)) {
+                trigger = true;
+                break;
+            }
+        }
+    }
+    if (!trigger) {
+        for (const auto& item : items) {
+            if (item && !item->isPickedUp() && checkLOS(item->getX(), item->getY(), item->getAABB().width, item->getAABB().height)) {
+                trigger = true;
+                break;
+            }
+        }
+    }
     
     if (trigger) {
         activated = true;

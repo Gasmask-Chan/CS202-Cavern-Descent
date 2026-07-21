@@ -9,9 +9,13 @@ private:
     float _prevVx;
     float _prevVy;
     bool _stuck;
+    bool _isLethal;
 
 public:
     Arrow(float x, float y, float vx);
+    
+    bool isLethal() const { return _isLethal; }
+    void setLethal(bool lethal) { _isLethal = lethal; }
     
     void update(float dt, class Player* player) override;
     
