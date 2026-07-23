@@ -58,6 +58,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempEnemies.clear();
     tempItems.clear();
     tempTraps.clear();
+    level.initialLiquids.clear();
     tempPlayerSpawn = Vector2{0, 0};
     tempExitPos     = Vector2{0, 0};
 
@@ -242,23 +243,17 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
             }
             
             // Fill water basin. Water fills the inside from floorY - 1 up to floorY - targetHeight
-            LiquidType lType = LiquidType::WATER;
-            if (zone == ZoneType::TEMPLE) {
-                lType = LiquidType::LAVA;
-            } else {
-                lType = LiquidType::LAVA; // 100% lava for testing
-            }
-            
+            LiquidType lakeType = (GetRandomValue(0, 1) == 0) ? LiquidType::WATER : LiquidType::LAVA;
             for (int y = floorY - 1; y >= floorY - targetHeight; --y) {
                 for (int x = startX + 1; x < endX - 1; ++x) {
                     if (!level.tileMap->isSolid(x, y)) {
-                        level.initialLiquids.push_back(LiquidSpawn{x, y, lType});
+                        level.initialLiquids.push_back(LiquidSpawn{x, y, lakeType});
                     }
                 }
             }
             
             // Add exactly one floating block in the middle of the lava surface to keep difficulty high
-            if (lType == LiquidType::LAVA) {
+            if (lakeType == LiquidType::LAVA) {
                 int midX = startX + ROOM_WIDTH / 2;
                 level.tileMap->setTile(midX, floorY - targetHeight, TileType::STONE_BLOCK);
             }
@@ -537,7 +532,7 @@ void LevelGenerator::instantiateLakeRoom(int gx, int gy, TileMap* map, LiquidTyp
           map->setTile(tx, ty, TileType::NOTHING);
           initialLiquids.push_back({tx, ty, lType});
       } else if (c == '3') {
-          if (GetRandomValue(0, 1) == 0) {
+          if (lType == LiquidType::LAVA && GetRandomValue(0, 1) == 0) {
               map->setTile(tx, ty, TileType::CAVE_ROCK);
           } else {
               map->setTile(tx, ty, TileType::NOTHING);

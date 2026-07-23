@@ -93,11 +93,11 @@ public:
 
 class PlayState : public GameState {
 private:
-    Player* player;
+    std::unique_ptr<Player> player;
     Camera2D camera;
     std::unique_ptr<LevelGenerator> tempGenerator;
     GeneratedLevel tempLevel;
-    PhysicsSystem* physics;
+    std::unique_ptr<PhysicsSystem> physics;
     std::unique_ptr<Minimap> minimap;
     std::unique_ptr<LightingSystem> lighting;
     std::unique_ptr<LiquidSimulator> liquids;

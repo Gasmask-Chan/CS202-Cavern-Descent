@@ -1,37 +1,40 @@
 #include "GameState.h"
-#include "Game.h"
-#include "GameManager.h"
 #include "../audio/AudioManager.h"
-#include "../player/Player.h"
-#include "../ui/Minimap.h"
-#include "../ui/ComboSystem.h"
-#include "raymath.h"
 #include "../core/EventBus.h"
-#include "../entities/EntityFactory.h"
-#include "../entities/Item.h"
-#include "../entities/Trap.h"
 #include "../entities/Arrow.h"
 #include "../entities/Bomb.h"
+#include "../entities/EntityFactory.h"
+#include "../entities/Item.h"
+#include "../entities/LavaDrip.h"
+#include "../entities/Trap.h"
 #include "../entities/enemies/Enemy.h"
 #include "../entities/enemies/NemesisGhost.h"
-#include "../entities/LavaDrip.h"
 #include "../entities/enemies/Spike.h"
 #include "../level/LevelGenerator.h"
+#include "../player/Player.h"
+#include "../ui/ComboSystem.h"
+#include "../ui/Minimap.h"
+#include "Game.h"
+#include "GameManager.h"
+#include "raymath.h"
+
 
 namespace Platformer {
 
-void GameState::setGame(Game* game) {
-    this->game = game;
+void GameState::setGame(Game *game) { this->game = game; }
+
+void GameState::drawCenteredText(const char *text, float y, float fontSize,
+                                 Color color) {
+  Vector2 size = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
+  DrawTextEx(game->getFont(), text, {(1280.0f - size.x) / 2.0f, y}, fontSize,
+             2.0f, color);
 }
 
-void GameState::drawCenteredText(const char* text, float y, float fontSize, Color color) {
-    Vector2 size = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
-    DrawTextEx(game->getFont(), text, { (1280.0f - size.x) / 2.0f, y }, fontSize, 2.0f, color);
-}
-
-void GameState::drawCenteredAt(const char* text, float centerX, float y, float fontSize, Color color) {
-    Vector2 size = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
-    DrawTextEx(game->getFont(), text, { centerX - size.x / 2.0f, y }, fontSize, 2.0f, color);
+void GameState::drawCenteredAt(const char *text, float centerX, float y,
+                               float fontSize, Color color) {
+  Vector2 size = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
+  DrawTextEx(game->getFont(), text, {centerX - size.x / 2.0f, y}, fontSize,
+             2.0f, color);
 }
 
 /*
@@ -41,59 +44,60 @@ void GameState::drawCenteredAt(const char* text, float centerX, float y, float f
 */
 
 void MenuState::enter() {
-    selectedOption = 0;
-    // Placeholder: load background texture here
-    // Placeholder: start menu BGM here
-    // Platformer::AudioManager::getInstance()->playBGM("assets/music/placeholder_menu.ogg");
+  selectedOption = 0;
+  // Placeholder: load background texture here
+  // Placeholder: start menu BGM here
+  // Platformer::AudioManager::getInstance()->playBGM("assets/music/placeholder_menu.ogg");
 }
 
 void MenuState::exit() {
-    // Placeholder: stop BGM if needed
-    // Platformer::AudioManager::getInstance()->stopBGM();
+  // Placeholder: stop BGM if needed
+  // Platformer::AudioManager::getInstance()->stopBGM();
 }
 
 void MenuState::handleInput() {
-    if (IsKeyPressed(KEY_UP)) {
-        selectedOption = (selectedOption + 2) % 3;
+  if (IsKeyPressed(KEY_UP)) {
+    selectedOption = (selectedOption + 2) % 3;
+  }
+  if (IsKeyPressed(KEY_DOWN)) {
+    selectedOption = (selectedOption + 1) % 3;
+  }
+  if (IsKeyPressed(KEY_ENTER)) {
+    switch (selectedOption) {
+    case 0:
+      game->changeState(GameStateType::CHAR_SELECT);
+      break;
+    case 1:
+      game->changeState(GameStateType::EDITOR);
+      break;
+    case 2:
+      game->quit();
+      break;
     }
-    if (IsKeyPressed(KEY_DOWN)) {
-        selectedOption = (selectedOption + 1) % 3;
-    }
-    if (IsKeyPressed(KEY_ENTER)) {
-        switch (selectedOption) {
-            case 0:
-                game->changeState(GameStateType::CHAR_SELECT);
-                break;
-            case 1:
-                game->changeState(GameStateType::EDITOR);
-                break;
-            case 2:
-                game->quit();
-                break;
-        }
-    }
+  }
 }
 
 void MenuState::update(float dt) {
-    // Placeholder: Update background animation or effects if added later
+  // Placeholder: Update background animation or effects if added later
 }
 
 void MenuState::render() {
-    ClearBackground(BLACK);
+  ClearBackground(BLACK);
 
-    // Placeholder: draw background texture here
+  // Placeholder: draw background texture here
 
-    drawCenteredText("CAVERN DESCENT", 150.0f, 60.0f, RAYWHITE);
+  drawCenteredText("CAVERN DESCENT", 150.0f, 60.0f, RAYWHITE);
 
-    Color startColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
-    Color editorColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
-    Color quitColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
+  Color startColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
+  Color editorColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
+  Color quitColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
 
-    drawCenteredText("START GAME", 350.0f, 40.0f, startColor);
-    drawCenteredText("LEVEL EDITOR", 420.0f, 40.0f, editorColor);
-    drawCenteredText("QUIT", 490.0f, 40.0f, quitColor);
+  drawCenteredText("START GAME", 350.0f, 40.0f, startColor);
+  drawCenteredText("LEVEL EDITOR", 420.0f, 40.0f, editorColor);
+  drawCenteredText("QUIT", 490.0f, 40.0f, quitColor);
 
-    drawCenteredText("Use UP/DOWN to navigate, ENTER to select", 650.0f, 20.0f, GRAY);
+  drawCenteredText("Use UP/DOWN to navigate, ENTER to select", 650.0f, 20.0f,
+                   GRAY);
 }
 
 /*
@@ -106,585 +110,658 @@ PlayState::PlayState() = default;
 PlayState::~PlayState() = default;
 
 void PlayState::enter() {
-    EntityFactory::preloadTextures();
-    
-    Image hudImg = LoadImage("assets/sprites/16x16/gfx_hud.png");
-    ImageFormat(&hudImg, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-    Color chromaKey = GetImageColor(hudImg, 0, 0); 
-    ImageColorReplace(&hudImg, chromaKey, BLANK);
-    hudIcons = LoadTextureFromImage(hudImg);
-    UnloadImage(hudImg);
-    // Initialize Camera
-    camera.offset = Vector2{ 1280.0f / 2.0f, 720.0f / 2.0f }; // Center screen
-    camera.rotation = 0.0f;
-    camera.zoom = 2.0f;
+  EntityFactory::preloadTextures();
 
-    tempGenerator = std::make_unique<LevelGenerator>();
-    tempLevel = tempGenerator->generate(1, ZoneType::CAVE);
+  Image hudImg = LoadImage("assets/sprites/16x16/gfx_hud.png");
+  ImageFormat(&hudImg, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+  Color chromaKey = GetImageColor(hudImg, 0, 0);
+  ImageColorReplace(&hudImg, chromaKey, BLANK);
+  hudIcons = LoadTextureFromImage(hudImg);
+  UnloadImage(hudImg);
+  // Initialize Camera
+  camera.offset = Vector2{1280.0f / 2.0f, 720.0f / 2.0f}; // Center screen
+  camera.rotation = 0.0f;
+  camera.zoom = 2.0f;
 
-    physics = new PhysicsSystem(tempLevel.tileMap.get());
+  tempGenerator = std::make_unique<LevelGenerator>();
+  tempLevel = tempGenerator->generate(1, ZoneType::CAVE);
 
-    // TODO: Person B will implement LevelManager to spawn the player.
-    // For now, we manually instantiate a temporary Player at the generated spawn point.
-    player = new Player(tempLevel.playerSpawn.x, tempLevel.playerSpawn.y, GameManager::getInstance()->getSelectedCharacter());
-    player->setTileMap(tempLevel.tileMap.get());
-    
-    minimap = std::make_unique<Minimap>(tempLevel.exitPos);
-    
-    lighting = std::make_unique<LightingSystem>(tempLevel.tileMap->getWidth(), tempLevel.tileMap->getHeight());
-    
-    liquids = std::make_unique<LiquidSimulator>(tempLevel.tileMap.get());
-    player->setLiquidSimulator(liquids.get());
-    for (const auto& liq : tempLevel.initialLiquids) {
-        liquids->addLiquid(liq.gx, liq.gy, 255, liq.type);
-    }
-    
-    camera.target = Vector2{ player->getX(), player->getY() };
-    
-    ghostTimer = 0.0f;
-    ghostSpawned = false;
-    
-    combo = std::make_unique<ComboSystem>();
-    
-    EventBus::getInstance()->clearListeners(EventType::EVENT_GOLD_COLLECTED);
-    EventBus::getInstance()->subscribe(EventType::EVENT_GOLD_COLLECTED, [this](EventData data) {
-        if (this->combo) this->combo->onTreasureCollected(data.amount, data.worldX, data.worldY);
-    });
-    
-    EventBus::getInstance()->clearListeners(EventType::EVENT_ENEMY_KILLED);
-    EventBus::getInstance()->subscribe(EventType::EVENT_ENEMY_KILLED, [this](EventData data) {
-        if (this->combo) this->combo->onEnemyKilled(data.amount, data.worldX, data.worldY);
-    });
+  physics = std::make_unique<PhysicsSystem>(tempLevel.tileMap.get());
+  player = std::make_unique<Player>(
+      tempLevel.playerSpawn.x, tempLevel.playerSpawn.y,
+      GameManager::getInstance()->getSelectedCharacter());
+  player->setTileMap(tempLevel.tileMap.get());
 
-    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ITEM);
-    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_ITEM, [this](EventData data) {
-        auto item = EntityFactory::createItem(data.amount, data.worldX, data.worldY);
+  minimap = std::make_unique<Minimap>(tempLevel.exitPos);
+
+  lighting = std::make_unique<LightingSystem>(tempLevel.tileMap->getWidth(),
+                                              tempLevel.tileMap->getHeight());
+
+  liquids = std::make_unique<LiquidSimulator>(tempLevel.tileMap.get());
+  player->setLiquidSimulator(liquids.get());
+  for (const auto &liq : tempLevel.initialLiquids) {
+    liquids->addLiquid(liq.gx, liq.gy, 255, liq.type);
+  }
+
+  camera.target = Vector2{player->getX(), player->getY()};
+
+  ghostTimer = 0.0f;
+  ghostSpawned = false;
+
+  combo = std::make_unique<ComboSystem>();
+
+  EventBus::getInstance()->clearListeners(EventType::EVENT_GOLD_COLLECTED);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_GOLD_COLLECTED, [this](EventData data) {
+        if (this->combo)
+          this->combo->onTreasureCollected(data.amount, data.worldX,
+                                           data.worldY);
+      });
+
+  EventBus::getInstance()->clearListeners(EventType::EVENT_ENEMY_KILLED);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_ENEMY_KILLED, [this](EventData data) {
+        if (this->combo)
+          this->combo->onEnemyKilled(data.amount, data.worldX, data.worldY);
+      });
+
+  EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ITEM);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_SPAWN_ITEM, [this](EventData data) {
+        auto item =
+            EntityFactory::createItem(data.amount, data.worldX, data.worldY);
         if (item) {
-            item->setVelocity(data.vx, data.vy);
-            this->pendingItems.push_back(std::move(item));
+          item->setVelocity(data.vx, data.vy);
+          this->pendingItems.push_back(std::move(item));
         }
-    });
+      });
 
-    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_BOMB);
-    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_BOMB, [this](EventData data) {
-        auto bomb = std::make_unique<Bomb>(data.worldX, data.worldY, data.vx, data.vy);
+  EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_BOMB);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_SPAWN_BOMB, [this](EventData data) {
+        auto bomb =
+            std::make_unique<Bomb>(data.worldX, data.worldY, data.vx, data.vy);
         this->pendingEntities.push_back(std::move(bomb));
-    });
+      });
 
-    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ARROW);
-    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_ARROW, [this](EventData data) {
-        auto arrow = EntityFactory::createArrow(data.worldX, data.worldY, data.vx);
+  EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ARROW);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_SPAWN_ARROW, [this](EventData data) {
+        auto arrow =
+            EntityFactory::createArrow(data.worldX, data.worldY, data.vx);
         this->pendingEntities.push_back(std::move(arrow));
-    });
+      });
 
-    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_FLAME);
-    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_FLAME, [this](EventData data) {
+  EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_FLAME);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_SPAWN_FLAME, [this](EventData data) {
         auto flame = EntityFactory::createEnemy('F', data.worldX, data.worldY);
         if (flame) {
-            if (data.vy != 0.0f) {
-                flame->setVelocity(0.0f, data.vy);
-            }
-            this->pendingEntities.push_back(std::move(flame));
+          if (data.vy != 0.0f) {
+            flame->setVelocity(0.0f, data.vy);
+          }
+          this->pendingEntities.push_back(std::move(flame));
         }
-    });
+      });
 
-    EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_LAVA_DRIP);
-    EventBus::getInstance()->subscribe(EventType::EVENT_SPAWN_LAVA_DRIP, [this](EventData data) {
+  EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_LAVA_DRIP);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_SPAWN_LAVA_DRIP, [this](EventData data) {
         auto drip = std::make_unique<LavaDrip>(data.worldX, data.worldY);
         this->pendingEntities.push_back(std::move(drip));
-    });
+      });
 
-    EventBus::getInstance()->clearListeners(EventType::EVENT_ADD_LIQUID);
-    EventBus::getInstance()->subscribe(EventType::EVENT_ADD_LIQUID, [this](EventData data) {
+  EventBus::getInstance()->clearListeners(EventType::EVENT_ADD_LIQUID);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_ADD_LIQUID, [this](EventData data) {
         if (this->liquids) {
-            this->liquids->addLiquid(data.gridX, data.gridY, 0, (LiquidType)data.amount);
+          this->liquids->addLiquid(data.gridX, data.gridY, 0,
+                                   (LiquidType)data.amount);
         }
-    });
+      });
 
-    EventBus::getInstance()->clearListeners(EventType::EVENT_BOMB_EXPLODE);
-    EventBus::getInstance()->subscribe(EventType::EVENT_BOMB_EXPLODE, [this](EventData data) {
+  EventBus::getInstance()->clearListeners(EventType::EVENT_BOMB_EXPLODE);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_BOMB_EXPLODE, [this](EventData data) {
         AudioManager::getInstance()->playSFX("explosion");
         float explosionRadius = 80.0f; // roughly 2.5 tiles (32 * 2.5 = 80)
-        
+
         // 1. Destroy Terrain
         int tx = (int)(data.worldX / 32.0f);
         int ty = (int)(data.worldY / 32.0f);
         for (int y = ty - 2; y <= ty + 2; y++) {
-            for (int x = tx - 2; x <= tx + 2; x++) {
-                if (x > 0 && x < tempLevel.tileMap->getWidth() - 1 && y > 0 && y < tempLevel.tileMap->getHeight() - 1) {
-                    if (tempLevel.tileMap->isSolid(x, y)) {
-                        tempLevel.tileMap->destroyBlock(x, y);
-                    }
-                }
+          for (int x = tx - 2; x <= tx + 2; x++) {
+            if (x > 0 && x < tempLevel.tileMap->getWidth() - 1 && y > 0 &&
+                y < tempLevel.tileMap->getHeight() - 1) {
+              if (tempLevel.tileMap->isSolid(x, y)) {
+                tempLevel.tileMap->destroyBlock(x, y);
+              }
             }
+          }
         }
-        
+
         // 2. Damage Player
         if (player) {
-            float dx = player->getX() + player->getAABB().width / 2.0f - data.worldX;
-            float dy = player->getY() + player->getAABB().height / 2.0f - data.worldY;
-            float dist = std::sqrt(dx*dx + dy*dy);
-            if (dist < explosionRadius) {
-                player->takeDamage(10);
-                player->setVelocity(dx > 0 ? 300.0f : -300.0f, -200.0f);
-            }
+          float dx =
+              player->getX() + player->getAABB().width / 2.0f - data.worldX;
+          float dy =
+              player->getY() + player->getAABB().height / 2.0f - data.worldY;
+          float dist = std::sqrt(dx * dx + dy * dy);
+          if (dist < explosionRadius) {
+            player->takeDamage(10);
+            player->setVelocity(dx > 0 ? 300.0f : -300.0f, -200.0f);
+          }
         }
-        
+
         // 3. Damage Entities
-        for (auto& entity : tempLevel.dynamicEntities) {
-            if (entity && entity->isAlive()) {
-                if (Enemy* enemy = dynamic_cast<Enemy*>(entity.get())) {
-                    float dx = enemy->getX() + enemy->getAABB().width / 2.0f - data.worldX;
-                    float dy = enemy->getY() + enemy->getAABB().height / 2.0f - data.worldY;
-                    float dist = std::sqrt(dx*dx + dy*dy);
-                    if (dist < explosionRadius) {
-                        enemy->takeDamage(10);
-                        enemy->setVelocity(dx > 0 ? 300.0f : -300.0f, -200.0f);
-                    }
-                }
+        for (auto &entity : tempLevel.dynamicEntities) {
+          if (entity && entity->isAlive()) {
+            if (Enemy *enemy = dynamic_cast<Enemy *>(entity.get())) {
+              float dx =
+                  enemy->getX() + enemy->getAABB().width / 2.0f - data.worldX;
+              float dy =
+                  enemy->getY() + enemy->getAABB().height / 2.0f - data.worldY;
+              float dist = std::sqrt(dx * dx + dy * dy);
+              if (dist < explosionRadius) {
+                enemy->takeDamage(10);
+                enemy->setVelocity(dx > 0 ? 300.0f : -300.0f, -200.0f);
+              }
             }
+          }
         }
-    });
-    
-    // 4. Pass liquids to enemies
-    for (auto& entity : tempLevel.dynamicEntities) {
-        if (Enemy* enemy = dynamic_cast<Enemy*>(entity.get())) {
-            enemy->setLiquidSim(liquids.get());
-        }
+      });
+
+  // 4. Pass liquids to enemies
+  for (auto &entity : tempLevel.dynamicEntities) {
+    if (Enemy *enemy = dynamic_cast<Enemy *>(entity.get())) {
+      enemy->setLiquidSim(liquids.get());
     }
+  }
 }
 
 void PlayState::exit() {
-    UnloadTexture(hudIcons);
-    
-    if (physics) {
-        delete physics;
-        physics = nullptr;
-    }
-    // Cleanup temporary player until LevelManager manages it.
-    if (player) {
-        delete player;
-        player = nullptr;
-    }
+  UnloadTexture(hudIcons);
+
+  physics.reset();
+  player.reset();
+
+  EventBus::getInstance()->clearAllListeners();
 }
 
 void PlayState::handleInput() {
-    if (IsKeyPressed(KEY_ESCAPE)) {
-        game->pushState(GameStateType::PAUSE);
-        return;
-    }
-    if (player) {
-        player->handleInput();
-    }
+  if (IsKeyPressed(KEY_ESCAPE)) {
+    game->pushState(GameStateType::PAUSE);
+    return;
+  }
+  if (player) {
+    player->handleInput();
+  }
 }
 
 void PlayState::update(float dt) {
-    if (!ghostSpawned) {
-        ghostTimer += dt;
-        if (ghostTimer >= 60.0f) { // 1 minute
-            ghostSpawned = true;
-            auto ghost = EntityFactory::createGhost(player->getX() - 600.0f, player->getY() - 600.0f);
-            pendingEntities.push_back(std::move(ghost));
-            AudioManager::getInstance()->playSFX("ghost_spawn");
+  if (!ghostSpawned) {
+    ghostTimer += dt;
+    if (ghostTimer >= 60.0f) { // 1 minute
+      ghostSpawned = true;
+      auto ghost = EntityFactory::createGhost(player->getX() - 600.0f,
+                                              player->getY() - 600.0f);
+      pendingEntities.push_back(std::move(ghost));
+      AudioManager::getInstance()->playSFX("ghost_spawn");
+    }
+  }
+
+  // Merge pending items
+  for (auto &item : pendingItems) {
+    tempLevel.items.push_back(std::move(item));
+  }
+  pendingItems.clear();
+
+  // Merge pending entities
+  for (auto &ent : pendingEntities) {
+    tempLevel.dynamicEntities.push_back(std::move(ent));
+  }
+  pendingEntities.clear();
+
+  if (player) {
+    player->update(dt, nullptr);
+
+    if (physics) {
+      physics->resolveEntityTileCollision(player.get());
+
+      for (auto &entity : tempLevel.dynamicEntities) {
+        if (entity && entity->isAlive()) {
+          entity->update(dt, player.get());
+          entity->applyGravity(dt);
+          physics->resolveEntityTileCollision(entity.get());
+
+          if (liquids && liquids->isLavaAt(entity->getAABB())) {
+            if (auto *enemy = dynamic_cast<Enemy *>(entity.get())) {
+              // Only destroy enemies that aren't immune to lava (like Flame)
+              enemy->takeDamage(999);
+            }
+          }
         }
+      }
+
+      for (auto &item : tempLevel.items) {
+        if (item && !item->isPickedUp()) {
+          item->update(dt, player.get());
+          physics->resolveEntityTileCollision(item.get());
+        }
+      }
+    }
+
+    // ---- Entity Collisions ----
+    Rectangle pAABB = player->getAABB();
+    bool whipActive = player->getIsWhipHitThisFrame();
+    Rectangle whipBox = player->getWhipHitbox();
+
+    // 1. Player vs DynamicEntities (Enemies/Ghost)
+    for (auto &entity : tempLevel.dynamicEntities) {
+      if (entity && entity->isAlive()) {
+        if (auto *enemy = dynamic_cast<Enemy *>(entity.get())) {
+          if (whipActive &&
+              physics->checkAABBOverlap(whipBox, enemy->getAABB())) {
+            enemy->takeDamage(1); // Whip does 1 damage
+            AudioManager::getInstance()->playSFX("hit");
+          }
+
+          if (physics->checkAABBOverlap(pAABB, enemy->getAABB())) {
+            if (!dynamic_cast<Spike *>(enemy)) {
+              player->takeDamage(enemy->getDamage());
+            }
+          }
+        } else if (auto *arrow = dynamic_cast<Arrow *>(entity.get())) {
+          if (arrow->isLethal() &&
+              physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
+            player->takeDamage(2); // Take 2 hearts damage
+            player->setVelocity(arrow->getVelocityX() > 0 ? 300.0f : -300.0f,
+                                -200.0f);
+            arrow->destroy();
+          }
+        }
+      }
+    }
+
+    // 2. Player vs Traps
+    for (auto &trap : tempLevel.traps) {
+      if (trap) {
+        trap->updateTrap(dt, player.get(), tempLevel.dynamicEntities,
+                         tempLevel.items, tempLevel.tileMap.get());
+
+        if (trap->getDamage() > 0 &&
+            physics->checkAABBOverlap(pAABB, trap->getAABB())) {
+          if (!player->isInvincible()) {
+            player->takeDamage(trap->getDamage());
+            player->setVelocity(
+                player->getX() < trap->getX() ? -250.0f : 250.0f, -200.0f);
+          }
+        }
+      }
+    }
+
+    // 3. Enemies vs Traps
+    for (auto &entity : tempLevel.dynamicEntities) {
+      if (entity && entity->isAlive()) {
+        Rectangle eAABB = entity->getAABB();
+        for (auto &trap : tempLevel.traps) {
+          if (trap && trap->getDamage() > 0 &&
+              physics->checkAABBOverlap(eAABB, trap->getAABB())) {
+            if (auto *enemy = dynamic_cast<Enemy *>(entity.get())) {
+              enemy->takeDamage(trap->getDamage());
+              enemy->setVelocity(
+                  enemy->getX() < trap->getX() ? -200.0f : 200.0f, -150.0f);
+            }
+          }
+        }
+      }
+    }
+
+    // 4. DynamicEntity vs DynamicEntity (Soft Push-Out & Arrow Hits)
+    for (size_t i = 0; i < tempLevel.dynamicEntities.size(); ++i) {
+      if (!tempLevel.dynamicEntities[i] ||
+          !tempLevel.dynamicEntities[i]->isAlive())
+        continue;
+      for (size_t j = i + 1; j < tempLevel.dynamicEntities.size(); ++j) {
+        if (!tempLevel.dynamicEntities[j] ||
+            !tempLevel.dynamicEntities[j]->isAlive())
+          continue;
+
+        auto &e1 = tempLevel.dynamicEntities[i];
+        auto &e2 = tempLevel.dynamicEntities[j];
+        Rectangle a = e1->getAABB();
+        Rectangle b = e2->getAABB();
+
+        if (physics->checkAABBOverlap(a, b)) {
+          Arrow *arrow = dynamic_cast<Arrow *>(e1.get());
+          Enemy *enemy = dynamic_cast<Enemy *>(e2.get());
+
+          if (!arrow) {
+            arrow = dynamic_cast<Arrow *>(e2.get());
+            enemy = dynamic_cast<Enemy *>(e1.get());
+          }
+
+          if (arrow && enemy && arrow->isLethal()) {
+            enemy->takeDamage(100); // Instantly kill enemy
+            arrow->destroy();
+          } else if (dynamic_cast<Spike *>(e1.get()) &&
+                     dynamic_cast<Enemy *>(e2.get())) {
+            auto spike = dynamic_cast<Spike *>(e1.get());
+            auto otherEnemy = dynamic_cast<Enemy *>(e2.get());
+            if (otherEnemy->getVelocityY() > 10.0f) {
+              otherEnemy->takeDamage(100);
+              spike->setBlood();
+            }
+          } else if (dynamic_cast<Spike *>(e2.get()) &&
+                     dynamic_cast<Enemy *>(e1.get())) {
+            auto spike = dynamic_cast<Spike *>(e2.get());
+            auto otherEnemy = dynamic_cast<Enemy *>(e1.get());
+            if (otherEnemy->getVelocityY() > 10.0f) {
+              otherEnemy->takeDamage(100);
+              spike->setBlood();
+            }
+          } else if (dynamic_cast<Enemy *>(e1.get()) &&
+                     dynamic_cast<Enemy *>(e2.get()) &&
+                     !dynamic_cast<Spike *>(e1.get()) &&
+                     !dynamic_cast<Spike *>(e2.get())) {
+            // Push apart horizontally
+            if (a.x < b.x) {
+              e1->setVelocity(e1->getVelocityX() - 50.0f, e1->getVelocityY());
+              e2->setVelocity(e2->getVelocityX() + 50.0f, e2->getVelocityY());
+            } else {
+              e1->setVelocity(e1->getVelocityX() + 50.0f, e1->getVelocityY());
+              e2->setVelocity(e2->getVelocityX() - 50.0f, e2->getVelocityY());
+            }
+          }
+        }
+      }
+    }
+
+    // 5. Player vs Items
+    for (auto &item : tempLevel.items) {
+      if (item && !item->isPickedUp()) {
+        if (physics->checkAABBOverlap(pAABB, item->getAABB())) {
+          item->activate(player.get());
+        }
+      }
     }
 
     // Merge pending items
-    for (auto& item : pendingItems) {
-        tempLevel.items.push_back(std::move(item));
+    for (auto &item : pendingItems) {
+      tempLevel.items.push_back(std::move(item));
     }
     pendingItems.clear();
 
-    // Merge pending entities
-    for (auto& ent : pendingEntities) {
-        tempLevel.dynamicEntities.push_back(std::move(ent));
+    // Camera smooth follow with boundary clamping
+    Vector2 desiredTarget = {player->getX() + 16, player->getY() + 16};
+
+    float mapWidth = 40.0f * 32.0f; // 4 rooms * 10 tiles * 32 pixels = 1280
+    float mapHeight = 40.0f * 32.0f;
+
+    float halfScreenWidth = (GetScreenWidth() / 2.0f) / camera.zoom;
+    float halfScreenHeight = (GetScreenHeight() / 2.0f) / camera.zoom;
+
+    // Allow the camera to see 4 tiles (128 pixels) into the infinite bedrock
+    float borderPixelsX = 4.0f * 32.0f;
+    float borderPixelsY = 4.0f * 32.0f;
+
+    // Clamp X
+    if (desiredTarget.x < halfScreenWidth - borderPixelsX)
+      desiredTarget.x = halfScreenWidth - borderPixelsX;
+    if (desiredTarget.x > mapWidth + borderPixelsX - halfScreenWidth)
+      desiredTarget.x = mapWidth + borderPixelsX - halfScreenWidth;
+
+    // Clamp Y
+    if (desiredTarget.y < halfScreenHeight - borderPixelsY)
+      desiredTarget.y = halfScreenHeight - borderPixelsY;
+    if (desiredTarget.y > mapHeight + borderPixelsY - halfScreenHeight)
+      desiredTarget.y = mapHeight + borderPixelsY - halfScreenHeight;
+
+    camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
+
+    if (liquids) {
+      liquids->update(dt);
+      liquids->updateSpurts(dt, player->getX(), player->getY());
     }
-    pendingEntities.clear();
 
-    if (player) {
-        player->update(dt, nullptr);
-        
-        if (physics) {
-            physics->resolveEntityTileCollision(player);
-            
-            for (auto& entity : tempLevel.dynamicEntities) {
-                if (entity && entity->isAlive()) {
-                    entity->update(dt, player);
-                    physics->resolveEntityTileCollision(entity.get());
-                    
-                    if (liquids && liquids->isLavaAt(entity->getAABB())) {
-                        if (auto* enemy = dynamic_cast<Enemy*>(entity.get())) {
-                            // Only destroy enemies that aren't immune to lava (like Flame)
-                            enemy->takeDamage(999); 
-                        }
-                    }
-                }
-            }
-            
-            for (auto& item : tempLevel.items) {
-                if (item && !item->isPickedUp()) {
-                    item->update(dt, player);
-                    physics->resolveEntityTileCollision(item.get());
-                }
-            }
-        }
-        
-        // ---- Entity Collisions ----
-        Rectangle pAABB = player->getAABB();
-        bool whipActive = player->getIsWhipHitThisFrame();
-        Rectangle whipBox = player->getWhipHitbox();
-        
-        // 1. Player vs DynamicEntities (Enemies/Ghost)
-        for (auto& entity : tempLevel.dynamicEntities) {
-            if (entity && entity->isAlive()) {
-                if (auto* enemy = dynamic_cast<Enemy*>(entity.get())) {
-                    if (whipActive && physics->checkAABBOverlap(whipBox, enemy->getAABB())) {
-                        enemy->takeDamage(1); // Whip does 1 damage
-                        AudioManager::getInstance()->playSFX("hit");
-                    }
-                    
-                    if (physics->checkAABBOverlap(pAABB, enemy->getAABB())) {
-                        if (!dynamic_cast<Spike*>(enemy)) {
-                            player->takeDamage(enemy->getDamage());
-                        }
-                    }
-                } else if (auto* arrow = dynamic_cast<Arrow*>(entity.get())) {
-                    if (arrow->isLethal() && physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
-                        player->takeDamage(2); // Take 2 hearts damage
-                        player->setVelocity(arrow->getVelocityX() > 0 ? 300.0f : -300.0f, -200.0f);
-                        arrow->destroy();
-                    }
-                }
-            }
-        }
-
-        // 2. Player vs Traps
-        for (auto& trap : tempLevel.traps) {
-            if (trap) {
-                trap->updateTrap(dt, player, tempLevel.dynamicEntities, tempLevel.items, tempLevel.tileMap.get());
-                
-                if (trap->getDamage() > 0 && physics->checkAABBOverlap(pAABB, trap->getAABB())) {
-                    if (!player->isInvincible()) {
-                        player->takeDamage(trap->getDamage());
-                        player->setVelocity(player->getX() < trap->getX() ? -250.0f : 250.0f, -200.0f);
-                    }
-                }
-            }
-        }
-
-        // 3. Enemies vs Traps
-        for (auto& entity : tempLevel.dynamicEntities) {
-            if (entity && entity->isAlive()) {
-                Rectangle eAABB = entity->getAABB();
-                for (auto& trap : tempLevel.traps) {
-                    if (trap && trap->getDamage() > 0 && physics->checkAABBOverlap(eAABB, trap->getAABB())) {
-                        if (auto* enemy = dynamic_cast<Enemy*>(entity.get())) {
-                            enemy->takeDamage(trap->getDamage());
-                            enemy->setVelocity(enemy->getX() < trap->getX() ? -200.0f : 200.0f, -150.0f);
-                        }
-                    }
-                }
-            }
-        }
-
-        // 4. DynamicEntity vs DynamicEntity (Soft Push-Out & Arrow Hits)
-        for (size_t i = 0; i < tempLevel.dynamicEntities.size(); ++i) {
-            if (!tempLevel.dynamicEntities[i] || !tempLevel.dynamicEntities[i]->isAlive()) continue;
-            for (size_t j = i + 1; j < tempLevel.dynamicEntities.size(); ++j) {
-                if (!tempLevel.dynamicEntities[j] || !tempLevel.dynamicEntities[j]->isAlive()) continue;
-                
-                auto& e1 = tempLevel.dynamicEntities[i];
-                auto& e2 = tempLevel.dynamicEntities[j];
-                Rectangle a = e1->getAABB();
-                Rectangle b = e2->getAABB();
-                
-                if (physics->checkAABBOverlap(a, b)) {
-                    Arrow* arrow = dynamic_cast<Arrow*>(e1.get());
-                    Enemy* enemy = dynamic_cast<Enemy*>(e2.get());
-                    
-                    if (!arrow) {
-                        arrow = dynamic_cast<Arrow*>(e2.get());
-                        enemy = dynamic_cast<Enemy*>(e1.get());
-                    }
-                    
-                    if (arrow && enemy && arrow->isLethal()) {
-                        enemy->takeDamage(100); // Instantly kill enemy
-                        arrow->destroy();
-                    } else if (dynamic_cast<Spike*>(e1.get()) && dynamic_cast<Enemy*>(e2.get())) {
-                        auto spike = dynamic_cast<Spike*>(e1.get());
-                        auto otherEnemy = dynamic_cast<Enemy*>(e2.get());
-                        if (otherEnemy->getVelocityY() > 10.0f) {
-                            otherEnemy->takeDamage(100);
-                            spike->setBlood();
-                        }
-                    } else if (dynamic_cast<Spike*>(e2.get()) && dynamic_cast<Enemy*>(e1.get())) {
-                        auto spike = dynamic_cast<Spike*>(e2.get());
-                        auto otherEnemy = dynamic_cast<Enemy*>(e1.get());
-                        if (otherEnemy->getVelocityY() > 10.0f) {
-                            otherEnemy->takeDamage(100);
-                            spike->setBlood();
-                        }
-                    } else if (dynamic_cast<Enemy*>(e1.get()) && dynamic_cast<Enemy*>(e2.get()) && !dynamic_cast<Spike*>(e1.get()) && !dynamic_cast<Spike*>(e2.get())) {
-                        // Push apart horizontally
-                        if (a.x < b.x) {
-                            e1->setVelocity(e1->getVelocityX() - 50.0f, e1->getVelocityY());
-                            e2->setVelocity(e2->getVelocityX() + 50.0f, e2->getVelocityY());
-                        } else {
-                            e1->setVelocity(e1->getVelocityX() + 50.0f, e1->getVelocityY());
-                            e2->setVelocity(e2->getVelocityX() - 50.0f, e2->getVelocityY());
-                        }
-                    }
-                }
-            }
-        }
-        
-        // 5. Player vs Items
-        for (auto& item : tempLevel.items) {
-            if (item && !item->isPickedUp()) {
-                if (physics->checkAABBOverlap(pAABB, item->getAABB())) {
-                    item->activate(player);
-                }
-            }
-        }
-        
-        // Merge pending items
-        for (auto& item : pendingItems) {
-            tempLevel.items.push_back(std::move(item));
-        }
-        pendingItems.clear();
-        
-        // Camera smooth follow with boundary clamping
-        Vector2 desiredTarget = {player->getX() + 16, player->getY() + 16};
-        
-        float mapWidth = 40.0f * 32.0f; // 4 rooms * 10 tiles * 32 pixels = 1280
-        float mapHeight = 40.0f * 32.0f;
-        
-        float halfScreenWidth = (GetScreenWidth() / 2.0f) / camera.zoom;
-        float halfScreenHeight = (GetScreenHeight() / 2.0f) / camera.zoom;
-        
-        // Allow the camera to see 4 tiles (128 pixels) into the infinite bedrock
-        float borderPixelsX = 4.0f * 32.0f;
-        float borderPixelsY = 4.0f * 32.0f;
-        
-        // Clamp X
-        if (desiredTarget.x < halfScreenWidth - borderPixelsX) desiredTarget.x = halfScreenWidth - borderPixelsX;
-        if (desiredTarget.x > mapWidth + borderPixelsX - halfScreenWidth) desiredTarget.x = mapWidth + borderPixelsX - halfScreenWidth;
-        
-        // Clamp Y
-        if (desiredTarget.y < halfScreenHeight - borderPixelsY) desiredTarget.y = halfScreenHeight - borderPixelsY;
-        if (desiredTarget.y > mapHeight + borderPixelsY - halfScreenHeight) desiredTarget.y = mapHeight + borderPixelsY - halfScreenHeight;
-
-        camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
-        
-        if (liquids) {
-            liquids->update(dt);
-            liquids->updateSpurts(dt, player->getX(), player->getY());
-        }
-        
-        if (minimap) {
-            minimap->update(player->getX(), player->getY());
-        }
-        
-        if (lighting) {
-            lighting->clearLights();
-            
-            // Add Player Torch
-            // Use the exact float position (in tile coordinates) for smooth, sub-tile distance falloff
-            Rectangle pRect = player->getAABB();
-            float trueX = (pRect.x + pRect.width / 2.0f) / 32.0f;
-            float trueY = (pRect.y + pRect.height / 2.0f) / 32.0f;
-            
-            // Create a smooth organic flicker using composite sine waves and a tiny bit of random noise
-            double time = GetTime();
-            float flicker = 0.0f;
-            flicker += std::sin(time * 12.0) * 0.02f;
-            flicker += std::sin(time * 23.0) * 0.015f;
-            flicker += std::sin(time * 5.0) * 0.01f;
-            flicker += ((float)GetRandomValue(-100, 100) / 100.0f) * 0.005f; // micro crackles
-            
-            float intensity = 0.95f + flicker;
-            float radius = 4.5f + (flicker * 1.5f);
-            
-            if (tempLevel.modifier == FloorModifier::DARK_FLOOR) {
-                radius *= 0.5f;
-            }
-            
-            lighting->addLight(trueX, trueY, intensity, radius);
-            
-            lighting->update(tempLevel.tileMap.get());
-        }
-
-        // Handle Shop Item Interaction (Y Key)
-        if (IsKeyPressed(KEY_Y)) {
-            for (auto& item : tempLevel.items) {
-                if (item && !item->isPickedUp() && item->isShopItem && item->getType() != ItemType::CHEST) {
-                    Rectangle pRect = player->getAABB();
-                    Rectangle iRect = item->getAABB();
-                    // Check overlap and activate manually
-                    if (pRect.x < iRect.x + iRect.width && pRect.x + pRect.width > iRect.x &&
-                        pRect.y < iRect.y + iRect.height && pRect.y + pRect.height > iRect.y) {
-                        item->activate(player);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Auto-pickup normal items
-        for (auto& item : tempLevel.items) {
-            if (item && !item->isPickedUp() && !item->isShopItem && item->getType() != ItemType::CHEST && item->getIsGrounded()) {
-                Rectangle pRect = player->getAABB();
-                Rectangle iRect = item->getAABB();
-                // Check overlap and activate automatically
-                if (pRect.x < iRect.x + iRect.width && pRect.x + pRect.width > iRect.x &&
-                    pRect.y < iRect.y + iRect.height && pRect.y + pRect.height > iRect.y) {
-                    item->activate(player);
-                }
-            }
-        }
-        
-        if (combo) {
-            combo->update(dt);
-        }
-
-        // Death check
-        if (player->getHealth() <= 0) {
-            game->changeState(GameStateType::GAME_OVER);
-            return;
-        }
-        
-        // Exit check (requires manual UP+Y input)
-        if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
-            Rectangle pRect = player->getAABB();
-            int cx = pRect.x + pRect.width / 2;
-            int cy = pRect.y + pRect.height / 2;
-            int tx = cx / tempLevel.tileMap->getTileSize();
-            int ty = cy / tempLevel.tileMap->getTileSize();
-            
-            if (tx >= 0 && tx < tempLevel.tileMap->getWidth() && ty >= 0 && ty < tempLevel.tileMap->getHeight()) {
-                if (tempLevel.tileMap->getTile(tx, ty) == TileType::EXIT) {
-                    GameManager::getInstance()->syncPlayerStats(player->getHealth(), player->getBombs(), player->getRopes(), player->getGold());
-                    game->changeState(GameStateType::TRANSITION);
-                    return;
-                }
-            }
-        }
+    if (minimap) {
+      minimap->update(player->getX(), player->getY());
     }
+
+    if (lighting) {
+      lighting->clearLights();
+
+      // Add Player Torch
+      // Use the exact float position (in tile coordinates) for smooth, sub-tile
+      // distance falloff
+      Rectangle pRect = player->getAABB();
+      float trueX = (pRect.x + pRect.width / 2.0f) / 32.0f;
+      float trueY = (pRect.y + pRect.height / 2.0f) / 32.0f;
+
+      // Create a smooth organic flicker using composite sine waves and a tiny
+      // bit of random noise
+      double time = GetTime();
+      float flicker = 0.0f;
+      flicker += std::sin(time * 12.0) * 0.02f;
+      flicker += std::sin(time * 23.0) * 0.015f;
+      flicker += std::sin(time * 5.0) * 0.01f;
+      flicker += ((float)GetRandomValue(-100, 100) / 100.0f) *
+                 0.005f; // micro crackles
+
+      float intensity = 0.95f + flicker;
+      float radius = 4.5f + (flicker * 1.5f);
+
+      if (tempLevel.modifier == FloorModifier::DARK_FLOOR) {
+        radius *= 0.5f;
+      }
+
+      lighting->addLight(trueX, trueY, intensity, radius);
+
+      lighting->update(tempLevel.tileMap.get());
+    }
+
+    // Handle Shop Item Interaction (Y Key)
+    if (IsKeyPressed(KEY_Y)) {
+      for (auto &item : tempLevel.items) {
+        if (item && !item->isPickedUp() && item->isShopItem &&
+            item->getType() != ItemType::CHEST) {
+          Rectangle pRect = player->getAABB();
+          Rectangle iRect = item->getAABB();
+          // Check overlap and activate manually
+          if (pRect.x < iRect.x + iRect.width &&
+              pRect.x + pRect.width > iRect.x &&
+              pRect.y < iRect.y + iRect.height &&
+              pRect.y + pRect.height > iRect.y) {
+            item->activate(player.get());
+            break;
+          }
+        }
+      }
+    }
+
+    // Auto-pickup normal items
+    for (auto &item : tempLevel.items) {
+      if (item && !item->isPickedUp() && !item->isShopItem &&
+          item->getType() != ItemType::CHEST && item->getIsGrounded()) {
+        Rectangle pRect = player->getAABB();
+        Rectangle iRect = item->getAABB();
+        // Check overlap and activate automatically
+        if (pRect.x < iRect.x + iRect.width &&
+            pRect.x + pRect.width > iRect.x &&
+            pRect.y < iRect.y + iRect.height &&
+            pRect.y + pRect.height > iRect.y) {
+          item->activate(player.get());
+        }
+      }
+    }
+
+    if (combo) {
+      combo->update(dt);
+    }
+
+    // Death check
+    if (player->getHealth() <= 0) {
+      game->changeState(GameStateType::GAME_OVER);
+      return;
+    }
+
+    // Exit check (requires manual UP+Y input)
+    if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
+      Rectangle pRect = player->getAABB();
+      int cx = pRect.x + pRect.width / 2;
+      int cy = pRect.y + pRect.height / 2;
+      int tx = cx / tempLevel.tileMap->getTileSize();
+      int ty = cy / tempLevel.tileMap->getTileSize();
+
+      if (tx >= 0 && tx < tempLevel.tileMap->getWidth() && ty >= 0 &&
+          ty < tempLevel.tileMap->getHeight()) {
+        if (tempLevel.tileMap->getTile(tx, ty) == TileType::EXIT) {
+          GameManager::getInstance()->syncPlayerStats(
+              player->getHealth(), player->getBombs(), player->getRopes(),
+              player->getGold());
+          game->changeState(GameStateType::TRANSITION);
+          return;
+        }
+      }
+    }
+  }
 }
 
 void PlayState::render() {
-    ClearBackground(BLACK);
-    
-    BeginMode2D(camera);
-    
-    // Draw grid to visualize movement for debugging
-    for (int i = -1000; i < 1000; i += 32) {
-        DrawLine(i, -1000, i, 1000, DARKGRAY);
-        DrawLine(-1000, i, 1000, i, DARKGRAY);
-    }
+  ClearBackground(BLACK);
 
-    if (tempLevel.tileMap) {
-        tempLevel.tileMap->renderParallaxBackground(camera);
-        if (lighting) {
-            tempLevel.tileMap->render(camera, lighting->getLightMap(), false); // Background pass
-        }
-    }
+  BeginMode2D(camera);
 
-    auto getEntityLight = [&](float x, float y, float w, float h) -> float {
-        if (!lighting || !tempLevel.tileMap) return 1.0f;
-        int tx = static_cast<int>((x + w/2) / tempLevel.tileMap->getTileSize());
-        int ty = static_cast<int>((y + h/2) / tempLevel.tileMap->getTileSize());
-        const auto& lMap = lighting->getLightMap();
-        if (ty >= 0 && ty < lMap.size() && tx >= 0 && tx < lMap[ty].size()) {
-            return lMap[ty][tx];
-        }
-        return 1.0f;
+  // Draw grid to visualize movement for debugging
+  for (int i = -1000; i < 1000; i += 32) {
+    DrawLine(i, -1000, i, 1000, DARKGRAY);
+    DrawLine(-1000, i, 1000, i, DARKGRAY);
+  }
+
+  if (tempLevel.tileMap) {
+    tempLevel.tileMap->renderParallaxBackground(camera);
+    if (lighting) {
+      tempLevel.tileMap->render(camera, lighting->getLightMap(),
+                                false); // Background pass
+    }
+  }
+
+  auto getEntityLight = [&](float x, float y, float w, float h) -> float {
+    if (!lighting || !tempLevel.tileMap)
+      return 1.0f;
+    int tx = static_cast<int>((x + w / 2) / tempLevel.tileMap->getTileSize());
+    int ty = static_cast<int>((y + h / 2) / tempLevel.tileMap->getTileSize());
+    const auto &lMap = lighting->getLightMap();
+    if (ty >= 0 && ty < lMap.size() && tx >= 0 && tx < lMap[ty].size()) {
+      return lMap[ty][tx];
+    }
+    return 1.0f;
+  };
+
+  for (auto &item : tempLevel.items) {
+    if (item && item->isAlive() && !item->isPickedUp()) {
+      item->render(getEntityLight(item->getX(), item->getY(),
+                                  item->getAABB().width,
+                                  item->getAABB().height));
+    }
+  }
+  for (auto &trap : tempLevel.traps) {
+    if (trap && trap->isAlive()) {
+      trap->render(getEntityLight(trap->getX(), trap->getY(),
+                                  trap->getAABB().width,
+                                  trap->getAABB().height));
+    }
+  }
+  for (auto &enemy : tempLevel.dynamicEntities) {
+    if (enemy && enemy->isAlive()) {
+      // Draw all dynamic entities EXCEPT the ghost
+      if (!dynamic_cast<NemesisGhost *>(enemy.get())) {
+        enemy->render(getEntityLight(enemy->getX(), enemy->getY(),
+                                     enemy->getAABB().width,
+                                     enemy->getAABB().height));
+      }
+    }
+  }
+
+  if (player) {
+    player->render(getEntityLight(player->getX(), player->getY(),
+                                  player->getAABB().width,
+                                  player->getAABB().height));
+  }
+
+  // Render foreground tiles LAST so they overlap the player's head and entities
+  if (tempLevel.tileMap && lighting) {
+    if (liquids)
+      liquids->render(camera);
+    tempLevel.tileMap->render(camera, lighting->getLightMap(),
+                              true); // Foreground pass (Solid blocks)
+  }
+
+  // Render Ghost OVER foreground tiles as a transparent shadow
+  for (auto &enemy : tempLevel.dynamicEntities) {
+    if (enemy && enemy->isAlive()) {
+      if (dynamic_cast<NemesisGhost *>(enemy.get())) {
+        enemy->render(getEntityLight(enemy->getX(), enemy->getY(),
+                                     enemy->getAABB().width,
+                                     enemy->getAABB().height));
+      }
+    }
+  }
+
+  if (combo) {
+    combo->render(game->getFont());
+  }
+
+  EndMode2D();
+
+  if (minimap) {
+    minimap->render();
+  }
+
+  // ---- Render HUD ----
+  if (player) {
+    float scale = 4.0f; // Scale up the HUD
+    float iconSize = 16.0f * scale;
+    float fontSize = 30.0f;
+
+    // Helper lambda to draw an icon and text
+    auto drawHudElement = [&](int iconIndex, const char *text, float x,
+                              float y) {
+      Rectangle src = {iconIndex * 16.0f, 0.0f, 16.0f, 16.0f};
+      Rectangle dest = {x, y, iconSize, iconSize};
+      DrawTexturePro(hudIcons, src, dest, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+
+      // Text offset to align with the icon
+      float textY = y + (iconSize / 2.0f) - (fontSize / 2.0f);
+      DrawTextEx(game->getFont(), text, {x + iconSize + 10.0f, textY}, fontSize,
+                 2.0f, WHITE);
     };
 
-    for (auto& item : tempLevel.items) {
-        if (item && item->isAlive() && !item->isPickedUp()) {
-            item->render(getEntityLight(item->getX(), item->getY(), item->getAABB().width, item->getAABB().height));
-        }
-    }
-    for (auto& trap : tempLevel.traps) {
-        if (trap && trap->isAlive()) {
-            trap->render(getEntityLight(trap->getX(), trap->getY(), trap->getAABB().width, trap->getAABB().height));
-        }
-    }
-    for (auto& enemy : tempLevel.dynamicEntities) {
-        if (enemy && enemy->isAlive()) {
-            // Draw all dynamic entities EXCEPT the ghost
-            if (!dynamic_cast<NemesisGhost*>(enemy.get())) {
-                enemy->render(getEntityLight(enemy->getX(), enemy->getY(), enemy->getAABB().width, enemy->getAABB().height));
-            }
-        }
-    }
+    float startX = 20.0f;
+    float startY = 20.0f;
 
-    if (player) {
-        player->render(getEntityLight(player->getX(), player->getY(), player->getAABB().width, player->getAABB().height));
-    }
+    // 0: Heart, 2: Rope, 3: Bomb, 4: Gold
+    drawHudElement(0, TextFormat("%d", player->getHealth()), startX, startY);
+    drawHudElement(3, TextFormat("%d", player->getBombs()), startX + 180.0f,
+                   startY);
+    drawHudElement(2, TextFormat("%d", player->getRopes()), startX + 360.0f,
+                   startY);
+    drawHudElement(4, TextFormat("%d", player->getGold()), startX + 540.0f,
+                   startY);
 
-    // Render foreground tiles LAST so they overlap the player's head and entities
-    if (tempLevel.tileMap && lighting) {
-        if (liquids) liquids->render(camera);
-        tempLevel.tileMap->render(camera, lighting->getLightMap(), true); // Foreground pass (Solid blocks)
-    }
-    
-    // Render Ghost OVER foreground tiles as a transparent shadow
-    for (auto& enemy : tempLevel.dynamicEntities) {
-        if (enemy && enemy->isAlive()) {
-            if (dynamic_cast<NemesisGhost*>(enemy.get())) {
-                enemy->render(getEntityLight(enemy->getX(), enemy->getY(), enemy->getAABB().width, enemy->getAABB().height));
-            }
-        }
-    }
-    
-    if (combo) {
-        combo->render(game->getFont());
-    }
-    
-    EndMode2D();
-    
-    if (minimap) {
-        minimap->render();
-    }
+    // Floor on the right side
+    float floorY = startY + (iconSize / 2.0f) - (fontSize / 2.0f);
+    const char *floorText =
+        TextFormat("FLOOR %d", GameManager::getInstance()->getFloor());
+    Vector2 floorSize =
+        MeasureTextEx(game->getFont(), floorText, fontSize, 2.0f);
+    DrawTextEx(game->getFont(), floorText,
+               {1280.0f - 20.0f - floorSize.x, floorY}, fontSize, 2.0f, WHITE);
+  }
 
-    // ---- Render HUD ----
-    if (player) {
-        float scale = 4.0f; // Scale up the HUD
-        float iconSize = 16.0f * scale;
-        float fontSize = 30.0f;
-        
-        // Helper lambda to draw an icon and text
-        auto drawHudElement = [&](int iconIndex, const char* text, float x, float y) {
-            Rectangle src = { iconIndex * 16.0f, 0.0f, 16.0f, 16.0f };
-            Rectangle dest = { x, y, iconSize, iconSize };
-            DrawTexturePro(hudIcons, src, dest, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
-            
-            // Text offset to align with the icon
-            float textY = y + (iconSize / 2.0f) - (fontSize / 2.0f);
-            DrawTextEx(game->getFont(), text, {x + iconSize + 10.0f, textY}, fontSize, 2.0f, WHITE);
-        };
-        
-        float startX = 20.0f;
-        float startY = 20.0f;
-        
-        // 0: Heart, 2: Rope, 3: Bomb, 4: Gold
-        drawHudElement(0, TextFormat("%d", player->getHealth()), startX, startY);
-        drawHudElement(3, TextFormat("%d", player->getBombs()), startX + 180.0f, startY);
-        drawHudElement(2, TextFormat("%d", player->getRopes()), startX + 360.0f, startY);
-        drawHudElement(4, TextFormat("%d", player->getGold()), startX + 540.0f, startY);
-        
-        // Floor on the right side
-        float floorY = startY + (iconSize / 2.0f) - (fontSize / 2.0f);
-        const char* floorText = TextFormat("FLOOR %d", GameManager::getInstance()->getFloor());
-        Vector2 floorSize = MeasureTextEx(game->getFont(), floorText, fontSize, 2.0f);
-        DrawTextEx(game->getFont(), floorText, {1280.0f - 20.0f - floorSize.x, floorY}, fontSize, 2.0f, WHITE);
-    }
-    
-    if (combo) {
-        combo->renderHUD(game->getFont());
-    }
+  if (combo) {
+    combo->renderHUD(game->getFont());
+  }
 }
 
 /*
@@ -693,42 +770,36 @@ void PlayState::render() {
 =======================================================
 */
 
-void PauseState::enter() {
+void PauseState::enter() {}
 
-}
-
-void PauseState::exit() {
-
-}
+void PauseState::exit() {}
 
 void PauseState::handleInput() {
-    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_DOWN)) {
-        selectedIndex = (selectedIndex == 0) ? 1 : 0;
+  if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_DOWN)) {
+    selectedIndex = (selectedIndex == 0) ? 1 : 0;
+  }
+
+  if (IsKeyPressed(KEY_ENTER)) {
+    if (selectedIndex == 0) {
+      game->popState();
+    } else {
+      game->changeState(GameStateType::MENU);
     }
-    
-    if (IsKeyPressed(KEY_ENTER)) {
-        if (selectedIndex == 0) {
-            game->popState();
-        } else {
-            game->changeState(GameStateType::MENU);
-        }
-    }
+  }
 }
 
-void PauseState::update(float dt) {
-
-}
+void PauseState::update(float dt) {}
 
 void PauseState::render() {
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 150});
-    
-    drawCenteredText("PAUSED", GetScreenHeight() / 2 - 100, 60.0f, WHITE);
-    
-    Color resumeColor = (selectedIndex == 0) ? YELLOW : GRAY;
-    Color quitColor = (selectedIndex == 1) ? YELLOW : GRAY;
-    
-    drawCenteredText("RESUME", GetScreenHeight() / 2, 40.0f, resumeColor);
-    drawCenteredText("QUIT", GetScreenHeight() / 2 + 60, 40.0f, quitColor);
+  DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 150});
+
+  drawCenteredText("PAUSED", GetScreenHeight() / 2 - 100, 60.0f, WHITE);
+
+  Color resumeColor = (selectedIndex == 0) ? YELLOW : GRAY;
+  Color quitColor = (selectedIndex == 1) ? YELLOW : GRAY;
+
+  drawCenteredText("RESUME", GetScreenHeight() / 2, 40.0f, resumeColor);
+  drawCenteredText("QUIT", GetScreenHeight() / 2 + 60, 40.0f, quitColor);
 }
 
 /*
@@ -738,87 +809,94 @@ void PauseState::render() {
 */
 
 void GameOverState::enter() {
-    finalScore = GameManager::getInstance()->getScore();
-    finalFloor = GameManager::getInstance()->getFloor();
-    nameEntered = false;
-    letterCount = 0;
-    nameInput[0] = '\0';
+  finalScore = GameManager::getInstance()->getScore();
+  finalFloor = GameManager::getInstance()->getFloor();
+  nameEntered = false;
+  letterCount = 0;
+  nameInput[0] = '\0';
 }
 
-void GameOverState::exit() {
-}
+void GameOverState::exit() {}
 
 void GameOverState::handleInput() {
-    if (!nameEntered) {
-        int key = GetCharPressed();
-        while (key > 0) {
-            if ((key >= 32) && (key <= 125) && (letterCount < 3)) {
-                nameInput[letterCount] = (char)key;
-                nameInput[letterCount + 1] = '\0';
-                letterCount++;
-            }
-            key = GetCharPressed();
-        }
-
-        if (IsKeyPressed(KEY_BACKSPACE)) {
-            if (letterCount > 0) {
-                letterCount--;
-                nameInput[letterCount] = '\0';
-            }
-        }
-
-        if (IsKeyPressed(KEY_ENTER) && letterCount > 0) {
-            nameEntered = true;
-            GameManager::getInstance()->saveHighScore(std::string(nameInput));
-            leaderboard = GameManager::getInstance()->loadHighScores();
-        }
-        
-        if (IsKeyPressed(KEY_ESCAPE)) {
-            nameEntered = true;
-            leaderboard = GameManager::getInstance()->loadHighScores();
-        }
-    } else {
-        if (IsKeyPressed(KEY_ENTER)) {
-            game->changeState(GameStateType::MENU);
-        }
+  if (!nameEntered) {
+    int key = GetCharPressed();
+    while (key > 0) {
+      if ((key >= 32) && (key <= 125) && (letterCount < 3)) {
+        nameInput[letterCount] = (char)key;
+        nameInput[letterCount + 1] = '\0';
+        letterCount++;
+      }
+      key = GetCharPressed();
     }
+
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+      if (letterCount > 0) {
+        letterCount--;
+        nameInput[letterCount] = '\0';
+      }
+    }
+
+    if (IsKeyPressed(KEY_ENTER) && letterCount > 0) {
+      nameEntered = true;
+      GameManager::getInstance()->saveHighScore(std::string(nameInput));
+      leaderboard = GameManager::getInstance()->loadHighScores();
+    }
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+      nameEntered = true;
+      leaderboard = GameManager::getInstance()->loadHighScores();
+    }
+  } else {
+    if (IsKeyPressed(KEY_ENTER)) {
+      game->changeState(GameStateType::MENU);
+    }
+  }
 }
 
-void GameOverState::update(float dt) {
-}
+void GameOverState::update(float dt) {}
 
 void GameOverState::render() {
-    ClearBackground(MAROON);
-    
-    if (!nameEntered) {
-        drawCenteredText("GAME OVER", GetScreenHeight() / 2 - 120, 70.0f, WHITE);
-        drawCenteredText(TextFormat("SCORE: %d", finalScore), GetScreenHeight() / 2 - 20, 40.0f, GOLD);
-        drawCenteredText(TextFormat("FLOOR REACHED: %d", finalFloor), GetScreenHeight() / 2 + 40, 30.0f, LIGHTGRAY);
-        drawCenteredText("ENTER INITIALS:", GetScreenHeight() / 2 + 110, 30.0f, WHITE);
-        
-        std::string displayStr = nameInput;
-        if (((int)(GetTime() * 2)) % 2 == 0 && letterCount < 3) {
-            displayStr += "_";
-        }
-        drawCenteredText(displayStr.c_str(), GetScreenHeight() / 2 + 150, 50.0f, YELLOW);
-        drawCenteredText("PRESS ESC TO SKIP", GetScreenHeight() - 100.0f, 20.0f, LIGHTGRAY);
-    } else {
-        drawCenteredText("HIGH SCORES", 80.0f, 60.0f, GOLD);
-        
-        int yOffset = 180;
-        int count = 0;
-        for (const auto& entry : leaderboard) {
-            if (count >= 5) break;
-            std::string text = TextFormat("%d. %s - %d pts (Floor %d)", count + 1, entry.name.c_str(), entry.score, entry.floorsReached);
-            drawCenteredText(text.c_str(), yOffset, 30.0f, WHITE);
-            yOffset += 60;
-            count++;
-        }
-        
-        if (((int)(GetTime() * 2)) % 2 == 0) {
-            drawCenteredText("PRESS ENTER TO CONTINUE", GetScreenHeight() - 100.0f, 20.0f, LIGHTGRAY);
-        }
+  ClearBackground(MAROON);
+
+  if (!nameEntered) {
+    drawCenteredText("GAME OVER", GetScreenHeight() / 2 - 120, 70.0f, WHITE);
+    drawCenteredText(TextFormat("SCORE: %d", finalScore),
+                     GetScreenHeight() / 2 - 20, 40.0f, GOLD);
+    drawCenteredText(TextFormat("FLOOR REACHED: %d", finalFloor),
+                     GetScreenHeight() / 2 + 40, 30.0f, LIGHTGRAY);
+    drawCenteredText("ENTER INITIALS:", GetScreenHeight() / 2 + 110, 30.0f,
+                     WHITE);
+
+    std::string displayStr = nameInput;
+    if (((int)(GetTime() * 2)) % 2 == 0 && letterCount < 3) {
+      displayStr += "_";
     }
+    drawCenteredText(displayStr.c_str(), GetScreenHeight() / 2 + 150, 50.0f,
+                     YELLOW);
+    drawCenteredText("PRESS ESC TO SKIP", GetScreenHeight() - 100.0f, 20.0f,
+                     LIGHTGRAY);
+  } else {
+    drawCenteredText("HIGH SCORES", 80.0f, 60.0f, GOLD);
+
+    int yOffset = 180;
+    int count = 0;
+    for (const auto &entry : leaderboard) {
+      if (count >= 5)
+        break;
+      std::string text =
+          TextFormat("%d. %s - %d pts (Floor %d)", count + 1,
+                     entry.name.c_str(), entry.score, entry.floorsReached);
+      drawCenteredText(text.c_str(), yOffset, 30.0f, WHITE);
+      yOffset += 60;
+      count++;
+    }
+
+    if (((int)(GetTime() * 2)) % 2 == 0) {
+      drawCenteredText("PRESS ENTER TO CONTINUE", GetScreenHeight() - 100.0f,
+                       20.0f, LIGHTGRAY);
+    }
+  }
 }
 
 /*
@@ -827,48 +905,42 @@ void GameOverState::render() {
 =======================================================
 */
 
-void CharSelectState::enter() {
-    selectedIndex = 0;
-}
+void CharSelectState::enter() { selectedIndex = 0; }
 
-void CharSelectState::exit() {
-
-}
+void CharSelectState::exit() {}
 
 void CharSelectState::handleInput() {
-    if (IsKeyPressed(KEY_LEFT)) {
-        selectedIndex = (selectedIndex + 2) % 3;
-    }
-    if (IsKeyPressed(KEY_RIGHT)) {
-        selectedIndex = (selectedIndex + 1) % 3;
-    }
-    if (IsKeyPressed(KEY_ENTER)) {
-        GameManager::getInstance()->setSelectedCharacter(characters[selectedIndex]);
-        game->changeState(GameStateType::PLAY);
-    }
-    if (IsKeyPressed(KEY_ESCAPE)) {
-        game->changeState(GameStateType::MENU);
-    }
+  if (IsKeyPressed(KEY_LEFT)) {
+    selectedIndex = (selectedIndex + 2) % 3;
+  }
+  if (IsKeyPressed(KEY_RIGHT)) {
+    selectedIndex = (selectedIndex + 1) % 3;
+  }
+  if (IsKeyPressed(KEY_ENTER)) {
+    GameManager::getInstance()->setSelectedCharacter(characters[selectedIndex]);
+    game->changeState(GameStateType::PLAY);
+  }
+  if (IsKeyPressed(KEY_ESCAPE)) {
+    game->changeState(GameStateType::MENU);
+  }
 }
 
-void CharSelectState::update(float dt) {
-
-}
+void CharSelectState::update(float dt) {}
 
 void CharSelectState::render() {
-    ClearBackground(BLACK);
-    
-    drawCenteredText("CHARACTER SELECT", 200.0f, 40.0f, RAYWHITE);
+  ClearBackground(BLACK);
 
-    Color expColor = (selectedIndex == 0) ? YELLOW : DARKGRAY;
-    Color ninColor = (selectedIndex == 1) ? YELLOW : DARKGRAY;
-    Color tnkColor = (selectedIndex == 2) ? YELLOW : DARKGRAY;
+  drawCenteredText("CHARACTER SELECT", 200.0f, 40.0f, RAYWHITE);
 
-    drawCenteredAt("EXPLORER", 320.0f, 400.0f, 30.0f, expColor);
-    drawCenteredAt("NINJA", 640.0f, 400.0f, 30.0f, ninColor);
-    drawCenteredAt("TANK", 960.0f, 400.0f, 30.0f, tnkColor);
+  Color expColor = (selectedIndex == 0) ? YELLOW : DARKGRAY;
+  Color ninColor = (selectedIndex == 1) ? YELLOW : DARKGRAY;
+  Color tnkColor = (selectedIndex == 2) ? YELLOW : DARKGRAY;
 
-    drawCenteredText("Press ENTER to start, ESC to return", 600.0f, 20.0f, GRAY);
+  drawCenteredAt("EXPLORER", 320.0f, 400.0f, 30.0f, expColor);
+  drawCenteredAt("NINJA", 640.0f, 400.0f, 30.0f, ninColor);
+  drawCenteredAt("TANK", 960.0f, 400.0f, 30.0f, tnkColor);
+
+  drawCenteredText("Press ENTER to start, ESC to return", 600.0f, 20.0f, GRAY);
 }
 
 /*
@@ -877,25 +949,15 @@ void CharSelectState::render() {
 =======================================================
 */
 
-void EditorState::enter() {
+void EditorState::enter() {}
 
-}
+void EditorState::exit() {}
 
-void EditorState::exit() {
+void EditorState::handleInput() {}
 
-}
+void EditorState::update(float dt) {}
 
-void EditorState::handleInput() {
-
-}
-
-void EditorState::update(float dt) {
-
-}
-
-void EditorState::render() {
-    ClearBackground(GREEN);
-}
+void EditorState::render() { ClearBackground(GREEN); }
 
 /*
 =======================================================
@@ -907,84 +969,105 @@ TransitionState::TransitionState() = default;
 TransitionState::~TransitionState() = default;
 
 void TransitionState::enter() {
-    tunnelMap = std::make_unique<TileMap>(40, 15, 32);
-    for (int y = 0; y < 15; y++) {
-        for (int x = 0; x < 40; x++) {
-            tunnelMap->setTile(x, y, TileType::CAVE_ROCK);
-        }
+  tunnelMap = std::make_unique<TileMap>(40, 15, 32);
+  for (int y = 0; y < 15; y++) {
+    for (int x = 0; x < 40; x++) {
+      tunnelMap->setTile(x, y, TileType::CAVE_ROCK);
     }
-    for (int y = 8; y <= 11; y++) {
-        for (int x = 15; x <= 25; x++) {
-            tunnelMap->setTile(x, y, TileType::NOTHING);
-        }
+  }
+  for (int y = 8; y <= 11; y++) {
+    for (int x = 15; x <= 25; x++) {
+      tunnelMap->setTile(x, y, TileType::NOTHING);
     }
-    tunnelMap->setTile(16, 11, TileType::ENTRANCE);
-    tunnelMap->setTile(24, 11, TileType::EXIT);
-    physics = std::make_unique<PhysicsSystem>(tunnelMap.get());
-    player = std::make_unique<Player>(16 * 32.0f, 11 * 32.0f, GameManager::getInstance()->getSelectedCharacter());
-    lighting = std::make_unique<LightingSystem>(40, 15);
-    lighting->setAmbientLight(0.25f);
-    camera.target = { (20 * 32.0f), (10 * 32.0f) };
-    camera.offset = { (float)GetScreenWidth()/2.0f, (float)GetScreenHeight()/2.0f };
-    camera.rotation = 0.0f;
-    camera.zoom = 2.0f;
+  }
+  tunnelMap->setTile(16, 11, TileType::ENTRANCE);
+  tunnelMap->setTile(24, 11, TileType::EXIT);
+  physics = std::make_unique<PhysicsSystem>(tunnelMap.get());
+  player = std::make_unique<Player>(
+      16 * 32.0f, 11 * 32.0f,
+      GameManager::getInstance()->getSelectedCharacter());
+  lighting = std::make_unique<LightingSystem>(40, 15);
+  lighting->setAmbientLight(0.25f);
+  camera.target = {(20 * 32.0f), (10 * 32.0f)};
+  camera.offset = {(float)GetScreenWidth() / 2.0f,
+                   (float)GetScreenHeight() / 2.0f};
+  camera.rotation = 0.0f;
+  camera.zoom = 2.0f;
 }
 
 void TransitionState::exit() {
-    // std::unique_ptr handles cleanup automatically
+  EventBus::getInstance()->clearAllListeners();
+  // std::unique_ptr handles cleanup automatically
 }
 
 void TransitionState::handleInput() {
-    if (player) player->handleInput();
+  if (player) {
+    player->handleInput();
+  }
 }
 
 void TransitionState::update(float dt) {
-    if (player && physics && tunnelMap) {
-        player->update(dt);
-        player->applyGravity(dt);
-        physics->resolveEntityTileCollision(player.get());
-        if (lighting) {
-            lighting->clearLights();
-            float trueX = (player->getX() + player->getAABB().width / 2.0f) / tunnelMap->getTileSize();
-            float trueY = (player->getY() + player->getAABB().height / 2.0f) / tunnelMap->getTileSize();
-            double time = GetTime();
-            float flicker = std::sin(time * 12.0) * 0.02f + std::sin(time * 23.0) * 0.015f;
-            lighting->addLight(trueX, trueY, 0.95f + flicker, 4.5f + (flicker * 1.5f));
-            lighting->update(tunnelMap.get());
-        }
-        if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
-            Rectangle pRect = player->getAABB();
-            int tx = (pRect.x + pRect.width / 2) / tunnelMap->getTileSize();
-            int ty = (pRect.y + pRect.height / 2) / tunnelMap->getTileSize();
-            if (tx >= 0 && tx < tunnelMap->getWidth() && ty >= 0 && ty < tunnelMap->getHeight()) {
-                if (tunnelMap->getTile(tx, ty) == TileType::EXIT) {
-                    GameManager::getInstance()->syncPlayerStats(player->getHealth(), player->getBombs(), player->getRopes(), player->getGold());
-                    GameManager::getInstance()->nextFloor();
-                    game->changeState(GameStateType::PLAY);
-                    return;
-                }
-            }
-        }
+  if (player && physics && tunnelMap) {
+    player->update(dt);
+    player->applyGravity(dt);
+    physics->resolveEntityTileCollision(player.get());
+    if (lighting) {
+      lighting->clearLights();
+      float trueX = (player->getX() + player->getAABB().width / 2.0f) /
+                    tunnelMap->getTileSize();
+      float trueY = (player->getY() + player->getAABB().height / 2.0f) /
+                    tunnelMap->getTileSize();
+      double time = GetTime();
+      float flicker =
+          std::sin(time * 12.0) * 0.02f + std::sin(time * 23.0) * 0.015f;
+      lighting->addLight(trueX, trueY, 0.95f + flicker,
+                         4.5f + (flicker * 1.5f));
+      lighting->update(tunnelMap.get());
     }
+    if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
+      Rectangle pRect = player->getAABB();
+      int tx = (pRect.x + pRect.width / 2) / tunnelMap->getTileSize();
+      int ty = (pRect.y + pRect.height / 2) / tunnelMap->getTileSize();
+      if (tx >= 0 && tx < tunnelMap->getWidth() && ty >= 0 &&
+          ty < tunnelMap->getHeight()) {
+        if (tunnelMap->getTile(tx, ty) == TileType::EXIT) {
+          GameManager::getInstance()->syncPlayerStats(
+              player->getHealth(), player->getBombs(), player->getRopes(),
+              player->getGold());
+          GameManager::getInstance()->nextFloor();
+          game->changeState(GameStateType::PLAY);
+          return;
+        }
+      }
+    }
+  }
 }
 
 void TransitionState::render() {
-    ClearBackground(BLACK);
-    BeginMode2D(camera);
-    if (tunnelMap) {
-        tunnelMap->renderParallaxBackground(camera);
-        if (lighting) tunnelMap->render(camera, lighting->getLightMap(), false);
-    }
-    if (player) player->render(1.0f);
-    if (tunnelMap && lighting) tunnelMap->render(camera, lighting->getLightMap(), true);
-    EndMode2D();
-    
-    drawCenteredText(TextFormat("FLOOR %d COMPLETE", GameManager::getInstance()->getFloor()), 100.0f, 40.0f, GOLD);
-    drawCenteredText(TextFormat("SCORE: %d", GameManager::getInstance()->getScore()), 160.0f, 30.0f, WHITE);
+  ClearBackground(BLACK);
+  BeginMode2D(camera);
+  if (tunnelMap) {
+    tunnelMap->renderParallaxBackground(camera);
+    if (lighting)
+      tunnelMap->render(camera, lighting->getLightMap(), false);
+  }
+  if (player)
+    player->render(1.0f);
+  if (tunnelMap && lighting)
+    tunnelMap->render(camera, lighting->getLightMap(), true);
+  EndMode2D();
 
-    if (((int)(GetTime() * 2)) % 2 == 0) {
-        drawCenteredText("Proceed to exit", GetScreenHeight() - 100.0f, 20.0f, LIGHTGRAY);
-    }
+  drawCenteredText(
+      TextFormat("FLOOR %d COMPLETE", GameManager::getInstance()->getFloor()),
+      100.0f, 40.0f, GOLD);
+  drawCenteredText(
+      TextFormat("SCORE: %d", GameManager::getInstance()->getScore()), 160.0f,
+      30.0f, WHITE);
+
+  if (((int)(GetTime() * 2)) % 2 == 0) {
+    drawCenteredText("Proceed to exit", GetScreenHeight() - 100.0f, 20.0f,
+                     LIGHTGRAY);
+  }
 }
 
-}
+} // namespace Platformer

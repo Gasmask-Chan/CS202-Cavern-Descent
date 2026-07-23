@@ -21,6 +21,10 @@ void EventBus::clearListeners(EventType type) {
     listeners[type].clear();
 }
 
+void EventBus::clearAllListeners() {
+    listeners.clear();
+}
+
 void EventBus::publish(EventType type, EventData data) {
     auto it = listeners.find(type);
     if (it != listeners.end()) {
