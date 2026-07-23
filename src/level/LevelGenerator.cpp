@@ -320,16 +320,9 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
         }
         
         if (gx == lakeGx && gy == lakeGy) {
-            // It's a lake room! No enemies, no traps.
+            // It's a lake room! No enemies, no traps, no excess loot.
             memset(npcGrid, 0, sizeof(npcGrid));
-            
-            // 50% chance for treasure per bottom tile
             memset(lootGrid, 0, sizeof(lootGrid));
-            for (int x = 0; x < ROOM_WIDTH; ++x) {
-                if (GetRandomValue(1, 100) <= 50) {
-                    lootGrid[ROOM_HEIGHT - 2][x] = 1; // 1 usually means gold
-                }
-            }
         }
         
         populateEntities(npcGrid, lootGrid, gx, gy, role, level.tileMap.get());
@@ -396,6 +389,11 @@ void LevelGenerator::generateMacroGrid() {
     bool atRightWall = !movingLeft && (currX == MAP_ROOMS_X - 1);
     // Drop down: forced at walls, or 1-in-3 random chance
     bool forceDown = atLeftWall || atRightWall || (GetRandomValue(1, 3) == 3);
+
+    // Prevent dropping down directly from the entrance room
+    if (currX == startRoomX && currY == startRoomY) {
+        forceDown = false;
+    }
 
     if (!forceDown) {
       // Walk horizontally
@@ -492,6 +490,14 @@ void LevelGenerator::instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH
 
       if (role == RoomRole::TYPE_2_DROP_THROUGH) {
         if (cy < 2 && cx >= 4 && cx <= 5) {
+          map->setTile(tx, ty, TileType::NOTHING);
+          continue;
+        }
+      }
+
+      // If the entrance room is forced to drop down, punch a hole at its bottom
+      if (gx == startRoomX && gy == startRoomY && (role == RoomRole::TYPE_2 || role == RoomRole::TYPE_2_DROP_THROUGH)) {
+        if (cy >= ROOM_HEIGHT - 2 && cx >= 4 && cx <= 5) {
           map->setTile(tx, ty, TileType::NOTHING);
           continue;
         }
