@@ -58,6 +58,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempEnemies.clear();
     tempItems.clear();
     tempTraps.clear();
+    level.initialLiquids.clear();
     tempPlayerSpawn = Vector2{0, 0};
     tempExitPos     = Vector2{0, 0};
 
@@ -242,23 +243,17 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
             }
             
             // Fill water basin. Water fills the inside from floorY - 1 up to floorY - targetHeight
-            LiquidType lType = LiquidType::WATER;
-            if (zone == ZoneType::TEMPLE) {
-                lType = LiquidType::LAVA;
-            } else {
-                lType = LiquidType::LAVA; // 100% lava for testing
-            }
-            
+            LiquidType lakeType = (GetRandomValue(0, 1) == 0) ? LiquidType::WATER : LiquidType::LAVA;
             for (int y = floorY - 1; y >= floorY - targetHeight; --y) {
                 for (int x = startX + 1; x < endX - 1; ++x) {
                     if (!level.tileMap->isSolid(x, y)) {
-                        level.initialLiquids.push_back(LiquidSpawn{x, y, lType});
+                        level.initialLiquids.push_back(LiquidSpawn{x, y, lakeType});
                     }
                 }
             }
             
             // Add exactly one floating block in the middle of the lava surface to keep difficulty high
-            if (lType == LiquidType::LAVA) {
+            if (lakeType == LiquidType::LAVA) {
                 int midX = startX + ROOM_WIDTH / 2;
                 level.tileMap->setTile(midX, floorY - targetHeight, TileType::STONE_BLOCK);
             }
@@ -325,16 +320,9 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
         }
         
         if (gx == lakeGx && gy == lakeGy) {
-            // It's a lake room! No enemies, no traps.
+            // It's a lake room! No enemies, no traps, no excess loot.
             memset(npcGrid, 0, sizeof(npcGrid));
-            
-            // 50% chance for treasure per bottom tile
             memset(lootGrid, 0, sizeof(lootGrid));
-            for (int x = 0; x < ROOM_WIDTH; ++x) {
-                if (GetRandomValue(1, 100) <= 50) {
-                    lootGrid[ROOM_HEIGHT - 2][x] = 1; // 1 usually means gold
-                }
-            }
         }
         
         populateEntities(npcGrid, lootGrid, gx, gy, role, level.tileMap.get());
@@ -401,6 +389,11 @@ void LevelGenerator::generateMacroGrid() {
     bool atRightWall = !movingLeft && (currX == MAP_ROOMS_X - 1);
     // Drop down: forced at walls, or 1-in-3 random chance
     bool forceDown = atLeftWall || atRightWall || (GetRandomValue(1, 3) == 3);
+
+    // Prevent dropping down directly from the entrance room
+    if (currX == startRoomX && currY == startRoomY) {
+        forceDown = false;
+    }
 
     if (!forceDown) {
       // Walk horizontally
@@ -502,6 +495,14 @@ void LevelGenerator::instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH
         }
       }
 
+      // If the entrance room is forced to drop down, punch a hole at its bottom
+      if (gx == startRoomX && gy == startRoomY && (role == RoomRole::TYPE_2 || role == RoomRole::TYPE_2_DROP_THROUGH)) {
+        if (cy >= ROOM_HEIGHT - 2 && cx >= 4 && cx <= 5) {
+          map->setTile(tx, ty, TileType::NOTHING);
+          continue;
+        }
+      }
+
       int tileVal = tileGrid[cy][cx];
       map->setTile(tx, ty, static_cast<TileType>(tileVal));
     }
@@ -537,7 +538,7 @@ void LevelGenerator::instantiateLakeRoom(int gx, int gy, TileMap* map, LiquidTyp
           map->setTile(tx, ty, TileType::NOTHING);
           initialLiquids.push_back({tx, ty, lType});
       } else if (c == '3') {
-          if (GetRandomValue(0, 1) == 0) {
+          if (lType == LiquidType::LAVA && GetRandomValue(0, 1) == 0) {
               map->setTile(tx, ty, TileType::CAVE_ROCK);
           } else {
               map->setTile(tx, ty, TileType::NOTHING);

@@ -52,6 +52,7 @@ public:
     void subscribe(EventType type, EventCallback cb);
     
     void clearListeners(EventType type);
+    void clearAllListeners();
 
     void publish(EventType type, EventData data);
 };

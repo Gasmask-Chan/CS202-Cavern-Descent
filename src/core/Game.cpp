@@ -87,6 +87,7 @@ void Game::update(float dt) {
     if (!stateStack.empty()) {
         stateStack.back()->update(dt);
     }
+    applyPendingStateChanges();
 }
 
 void Game::render() {
@@ -111,55 +112,72 @@ void Game::cleanup() {
 }
 
 void Game::changeState(GameStateType state) {
-    for (auto s : stateStack) {
-        s->exit();
-        delete s;
-    }
-    stateStack.clear();
-    pushState(state);
+    pendingAction = StateAction::CHANGE;
+    pendingState = state;
 }
 
 void Game::pushState(GameStateType state) {
-    GameState* newState = nullptr;
-    switch (state) {
-        case GameStateType::MENU:
-            newState = new MenuState();
-            break;
-        case GameStateType::PLAY:
-            newState = new PlayState();
-            break;
-        case GameStateType::PAUSE:
-            newState = new PauseState();
-            break;
-        case GameStateType::GAME_OVER:   
-            newState = new GameOverState();
-            break;
-        case GameStateType::CHAR_SELECT:
-            newState = new CharSelectState();
-            break;
-        case GameStateType::EDITOR:
-            newState = new EditorState();
-            break;
-        case GameStateType::TRANSITION:
-            newState = new TransitionState();
-            break;
-        default: 
-            break;
+    pendingAction = StateAction::PUSH;
+    pendingState = state;
+}
+
+void Game::applyPendingStateChanges() {
+    if (pendingAction == StateAction::NONE) return;
+
+    if (pendingAction == StateAction::CHANGE) {
+        for (auto s : stateStack) {
+            s->exit();
+            delete s;
+        }
+        stateStack.clear();
+    } else if (pendingAction == StateAction::POP) {
+        if (!stateStack.empty()) {
+            stateStack.back()->exit();
+            delete stateStack.back();
+            stateStack.pop_back();
+        }
+        pendingAction = StateAction::NONE;
+        return; // Don't push a new state
     }
 
-    if (newState) {
-        newState->setGame(this);
-        newState->enter();
-        stateStack.push_back(newState);
+    if (pendingAction == StateAction::CHANGE || pendingAction == StateAction::PUSH) {
+        GameState* newState = nullptr;
+        switch (pendingState) {
+            case GameStateType::MENU:
+                newState = new MenuState();
+                break;
+            case GameStateType::PLAY:
+                newState = new PlayState();
+                break;
+            case GameStateType::PAUSE:
+                newState = new PauseState();
+                break;
+            case GameStateType::GAME_OVER:   
+                newState = new GameOverState();
+                break;
+            case GameStateType::CHAR_SELECT:
+                newState = new CharSelectState();
+                break;
+            case GameStateType::EDITOR:
+                newState = new EditorState();
+                break;
+            case GameStateType::TRANSITION:
+                newState = new TransitionState();
+                break;
+        }
+
+        if (newState) {
+            newState->setGame(this);
+            newState->enter();
+            stateStack.push_back(newState);
+        }
     }
+    
+    pendingAction = StateAction::NONE;
 }
 
 void Game::popState() {
-    if (!stateStack.empty()) {
-        stateStack.back()->exit();
-        delete stateStack.back();
-        stateStack.pop_back();
-    }
+    pendingAction = StateAction::POP;
 }
 
 void Game::quit() {

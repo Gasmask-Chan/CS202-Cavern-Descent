@@ -53,7 +53,9 @@ void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::uniq
     }
     if (!trigger) {
         for (const auto& enemy : enemies) {
-            if (enemy && enemy->isAlive() && checkLOS(enemy->getX(), enemy->getY(), enemy->getAABB().width, enemy->getAABB().height)) {
+            if (enemy && enemy->isAlive() && 
+               (std::abs(enemy->getVelocityX()) > 10.0f || std::abs(enemy->getVelocityY()) > 10.0f) && 
+               checkLOS(enemy->getX(), enemy->getY(), enemy->getAABB().width, enemy->getAABB().height)) {
                 trigger = true;
                 break;
             }
@@ -61,7 +63,9 @@ void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::uniq
     }
     if (!trigger) {
         for (const auto& item : items) {
-            if (item && !item->isPickedUp() && checkLOS(item->getX(), item->getY(), item->getAABB().width, item->getAABB().height)) {
+            if (item && !item->isPickedUp() && 
+               (std::abs(item->getVelocityX()) > 10.0f || std::abs(item->getVelocityY()) > 10.0f) && 
+               checkLOS(item->getX(), item->getY(), item->getAABB().width, item->getAABB().height)) {
                 trigger = true;
                 break;
             }

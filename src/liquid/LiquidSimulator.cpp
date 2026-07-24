@@ -275,7 +275,7 @@ void LiquidSimulator::render(Camera2D& cam) {
                         Rectangle source = { sourceX, sourceY, 16.0f, 16.0f };
                         Rectangle dest = { (float)x * tileSize, rectY, (float)tileSize, rectHeight };
                         
-                        DrawTexturePro(waterTex, source, dest, {0, 0}, 0.0f, WHITE);
+                        DrawTexturePro(waterTex, source, dest, {0, 0}, 0.0f, Color{255, 255, 255, 100});
                     } else {
                         DrawRectangleRec({(float)(x * tileSize), rectY, (float)tileSize, rectHeight}, {0, 100, 255, 120});
                     }
@@ -289,13 +289,13 @@ void LiquidSimulator::render(Camera2D& cam) {
                         float sourceY = frame * 17.0f; // LavaTop is 16x119 (17px stride)
                         Rectangle source = { 0.0f, sourceY, 16.0f, 16.0f };
                         Rectangle dest = { x * (float)tileSize, rectY, (float)tileSize, rectHeight };
-                        DrawTexturePro(lavaTopTex, source, dest, {0, 0}, 0.0f, WHITE);
+                        DrawTexturePro(lavaTopTex, source, dest, {0, 0}, 0.0f, Color{255, 255, 255, 120});
                     } else if (lavaTex.id != 0) {
                         Rectangle source = { 0.0f, 0.0f, 16.0f, 16.0f };
                         Rectangle dest = { x * (float)tileSize, rectY, (float)tileSize, rectHeight };
-                        DrawTexturePro(lavaTex, source, dest, {0, 0}, 0.0f, WHITE);
+                        DrawTexturePro(lavaTex, source, dest, {0, 0}, 0.0f, Color{255, 255, 255, 120});
                     } else {
-                        DrawRectangleRec({(float)(x * tileSize), rectY, (float)tileSize, rectHeight}, {255, 60, 0, 240});
+                        DrawRectangleRec({(float)(x * tileSize), rectY, (float)tileSize, rectHeight}, {255, 60, 0, 150});
                     }
                 }
             }

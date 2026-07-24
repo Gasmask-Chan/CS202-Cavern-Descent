@@ -40,7 +40,7 @@ void TileMap::destroyBlock(int x, int y) {
 bool TileMap::isSolid(int x, int y) const {
   TileType type = getTile(x, y);
   if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) || 
-      type == TileType::CAVE_SMOOTH || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT) {
+      type == TileType::CAVE_SMOOTH || type == TileType::STONE_BLOCK || type == TileType::SPIKE_TRAP || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT) {
       return true; 
   }
   return false;

@@ -14,6 +14,12 @@ private:
 
     Font globalFont;
 
+    enum class StateAction { NONE, CHANGE, PUSH, POP };
+    StateAction pendingAction = StateAction::NONE;
+    GameStateType pendingState;
+
+    void applyPendingStateChanges();
+
 public:
     Game();
     
