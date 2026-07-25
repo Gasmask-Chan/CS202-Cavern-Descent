@@ -557,6 +557,7 @@ int Player::getHealth() { return health; }
 int Player::getBombs() { return bombs; }
 int Player::getRopes() { return ropes; }
 int Player::getGold() { return gold; }
+void Player::spendGold(int amount) { if (gold >= amount) gold -= amount; else gold = 0; }
 
 void Player::addBomb(int amount) { bombs += amount; }
 void Player::addRope(int amount) { ropes += amount; }

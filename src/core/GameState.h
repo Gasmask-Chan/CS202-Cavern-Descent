@@ -12,6 +12,9 @@
 
 namespace Platformer {
 
+class ShopSystem;
+class Game;
+
 struct HighScoreEntry {
     std::string name;
     int score;
@@ -102,6 +105,7 @@ private:
     std::unique_ptr<LightingSystem> lighting;
     std::unique_ptr<LiquidSimulator> liquids;
     std::unique_ptr<class ComboSystem> combo;
+    std::unique_ptr<ShopSystem> shop;
     std::vector<std::unique_ptr<Item>> pendingItems;
     std::vector<std::unique_ptr<DynamicEntity>> pendingEntities;
     
@@ -109,6 +113,7 @@ private:
     bool ghostSpawned;
     
     Texture2D hudIcons;
+    Texture2D shopkeeperTex;
     Font hudFont;
     
 public:

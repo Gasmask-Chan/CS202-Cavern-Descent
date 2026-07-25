@@ -7,6 +7,9 @@
 #include "rooms/ShopRooms.h"
 #include "../entities/EntityFactory.h"
 #include "../entities/enemies/Enemy.h"
+#include "../entities/enemies/NemesisGhost.h"
+#include "../entities/Lamp.h"
+#include "../ui/ComboSystem.h"
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -58,6 +61,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempEnemies.clear();
     tempItems.clear();
     tempTraps.clear();
+    tempDecorations.clear();
     level.initialLiquids.clear();
     tempPlayerSpawn = Vector2{0, 0};
     tempExitPos     = Vector2{0, 0};
@@ -116,6 +120,15 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
             }
         }
         instantiateTiles(tileGrid, gx, gy, role, level.tileMap.get());
+        
+        if (role == RoomRole::TYPE_SHOP) {
+            level.shopArea = Rectangle{
+                (float)gx * ROOM_WIDTH * MAP_TILE_SIZE,
+                (float)gy * ROOM_HEIGHT * MAP_TILE_SIZE,
+                (float)ROOM_WIDTH * MAP_TILE_SIZE,
+                (float)ROOM_HEIGHT * MAP_TILE_SIZE
+            };
+        }
       }
     }
 
@@ -343,6 +356,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
       level.dynamicEntities = std::move(tempEnemies);
       level.items           = std::move(tempItems);
       level.traps           = std::move(tempTraps);
+      level.decorations     = std::move(tempDecorations);
       level.playerSpawn     = tempPlayerSpawn;
       level.exitPos         = tempExitPos;
       level.difficulty      = getDifficultyConfig(floor);
@@ -354,6 +368,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
   level.dynamicEntities = std::move(tempEnemies);
   level.items           = std::move(tempItems);
   level.traps           = std::move(tempTraps);
+  level.decorations     = std::move(tempDecorations);
   level.playerSpawn     = tempPlayerSpawn;
   level.exitPos         = tempExitPos;
   level.difficulty      = getDifficultyConfig(floor);
@@ -454,7 +469,7 @@ void LevelGenerator::obtainNewDirection(int currX, bool& movingLeft) {
 }
 
 void LevelGenerator::placeShop() {
-  for (int y = 0; y < MAP_ROOMS_Y; ++y) {
+  for (int y = 1; y < MAP_ROOMS_Y; ++y) { // Start from y = 1 to prevent shop near entrance
     for (int x = 0; x < MAP_ROOMS_X; ++x) {
       if (macroGrid[y][x] != RoomRole::TYPE_0) continue;
       bool leftOpen  = (x > 0)             && macroGrid[y][x - 1] != RoomRole::TYPE_0;
@@ -629,6 +644,11 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
                   spikesLeft--;
               }
             }
+            break;
+          }
+          case 7: { // Lamp
+            auto lamp = std::make_unique<Lamp>(px, py);
+            tempDecorations.push_back(std::move(lamp));
             break;
           }
           case 9: { // ArrowTrap Left

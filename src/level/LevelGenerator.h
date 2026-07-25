@@ -29,11 +29,13 @@ struct GeneratedLevel {
     std::vector<std::unique_ptr<DynamicEntity>> dynamicEntities;
     std::vector<std::unique_ptr<Item>> items;
     std::vector<std::unique_ptr<Trap>> traps;
+    std::vector<std::unique_ptr<Entity>> decorations;
     Vector2 playerSpawn;
     Vector2 exitPos;
     DifficultyConfig difficulty;
     FloorModifier modifier;
     std::vector<LiquidSpawn> initialLiquids;
+    Rectangle shopArea;
 };
 
 class LevelGenerator {
@@ -45,6 +47,7 @@ private:
     std::vector<std::unique_ptr<DynamicEntity>> tempEnemies;
     std::vector<std::unique_ptr<Item>>          tempItems;
     std::vector<std::unique_ptr<Trap>>          tempTraps;
+    std::vector<std::unique_ptr<Entity>>        tempDecorations;
     Vector2 tempPlayerSpawn;
     Vector2 tempExitPos;
 
