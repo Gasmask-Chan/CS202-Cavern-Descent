@@ -12,12 +12,12 @@
 #include "../entities/enemies/Spike.h"
 #include "../level/LevelGenerator.h"
 #include "../player/Player.h"
+#include "../shop/ShopSystem.h"
 #include "../ui/ComboSystem.h"
 #include "../ui/Minimap.h"
 #include "Game.h"
 #include "GameManager.h"
 #include "raymath.h"
-
 
 namespace Platformer {
 
@@ -114,10 +114,10 @@ void PlayState::enter() {
 
   Image hudImg = LoadImage("assets/sprites/16x16/gfx_hud.png");
   ImageFormat(&hudImg, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-  Color chromaKey = GetImageColor(hudImg, 0, 0);
-  ImageColorReplace(&hudImg, chromaKey, BLANK);
-  hudIcons = LoadTextureFromImage(hudImg);
-  UnloadImage(hudImg);
+  hudIcons = EntityFactory::getTexture("assets/sprites/16x16/gfx_hud.png");
+  shopkeeperTex =
+      EntityFactory::getTexture("assets/sprites/16x16/gfx_shopkeeper.png");
+
   // Initialize Camera
   camera.offset = Vector2{1280.0f / 2.0f, 720.0f / 2.0f}; // Center screen
   camera.rotation = 0.0f;
@@ -149,6 +149,10 @@ void PlayState::enter() {
   ghostSpawned = false;
 
   combo = std::make_unique<ComboSystem>();
+  // Initialize shop
+  shop = std::make_unique<ShopSystem>();
+  shop->initializeFromItems(tempLevel.items,
+                            GameManager::getInstance()->getFloor());
 
   EventBus::getInstance()->clearListeners(EventType::EVENT_GOLD_COLLECTED);
   EventBus::getInstance()->subscribe(
@@ -280,8 +284,6 @@ void PlayState::enter() {
 }
 
 void PlayState::exit() {
-  UnloadTexture(hudIcons);
-
   physics.reset();
   player.reset();
 
@@ -347,6 +349,12 @@ void PlayState::update(float dt) {
         if (item && !item->isPickedUp()) {
           item->update(dt, player.get());
           physics->resolveEntityTileCollision(item.get());
+        }
+      }
+
+      for (auto &dec : tempLevel.decorations) {
+        if (dec) {
+          dec->update(dt, player.get());
         }
       }
     }
@@ -479,7 +487,7 @@ void PlayState::update(float dt) {
 
     // 5. Player vs Items
     for (auto &item : tempLevel.items) {
-      if (item && !item->isPickedUp()) {
+      if (item && !item->isPickedUp() && !item->isShopItem) {
         if (physics->checkAABBOverlap(pAABB, item->getAABB())) {
           item->activate(player.get());
         }
@@ -557,25 +565,36 @@ void PlayState::update(float dt) {
 
       lighting->addLight(trueX, trueY, intensity, radius);
 
+      // Shop Lantern glow
+      if (tempLevel.shopArea.width > 0) {
+        float shopCx =
+            (tempLevel.shopArea.x + tempLevel.shopArea.width / 2.0f) /
+            tempLevel.tileMap->getTileSize();
+        float shopCy = (tempLevel.shopArea.y + 160.0f) /
+                       tempLevel.tileMap->getTileSize(); // At y=5 in the room
+        double t = GetTime();
+        float flicker = std::sin(t * 15.0) * 0.03f + std::sin(t * 22.0) * 0.02f;
+        lighting->addLight(shopCx, shopCy, 1.2f + flicker,
+                           8.0f + (flicker * 2.0f));
+      }
+
       lighting->update(tempLevel.tileMap.get());
     }
 
-    // Handle Shop Item Interaction (Y Key)
-    if (IsKeyPressed(KEY_Y)) {
-      for (auto &item : tempLevel.items) {
-        if (item && !item->isPickedUp() && item->isShopItem &&
-            item->getType() != ItemType::CHEST) {
-          Rectangle pRect = player->getAABB();
-          Rectangle iRect = item->getAABB();
-          // Check overlap and activate manually
-          if (pRect.x < iRect.x + iRect.width &&
-              pRect.x + pRect.width > iRect.x &&
-              pRect.y < iRect.y + iRect.height &&
-              pRect.y + pRect.height > iRect.y) {
-            item->activate(player.get());
-            break;
-          }
+    // Handle Shop UI Interaction
+    if (shop && tempLevel.shopArea.width > 0) {
+      Rectangle pRect = player->getAABB();
+      if (CheckCollisionRecs(pRect, tempLevel.shopArea)) {
+        if (IsKeyPressed(KEY_Y) && !IsKeyDown(KEY_UP) && !IsKeyDown(KEY_W)) {
+          shop->setPlayerInShop(!shop->isPlayerInShop());
+        } else if (IsKeyPressed(KEY_ESCAPE) && shop->isPlayerInShop()) {
+          shop->setPlayerInShop(false);
         }
+        if (shop->isPlayerInShop()) {
+          shop->handleInput(player.get());
+        }
+      } else {
+        shop->setPlayerInShop(false);
       }
     }
 
@@ -644,6 +663,8 @@ void PlayState::render() {
       tempLevel.tileMap->render(camera, lighting->getLightMap(),
                                 false); // Background pass
     }
+
+    // Shop Lantern is now a Lamp decoration entity and rendered below.
   }
 
   auto getEntityLight = [&](float x, float y, float w, float h) -> float {
@@ -663,6 +684,12 @@ void PlayState::render() {
       item->render(getEntityLight(item->getX(), item->getY(),
                                   item->getAABB().width,
                                   item->getAABB().height));
+    }
+  }
+  for (auto &dec : tempLevel.decorations) {
+    if (dec && dec->isAlive()) {
+      dec->render(getEntityLight(dec->getX(), dec->getY(), dec->getAABB().width,
+                                 dec->getAABB().height));
     }
   }
   for (auto &trap : tempLevel.traps) {
@@ -761,6 +788,20 @@ void PlayState::render() {
 
   if (combo) {
     combo->renderHUD(game->getFont());
+  }
+
+  if (shop) {
+    if (shop->isPlayerInShop()) {
+      shop->render(game->getFont());
+    } else if (tempLevel.shopArea.width > 0 && player &&
+               CheckCollisionRecs(player->getAABB(), tempLevel.shopArea)) {
+      const char *text = "PRESS 'Y' TO OPEN OR CLOSE SHOP";
+      float fontSize = 30.0f;
+      Vector2 textSize = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
+      DrawTextEx(game->getFont(), text,
+                 {(1280.0f - textSize.x) / 2.0f, 720.0f - 100.0f}, fontSize,
+                 2.0f, WHITE);
+    }
   }
 }
 

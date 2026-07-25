@@ -10,7 +10,8 @@ enum ItemType {
     LOOT_PICKUP,
     BOMB_PICKUP,
     ROPE_PICKUP,
-    CHEST
+    CHEST,
+    HEALTH_PICKUP
 };
 
 class Item : public DynamicEntity {

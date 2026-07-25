@@ -74,6 +74,7 @@ public:
     int getBombs();
     int getRopes();
     int getGold();
+    void spendGold(int amount);
     
     bool getIsWhipHitThisFrame() const;
     Rectangle getWhipHitbox() const;

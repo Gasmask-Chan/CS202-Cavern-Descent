@@ -72,7 +72,7 @@ void Chest::update(float dt, Player* player) {
     if (!isOpened && player) {
         // Distance check
         float dist = std::sqrt(std::pow(player->getX() - x, 2) + std::pow(player->getY() - y, 2));
-        if (dist < 32.0f && (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
+        if (dist < 32.0f && (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y) && !isShopItem) {
             // Open Chest
             isOpened = true;
             AudioManager::getInstance()->playSFX("open_chest");
