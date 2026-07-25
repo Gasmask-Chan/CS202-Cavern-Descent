@@ -663,7 +663,7 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
             if (trap) tempTraps.push_back(std::move(trap));
             break;
           }
-          case 12: { // Shop Item
+          case 13: { // Shop Item
             char shopCodes[] = {'$', 'I', 'Y', 'L'};
             char itemCode = shopCodes[GetRandomValue(0, 3)];
             auto item = EntityFactory::createItem(itemCode, px, py + (32 - 16));
