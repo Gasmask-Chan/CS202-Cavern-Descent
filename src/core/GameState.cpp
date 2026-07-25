@@ -320,6 +320,10 @@ void PlayState::update(float dt) {
 
   // Merge pending entities
   for (auto &ent : pendingEntities) {
+    if (auto* enemy = dynamic_cast<Enemy*>(ent.get())) {
+        enemy->setTileMap(tempLevel.tileMap.get());
+        enemy->setLiquidSim(liquids.get());
+    }
     tempLevel.dynamicEntities.push_back(std::move(ent));
   }
   pendingEntities.clear();
@@ -372,6 +376,7 @@ void PlayState::update(float dt) {
               physics->checkAABBOverlap(whipBox, enemy->getAABB())) {
             enemy->takeDamage(1); // Whip does 1 damage
             AudioManager::getInstance()->playSFX("hit");
+            continue; // Skip collision damage this frame
           }
 
           if (physics->checkAABBOverlap(pAABB, enemy->getAABB())) {
@@ -452,6 +457,9 @@ void PlayState::update(float dt) {
           if (arrow && enemy && arrow->isLethal()) {
             enemy->takeDamage(100); // Instantly kill enemy
             arrow->destroy();
+            // Arrow is destroyed, stop processing it if it was e1 or e2
+            if (!e1->isAlive()) break; 
+            if (!e2->isAlive()) continue;
           } else if (dynamic_cast<Spike *>(e1.get()) &&
                      dynamic_cast<Enemy *>(e2.get())) {
             auto spike = dynamic_cast<Spike *>(e1.get());

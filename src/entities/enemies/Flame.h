@@ -8,6 +8,7 @@ public:
     Flame(float x, float y, float vy);
     void update(float dt, Player* player) override;
     void render(float lightLevel) override;
+    void takeDamage(int amt) override;
 };
 
 }

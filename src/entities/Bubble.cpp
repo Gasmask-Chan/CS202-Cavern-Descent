@@ -1,15 +1,11 @@
 #include "Bubble.h"
+#include "EntityFactory.h"
 
 namespace Platformer {
 
-static Texture2D bubbleTex = {0};
-
 Bubble::Bubble(float x, float y, LiquidSimulator* sim)
     : DynamicEntity(x, y, 8.0f, 8.0f), liquidSim(sim), currentFrame(0), animTimer(0.0f) {
-    if (bubbleTex.id == 0) {
-        bubbleTex = LoadTexture("assets/sprites/8x8/bubble.png");
-    }
-    setSprite(bubbleTex, {0, 0, 8, 8});
+    setSprite(EntityFactory::getTexture("assets/sprites/8x8/bubble.png"), {0, 0, 8, 8});
     
     // Assign random upward velocity roughly equivalent to 0.1 to 0.3 pixels per frame (at 60 FPS = 6.0f to 18.0f)
     vy = - (GetRandomValue(60, 180) / 10.0f);
@@ -41,7 +37,7 @@ void Bubble::update(float dt, Player* player) {
             destroy(); 
             return;
         }
-        setSprite(bubbleTex, {(float)currentFrame * 8.0f, 0.0f, 8.0f, 8.0f});
+        setSprite(EntityFactory::getTexture("assets/sprites/8x8/bubble.png"), {(float)currentFrame * 8.0f, 0.0f, 8.0f, 8.0f});
     }
 }
 

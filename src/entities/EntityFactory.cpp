@@ -36,6 +36,8 @@ void EntityFactory::preloadTextures() {
     getTexture("assets/sprites/16x16/gfx_bat_snake_jetpack.png");
     getTexture("assets/sprites/16x16/gfx_spider_skeleton.png");
     getTexture("assets/npc/Ghost.png");
+    getTexture("assets/sprites/lava/LavaDrip.png");
+    getTexture("assets/sprites/8x8/bubble.png");
 }
 
 std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, float y) {
@@ -63,7 +65,7 @@ std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, fl
             break;
         case 'F':
             enemy = std::make_unique<Flame>(x, y, -400.0f); // Default vy
-            enemy->setSprite(getTexture("assets/sprites/16x16/gfx_spike_collectibles_flame.png"), Rectangle{16, 16, 16, 16}); // Fallback rectangle
+            enemy->setSprite(getTexture("assets/sprites/16x16/gfx_spike_collectibles_flame.png"), Rectangle{32, 16, 16, 16}); // Base Flame Frame
             break;
         default: return nullptr;
     }
