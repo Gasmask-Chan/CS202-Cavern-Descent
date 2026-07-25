@@ -13,6 +13,8 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     gold = GameManager::getInstance()->getPlayerGold();
     invincibilityTimer = 0.0f;
     isSubmerged = false;
+    isSwimming = false;
+    isDiving = false;
     isWhipping = false;
     whipTimer = 0.0f;
     whipHitThisFrame = false;

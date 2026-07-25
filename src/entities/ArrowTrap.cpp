@@ -24,6 +24,7 @@ void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::uniq
                 if (tileMap) {
                     int startX = static_cast<int>((x + width) / 32.0f);
                     int endX = static_cast<int>(objX / 32.0f);
+                    if (startX > endX) std::swap(startX, endX);
                     int ty = static_cast<int>((y + height / 2.0f) / 32.0f);
                     for (int tx = startX; tx <= endX; ++tx) {
                         if (tileMap->isSolid(tx, ty)) return false;
@@ -36,6 +37,7 @@ void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::uniq
                 if (tileMap) {
                     int startX = static_cast<int>((objX + objW) / 32.0f);
                     int endX = static_cast<int>(x / 32.0f) - 1;
+                    if (startX > endX) std::swap(startX, endX);
                     int ty = static_cast<int>((y + height / 2.0f) / 32.0f);
                     for (int tx = startX; tx <= endX; ++tx) {
                         if (tileMap->isSolid(tx, ty)) return false;

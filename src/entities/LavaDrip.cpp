@@ -1,19 +1,11 @@
 #include "LavaDrip.h"
 #include <iostream>
+#include "EntityFactory.h"
 
 namespace Platformer {
 
 LavaDrip::LavaDrip(float x, float y) : DynamicEntity(x, y, 8.0f, 8.0f) {
-    Image img = LoadImage("assets/sprites/lava/LavaDrip.png");
-    if (img.data != nullptr) {
-        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-        Color chroma = GetImageColor(img, 0, 0); // top-left pixel
-        ImageColorReplace(&img, chroma, BLANK);
-        texture = LoadTextureFromImage(img);
-        UnloadImage(img);
-    } else {
-        texture = Texture2D{0};
-    }
+    texture = EntityFactory::getTexture("assets/sprites/lava/LavaDrip.png");
     currentFrame = 0;
     frameTime = 0.0f;
     totalTime = 0.0f;
@@ -22,7 +14,7 @@ LavaDrip::LavaDrip(float x, float y) : DynamicEntity(x, y, 8.0f, 8.0f) {
 }
 
 LavaDrip::~LavaDrip() {
-    UnloadTexture(texture);
+    // Texture is managed by EntityFactory, do not unload here
 }
 
 void LavaDrip::update(float dt, Player* player) {

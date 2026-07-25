@@ -320,6 +320,10 @@ void PlayState::update(float dt) {
 
   // Merge pending entities
   for (auto &ent : pendingEntities) {
+    if (auto* enemy = dynamic_cast<Enemy*>(ent.get())) {
+        enemy->setTileMap(tempLevel.tileMap.get());
+        enemy->setLiquidSim(liquids.get());
+    }
     tempLevel.dynamicEntities.push_back(std::move(ent));
   }
   pendingEntities.clear();
@@ -372,6 +376,7 @@ void PlayState::update(float dt) {
               physics->checkAABBOverlap(whipBox, enemy->getAABB())) {
             enemy->takeDamage(1); // Whip does 1 damage
             AudioManager::getInstance()->playSFX("hit");
+            continue; // Skip collision damage this frame
           }
 
           if (physics->checkAABBOverlap(pAABB, enemy->getAABB())) {
@@ -452,6 +457,9 @@ void PlayState::update(float dt) {
           if (arrow && enemy && arrow->isLethal()) {
             enemy->takeDamage(100); // Instantly kill enemy
             arrow->destroy();
+            // Arrow is destroyed, stop processing it if it was e1 or e2
+            if (!e1->isAlive()) break; 
+            if (!e2->isAlive()) continue;
           } else if (dynamic_cast<Spike *>(e1.get()) &&
                      dynamic_cast<Enemy *>(e2.get())) {
             auto spike = dynamic_cast<Spike *>(e1.get());
@@ -486,9 +494,16 @@ void PlayState::update(float dt) {
     }
 
     // 5. Player vs Items
+    // Slightly expand the player's AABB for more forgiving item collection
+    Rectangle pickupBox = pAABB;
+    pickupBox.x -= 4.0f;
+    pickupBox.y -= 4.0f;
+    pickupBox.width += 8.0f;
+    pickupBox.height += 8.0f;
+
     for (auto &item : tempLevel.items) {
-      if (item && !item->isPickedUp() && !item->isShopItem) {
-        if (physics->checkAABBOverlap(pAABB, item->getAABB())) {
+      if (item && !item->isPickedUp() && !item->isShopItem && item->getType() != ItemType::CHEST) {
+        if (physics->checkAABBOverlap(pickupBox, item->getAABB())) {
           item->activate(player.get());
         }
       }
@@ -598,22 +613,7 @@ void PlayState::update(float dt) {
       }
     }
 
-    // Auto-pickup normal items
-    for (auto &item : tempLevel.items) {
-      if (item && !item->isPickedUp() && !item->isShopItem &&
-          item->getType() != ItemType::CHEST && item->getIsGrounded()) {
-        Rectangle pRect = player->getAABB();
-        Rectangle iRect = item->getAABB();
-        // Check overlap and activate automatically
-        if (pRect.x < iRect.x + iRect.width &&
-            pRect.x + pRect.width > iRect.x &&
-            pRect.y < iRect.y + iRect.height &&
-            pRect.y + pRect.height > iRect.y) {
-          item->activate(player.get());
-        }
-      }
-    }
-
+    // (Auto-pickup loop removed; merged with block 5)
     if (combo) {
       combo->update(dt);
     }

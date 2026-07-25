@@ -11,14 +11,17 @@ Flame::Flame(float x, float y, float initialVy)
     vx = 0.0f;
     gravity = 800.0f;
     passesThroughWalls = false; // Need collision to destroy on ground
+    setAnimation(4, 0.1f, 2, 1); // 4 frames, 0.1s speed, starting at x=32 (col 2), y=16 (row 1)
 }
 
 void Flame::update(float dt, Player* player) {
     if (!isAlive()) return;
     
-    // Animate sprite? Actually, we use a single static texture or rely on default Enemy rendering.
-    // For now we don't have a special sprite set, so we can just use the Enemy's sprite setup.
-    // We update physics via gravity (already handled in GameState by resolving tile collisions? No, GameState calls physics->resolveEntityTileCollision, but gravity must be applied manually or in Enemy::update)
+    applyGravity(dt);
+    move(vx * dt, vy * dt);
+
+    // Air friction to slow down horizontal movement
+    vx *= 0.95f;
     
     // Enemy::update doesn't apply gravity automatically if we override it completely, 
     // but we can call Enemy::update(dt, player) to handle default stuff, then do our logic.
@@ -31,17 +34,23 @@ void Flame::update(float dt, Player* player) {
 }
 
 void Flame::render(float lightLevel) {
-    unsigned char tintVal = static_cast<unsigned char>(255.0f * lightLevel);
-    Color tint = { 255, 100, 0, 255 }; // Bright orange
-    
-    // Draw a burning trail or box
-    DrawRectangle(x, y, width, height, tint);
-    
-    // If sprite is loaded, also try to draw it with tint
+    // Flame is a light source itself, so it ignores level lighting and always draws at full brightness
     if (sprite.id != 0) {
-        Rectangle destRect = { x, y, width, height };
-        DrawTexturePro(sprite, srcRect, destRect, Vector2{0,0}, 0.0f, Color{255, 255, 255, tintVal});
+        Rectangle destRect = { x + width / 2.0f, y + height / 2.0f, width, height };
+        Vector2 origin = { width / 2.0f, height / 2.0f };
+        
+        // Point the fireball in the direction of its velocity
+        float rotation = 0.0f;
+        if (vx != 0.0f || vy != 0.0f) {
+            rotation = atan2(vy, vx) * 180.0f / PI;
+        }
+
+        DrawTexturePro(sprite, srcRect, destRect, origin, rotation, WHITE);
     }
+}
+
+void Flame::takeDamage(int amt) {
+    // Immune to all damage, especially its own lava
 }
 
 }
