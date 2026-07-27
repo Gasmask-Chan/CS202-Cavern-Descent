@@ -20,7 +20,7 @@ private:
     float ghostTimer;
     bool isCustomLevel = false;
     bool loadIntoEditor = false;
-    std::string customLevelPath = "custom_level.lvl";
+    std::string customLevelPath = "levels/custom_level.lvl";
     // FloorModifier currentModifier;
     
     GameManager();

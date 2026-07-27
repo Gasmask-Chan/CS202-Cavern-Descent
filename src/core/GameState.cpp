@@ -1154,7 +1154,7 @@ void LevelEditorMenuState::handleInput() {
     switch (selectedOption) {
     case 0: { // Play Custom Level
       const char *filepath = tinyfd_openFileDialog(
-          "Play Custom Level", "", 1, filterPatterns, "Level Files", 0);
+          "Play Custom Level", "levels/", 1, filterPatterns, "Level Files", 0);
       if (filepath) {
         GameManager::getInstance()->setCustomLevelPath(filepath);
         GameManager::getInstance()->setIsCustomLevel(true);
@@ -1217,7 +1217,7 @@ void EditorFileMenuState::handleInput() {
     switch (selectedOption) {
     case 0: { // New Level
       const char *filepath =
-          tinyfd_saveFileDialog("New Custom Level", "new_level.lvl", 1,
+          tinyfd_saveFileDialog("New Custom Level", "levels/new_level.lvl", 1,
                                 filterPatterns, "Level Files");
       if (filepath) {
         GameManager::getInstance()->setCustomLevelPath(filepath);
@@ -1232,7 +1232,7 @@ void EditorFileMenuState::handleInput() {
     }
     case 1: { // Open Level
       const char *filepath = tinyfd_openFileDialog(
-          "Open Custom Level", "", 1, filterPatterns, "Level Files", 0);
+          "Open Custom Level", "levels/", 1, filterPatterns, "Level Files", 0);
       if (filepath) {
         GameManager::getInstance()->setCustomLevelPath(filepath);
         GameManager::getInstance()->setLoadIntoEditor(true);
@@ -1418,7 +1418,7 @@ void EditorState::handleInput() {
       // Save As
       const char *filterPatterns[1] = {"*.lvl"};
       const char *filepath = tinyfd_saveFileDialog(
-          "Save As", "custom_level.lvl", 1, filterPatterns, "Level Files");
+          "Save As", "levels/custom_level.lvl", 1, filterPatterns, "Level Files");
       if (filepath) {
         GameManager::getInstance()->setCustomLevelPath(filepath);
         saveLevel(filepath);
@@ -1431,7 +1431,7 @@ void EditorState::handleInput() {
   if (ctrlDown && !shiftDown && IsKeyPressed(KEY_O)) {
     const char *filterPatterns[1] = {"*.lvl"};
     const char *filepath = tinyfd_openFileDialog(
-        "Open Level", "", 1, filterPatterns, "Level Files", 0);
+        "Open Level", "levels/", 1, filterPatterns, "Level Files", 0);
     if (filepath) {
       GameManager::getInstance()->setCustomLevelPath(filepath);
       loadLevel(filepath);
