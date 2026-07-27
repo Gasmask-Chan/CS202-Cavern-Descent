@@ -30,6 +30,8 @@ enum class GameStateType {
     PAUSE,
     GAME_OVER,
     CHAR_SELECT,
+    EDITOR_MENU,
+    EDITOR_FILE_MENU,
     EDITOR,
     TRANSITION,
     NONE
@@ -228,7 +230,52 @@ public:
     void render() override;
 };
 
+class LevelEditorMenuState : public GameState {
+private:
+    int selectedOption = 0;
+public:
+    void enter() override;
+    void exit() override;
+    void handleInput() override;
+    void update(float dt) override;
+    void render() override;
+};
+
+class EditorFileMenuState : public GameState {
+private:
+    int selectedOption = 0;
+public:
+    void enter() override;
+    void exit() override;
+    void handleInput() override;
+    void update(float dt) override;
+    void render() override;
+};
+
+
+
+struct PaletteItem {
+    TileType type;
+    Texture2D tex;
+    Rectangle src;
+    std::string name;
+};
+
 class EditorState : public GameState {
+private:
+    std::unique_ptr<class TileMap> tileMap;
+    Camera2D camera;
+    std::vector<PaletteItem> paletteItems;
+    int selectedTileIdx = 0;
+    Vector2 mouseGridPos = {0,0};
+    std::string statusMsg = "";
+    float statusTimer = 0.0f;
+    Vector2 panDragStart = {0, 0};
+    bool isDragging = false;
+    
+    void saveLevel(const std::string& path);
+    void loadLevel(const std::string& path);
+
 public:
     /**
      * @brief Creates `LevelEditor` instance. Initializes empty tilemap. Shows tile/entity palette UI.

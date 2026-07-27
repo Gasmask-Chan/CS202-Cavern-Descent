@@ -19,8 +19,13 @@ Texture2D EntityFactory::getTexture(const std::string& path) {
     if (textureCache.find(path) == textureCache.end()) {
         Image img = LoadImage(path.c_str());
         ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-        Color chromaKey = GetImageColor(img, 0, 0); 
-        ImageColorReplace(&img, chromaKey, BLANK);
+        
+        // Skip chroma keying for liquid textures which are solid or already have alpha
+        if (path.find("Lava") == std::string::npos && path.find("water") == std::string::npos) {
+            Color chromaKey = GetImageColor(img, 0, 0); 
+            ImageColorReplace(&img, chromaKey, BLANK);
+        }
+        
         textureCache[path] = LoadTextureFromImage(img);
         UnloadImage(img);
     }

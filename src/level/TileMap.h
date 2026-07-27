@@ -29,7 +29,13 @@ enum class TileType {
     
     // We add a few custom ones we need for logic that aren't in DS tiles natively
     SPIKE_TRAP = 100, 
-    ROPE_NODE = 101
+    ROPE_NODE = 101,
+    CHEST = 102,
+    ENEMY_SNAKE = 103,
+    ENEMY_BAT = 104,
+    ENEMY_SPIDER = 105,
+    LAVA = 106,
+    WATER = 107
 };
 
 class TileMap {

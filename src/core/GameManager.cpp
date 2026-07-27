@@ -65,6 +65,7 @@ void GameManager::resetRun() {
     playerGold = 0;
     selectedCharacter = CharacterType::EXPLORER;
     ghostTimer = 180.0f;
+    isCustomLevel = false;
 }
 
 CharacterType GameManager::getSelectedCharacter() {

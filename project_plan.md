@@ -468,6 +468,15 @@ classDiagram
         +render() void
     }
 
+    class EditorFileMenuState {
+        -int selectedOption
+        +enter() void
+        +exit() void
+        +handleInput() void
+        +update(float dt) void
+        +render() void
+    }
+
     class EditorState {
         -LevelEditor* editor
         +enter() void
@@ -484,6 +493,7 @@ classDiagram
     GameState <|.. GameOverState
     GameState <|.. TransitionState
     GameState <|.. CharSelectState
+    GameState <|.. EditorFileMenuState
     GameState <|.. EditorState
     Game ..> GameManager : uses
     Game ..> AudioManager : uses
@@ -539,7 +549,8 @@ classDiagram
 | `PlayState::update(dt)` | Executes the 21-step update order from §6.1: input → player → ghost → enemies → gravity → collisions → items → bombs → liquids → lighting → events → combo → camera → cleanup → death check. |
 | `PauseState::handleInput()` | Escape key → return to `PlayState`. Up/Down select Resume/Quit. Enter triggers selected option. |
 | `GameOverState::enter()` | Captures final score and floors reached from `GameManager`. Prompts for name entry for high score save. |
-| `EditorState::enter()` | Creates `LevelEditor` instance. Initializes empty tilemap. Shows tile/entity palette UI. |
+| `EditorFileMenuState::enter()` | Presents native OS dialogs (via `tinyfiledialogs`) to select "Play Custom", "New Level", or "Open Level". Handles native file path selection. |
+| `EditorState::enter()` | Creates `LevelEditor` instance. Initializes empty tilemap or loads selected `.lvl`. Shows tile/entity palette UI. |
 
 ### 4.2 Entity System
 
@@ -1380,7 +1391,7 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `handleInput()` | Left-click → `placeTile()` or `placeEntity()` at cursor grid position (depends on selected palette mode). Right-click → `eraseTile()`. Scroll wheel → cycle through palette options. Arrow keys → scroll `editorCam`. Ctrl+S → `serialize()`. Ctrl+O → `deserialize()`. Tab → toggle between tile and entity palette. P → `testPlay()`. |
+| `handleInput()` | Left-click → `placeTile()` or `placeEntity()` at cursor grid position (depends on selected palette mode). Right-click → `eraseTile()`. Scroll wheel → cycle through palette options. Arrow keys → scroll `editorCam`. Ctrl+S → quick save current file. Ctrl+Shift+S → `serialize()` with native Windows Save As dialog. Tab → toggle between tile and entity palette. P → `testPlay()`. |
 | `placeTile(int gx, int gy, TileType type)` | Sets `editMap->setTile(gx, gy, type)`. Updates the visual grid immediately. |
 | `placeEntity(int gx, int gy, EntityPalette type)` | Adds an `EntityPlacement{type, gx, gy}` to the `entityPlacements` vector. Draws an icon at the grid position to show placement. |
 | `eraseTile(int gx, int gy)` | Sets tile to `TileType::EMPTY`. Also removes any `EntityPlacement` at `(gx, gy)` from the vector. |
