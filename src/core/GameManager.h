@@ -18,6 +18,9 @@ private:
     int playerGold;
     CharacterType selectedCharacter;
     float ghostTimer;
+    bool isCustomLevel = false;
+    bool loadIntoEditor = false;
+    std::string customLevelPath = "custom_level.lvl";
     // FloorModifier currentModifier;
     
     GameManager();
@@ -27,6 +30,15 @@ public:
 
     GameManager(const GameManager &) = delete;
     GameManager& operator=(const GameManager &) = delete;
+
+    bool getIsCustomLevel() const { return isCustomLevel; }
+    void setIsCustomLevel(bool b) { isCustomLevel = b; }
+
+    bool getLoadIntoEditor() const { return loadIntoEditor; }
+    void setLoadIntoEditor(bool b) { loadIntoEditor = b; }
+
+    std::string getCustomLevelPath() const { return customLevelPath; }
+    void setCustomLevelPath(const std::string& p) { customLevelPath = p; }
 
     int getFloor();
 

@@ -158,6 +158,12 @@ void Game::applyPendingStateChanges() {
             case GameStateType::CHAR_SELECT:
                 newState = new CharSelectState();
                 break;
+            case GameStateType::EDITOR_MENU:
+                newState = new LevelEditorMenuState();
+                break;
+            case GameStateType::EDITOR_FILE_MENU:
+                newState = new EditorFileMenuState();
+                break;
             case GameStateType::EDITOR:
                 newState = new EditorState();
                 break;
