@@ -1100,6 +1100,7 @@ void CharSelectState::handleInput() {
     selectedIndex = (selectedIndex + 1) % 3;
   }
   if (IsKeyPressed(KEY_ENTER)) {
+    GameManager::getInstance()->resetRun();
     GameManager::getInstance()->setSelectedCharacter(characters[selectedIndex]);
     game->changeState(GameStateType::PLAY);
   }
