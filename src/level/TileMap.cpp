@@ -27,6 +27,10 @@ void TileMap::setTile(int x, int y, TileType type) {
   }
 }
 
+void TileMap::setZoneTint(Color tint) {
+    zoneTint = tint;
+}
+
 void TileMap::destroyBlock(int x, int y) {
   // Whip already checks isCracked, Bomb destroys indiscriminately.
   setTile(x, y, TileType::NOTHING);
@@ -104,10 +108,10 @@ void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& light
       float lBL = getVertexLight(x, y + 1);
       float lBR = getVertexLight(x + 1, y + 1);
       
-      Color cTL = Color{(unsigned char)(255 * lTL), (unsigned char)(255 * lTL), (unsigned char)(255 * lTL), 255};
-      Color cTR = Color{(unsigned char)(255 * lTR), (unsigned char)(255 * lTR), (unsigned char)(255 * lTR), 255};
-      Color cBL = Color{(unsigned char)(255 * lBL), (unsigned char)(255 * lBL), (unsigned char)(255 * lBL), 255};
-      Color cBR = Color{(unsigned char)(255 * lBR), (unsigned char)(255 * lBR), (unsigned char)(255 * lBR), 255};
+      Color cTL = Color{(unsigned char)(zoneTint.r * lTL), (unsigned char)(zoneTint.g * lTL), (unsigned char)(zoneTint.b * lTL), 255};
+      Color cTR = Color{(unsigned char)(zoneTint.r * lTR), (unsigned char)(zoneTint.g * lTR), (unsigned char)(zoneTint.b * lTR), 255};
+      Color cBL = Color{(unsigned char)(zoneTint.r * lBL), (unsigned char)(zoneTint.g * lBL), (unsigned char)(zoneTint.b * lBL), 255};
+      Color cBR = Color{(unsigned char)(zoneTint.r * lBR), (unsigned char)(zoneTint.g * lBR), (unsigned char)(zoneTint.b * lBR), 255};
 
       Rectangle dest = { (float)x * tileSize, (float)y * tileSize, (float)tileSize, (float)tileSize };
 

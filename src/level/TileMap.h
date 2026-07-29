@@ -46,6 +46,7 @@ private:
     int tileSize;
 
     Texture2D dsTileset;
+    Color zoneTint = WHITE;
 
 public:
     TileMap(int w, int h, int size);
@@ -166,6 +167,8 @@ public:
     int getHeight();
 
     int getTileSize();
+
+    void setZoneTint(Color tint);
 
     bool isInBounds(int x, int y) const;
 };

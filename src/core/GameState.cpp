@@ -261,8 +261,22 @@ void PlayState::enter() {
       }
     }
   } else {
-    tempLevel = tempGenerator->generate(GameManager::getInstance()->getFloor(),
-                                        ZoneType::CAVE);
+    int currentFloor = GameManager::getInstance()->getFloor();
+    ZoneType currentZone = ZoneType::CAVE;
+    Color zoneTint = WHITE;
+
+    if (currentFloor >= 4 && currentFloor <= 6) {
+        currentZone = ZoneType::JUNGLE;
+        zoneTint = Color{180, 255, 180, 255};
+    } else if (currentFloor >= 7) {
+        currentZone = ZoneType::TEMPLE;
+        zoneTint = Color{255, 200, 150, 255};
+    }
+
+    tempLevel = tempGenerator->generate(currentFloor, currentZone);
+    if (tempLevel.tileMap) {
+        tempLevel.tileMap->setZoneTint(zoneTint);
+    }
   }
 
   physics = std::make_unique<PhysicsSystem>(tempLevel.tileMap.get());
