@@ -277,6 +277,7 @@ private:
     void loadLevel(const std::string& path);
 
 public:
+    ~EditorState() override;
     /**
      * @brief Creates `LevelEditor` instance. Initializes empty tilemap. Shows tile/entity palette UI.
      * 

@@ -1283,6 +1283,8 @@ void EditorFileMenuState::render() {
 =======================================================
 */
 
+EditorState::~EditorState() = default;
+
 void EditorState::enter() {
   EntityFactory::preloadTextures();
   tileMap = std::make_unique<TileMap>(40, 32, 16);
