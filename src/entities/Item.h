@@ -22,7 +22,8 @@ protected:
 
 public:
     bool isShopItem = false;
-    bool isHeld;
+    bool isHeld = false;
+    bool isEmbedded = false;
     
     Item(float x, float y, float w, float h, ItemType type);
 
@@ -56,6 +57,7 @@ public:
     Chest(float x, float y, float w, float h);
     void update(float dt, class Player* player = nullptr) override;
     void activate(Player* player) override;
+    void render(float lightLevel) override;
 };
 
 class BombPickup : public Item {

@@ -214,8 +214,11 @@ void PlayState::enter() {
               type == TileType::CAVE_MUCH_GOLD) {
             type = TileType::CAVE_ROCK;
             auto gold = EntityFactory::createItem('G', px, py);
-            if (gold)
-              tempLevel.items.push_back(std::move(gold));
+            if (gold) {
+                gold->isEmbedded = true;
+                gold->setPassesThroughWalls(true);
+                tempLevel.items.push_back(std::move(gold));
+            }
           } else if (type == TileType::CHEST) {
             type = TileType::NOTHING;
             auto chest = EntityFactory::createItem('C', px, py);
@@ -525,6 +528,17 @@ void PlayState::update(float dt) {
 
       for (auto &item : tempLevel.items) {
         if (item && !item->isPickedUp()) {
+          if (item->isEmbedded) {
+              int tx = static_cast<int>(item->getX() / 32.0f);
+              int ty = static_cast<int>(item->getY() / 32.0f);
+              if (!tempLevel.tileMap->isSolid(tx, ty)) {
+                  item->isEmbedded = false;
+                  item->setPassesThroughWalls(false);
+              } else {
+                  // Keep rendering it, but don't apply physics/updates
+                  continue;
+              }
+          }
           item->update(dt, player.get());
           physics->resolveEntityTileCollision(item.get());
         }
