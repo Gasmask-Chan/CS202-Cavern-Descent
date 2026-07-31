@@ -508,6 +508,8 @@ void Player::takeDamage(int dmg) {
     
     EventData data;
     data.amount = dmg;
+    data.worldX = x + width / 2.0f;
+    data.worldY = y + height / 2.0f;
     EventBus::getInstance()->publish(EventType::EVENT_PLAYER_DAMAGED, data);
     
     if (health <= 0) {

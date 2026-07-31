@@ -11,6 +11,8 @@
 #include "../entities/enemies/NemesisGhost.h"
 #include "../entities/enemies/Spike.h"
 #include "../entities/Explosion.h"
+#include "../entities/Particle.h"
+#include "../liquid/LiquidSimulator.h"
 #include "../level/LevelGenerator.h"
 #include "../player/Player.h"
 #include "../shop/ShopSystem.h"
@@ -367,6 +369,19 @@ void PlayState::enter() {
           this->pendingEntities.push_back(std::move(flame));
         }
       });
+      
+  auto spawnBloodParticles = [this](EventData data) {
+    int numParticles = GetRandomValue(4, 8);
+    for (int i = 0; i < numParticles; i++) {
+        this->pendingEntities.push_back(EntityFactory::createBloodParticle(data.worldX, data.worldY));
+    }
+  };
+  
+  EventBus::getInstance()->clearListeners(EventType::EVENT_PLAYER_DAMAGED);
+  EventBus::getInstance()->subscribe(EventType::EVENT_PLAYER_DAMAGED, spawnBloodParticles);
+  
+  EventBus::getInstance()->clearListeners(EventType::EVENT_ENEMY_DAMAGED);
+  EventBus::getInstance()->subscribe(EventType::EVENT_ENEMY_DAMAGED, spawnBloodParticles);
 
   EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_LAVA_DRIP);
   EventBus::getInstance()->subscribe(

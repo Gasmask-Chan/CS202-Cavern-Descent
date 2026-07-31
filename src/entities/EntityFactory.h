@@ -43,6 +43,7 @@ public:
     static std::unique_ptr<class Arrow> createArrow(float x, float y, float vx);
     
     static std::unique_ptr<class Explosion> createExplosion(float x, float y);
+    static std::unique_ptr<class Particle> createBloodParticle(float x, float y);
 };
 
 }

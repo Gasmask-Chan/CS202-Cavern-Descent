@@ -11,6 +11,7 @@
 #include "enemies/Spike.h"
 #include "enemies/Flame.h"
 #include "Explosion.h"
+#include "Particle.h"
 
 namespace Platformer {
 
@@ -144,6 +145,20 @@ std::unique_ptr<Explosion> EntityFactory::createExplosion(float x, float y) {
     auto exp = std::make_unique<Explosion>(x, y);
     exp->setSprite(getTexture("assets/sprites/64x64/gfx_explosion.png"), Rectangle{0, 0, 64, 64});
     return exp;
+}
+
+std::unique_ptr<Particle> EntityFactory::createBloodParticle(float x, float y) {
+    float vx = static_cast<float>(GetRandomValue(-150, 150));
+    float vy = static_cast<float>(GetRandomValue(-250, -50));
+    float lifetime = static_cast<float>(GetRandomValue(10, 30)) / 10.0f; // 1.0s to 3.0s
+    
+    auto particle = std::make_unique<Particle>(x, y, vx, vy, lifetime);
+    
+    // Choose random blood frame (columns 0 to 5)
+    int frameCol = GetRandomValue(0, 5);
+    particle->setSprite(getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"), Rectangle{frameCol * 8.0f, 0, 8, 8});
+    
+    return particle;
 }
 
 std::unique_ptr<Trap> EntityFactory::createTrap(char code, float x, float y) {

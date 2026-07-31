@@ -281,7 +281,7 @@ Exactly **5 design patterns**, each mapped to a concrete system:
 | **Factory** | `EntityFactory` | Translates integer IDs (from the room templates) into `TileType` enums and spawns items/enemies at runtime via concrete subclass constructors. |
 | **State** | Enemy AI & Game Screens | Enemies: `EnemyState` → Idle/Chase/Return. Game: `GameState` → Menu/CharSelect/Play/Pause/GameOver/Editor. |
 | **Strategy** | Character Movement | `MovementStrategy` → Explorer (balanced), Ninja (high jump, fast), Tank (slow, high HP). Swapped at character select. |
-| **Observer** | Event System | `EventBus::subscribe/publish`. Events: bomb → terrain+lighting+liquid+audio; treasure pickup → combo system; ghost timer → spawn ghost. |
+| **Observer** | Event System | `EventBus::subscribe/publish`. Events: bomb → terrain+lighting+liquid+audio; treasure pickup → combo system; ghost timer → spawn ghost; taking damage → spawn blood particles. |
 
 ### Pattern Interaction Example
 
@@ -713,6 +713,14 @@ classDiagram
         +update(float dt) void
     }
 
+    class Particle {
+        -float lifetime
+        -float maxLifetime
+        +Particle(float x, float y, float vx, float vy, float lifetime)
+        +update(float dt, Player* player) void
+        +render(float lightLevel) void
+    }
+
 
 
     Entity <|-- DynamicEntity
@@ -722,6 +730,7 @@ classDiagram
     DynamicEntity <|-- Enemy
     DynamicEntity <|-- Bomb
     DynamicEntity <|-- Explosion
+    DynamicEntity <|-- Particle
     Enemy <|-- Bat
     Enemy <|-- Snake
     Enemy <|-- Spider
