@@ -96,6 +96,7 @@ std::unique_ptr<Item> EntityFactory::createItem(char code, float x, float y) {
         case 'G': 
             item = std::make_unique<LootPickup>(x, y, 32.0f, 32.0f, 500); // Gold Bar
             item->setSprite(getTexture(texGold), Rectangle{0, 0, 16, 16});
+            item->renderOffsetY = 16.0f;
             break;
         case 'R': {
             item = std::make_unique<LootPickup>(x, y, 16.0f, 16.0f, 100); // Ruby
@@ -110,6 +111,7 @@ std::unique_ptr<Item> EntityFactory::createItem(char code, float x, float y) {
         case 'C': // Chest (Closed)
             item = std::make_unique<Chest>(x, y, 32.0f, 32.0f);
             item->setSprite(getTexture(texSpikes), Rectangle{32, 0, 16, 16}); // Row 0 Col 2
+            item->renderOffsetY = 16.0f;
             break;
         case '$': 
             return createItem('C', x, y); // Chest

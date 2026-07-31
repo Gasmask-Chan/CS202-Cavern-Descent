@@ -64,8 +64,6 @@ void LootPickup::activate(Player* player) {
     collect();
 }
 
-
-
 // Chest
 Chest::Chest(float x, float y, float w, float h)
     : Item(x, y, w, h, ItemType::CHEST), isOpened(false) {}
@@ -104,19 +102,6 @@ void Chest::update(float dt, Player* player) {
 
 void Chest::activate(Player* player) {
     // Chest interaction is handled in update(), not by simple overlap
-}
-
-void Chest::render(float lightLevel) {
-    if (isAlive() && !isCollected) {
-        unsigned char tintVal = static_cast<unsigned char>(255.0f * lightLevel);
-        Color tint = { tintVal, tintVal, tintVal, 255 };
-        if (sprite.id != 0) {
-            // Draw the chest shifted down by 16 pixels visually so it rests on the floor
-            // while its physical 32x32 hitbox remains in place
-            Rectangle destRect = { x, y + 16.0f, width, height };
-            DrawTexturePro(sprite, srcRect, destRect, Vector2{0,0}, 0.0f, tint);
-        }
-    }
 }
 
 // BombPickup

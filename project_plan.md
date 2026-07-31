@@ -505,7 +505,7 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `run()` | Main entry point. Calls `init()`, then enters the main `while (!WindowShouldClose())` loop calling `handleInput()`, `update(dt)`, `render()` each frame. Calls `cleanup()` on exit. |
+| `run()` | Main entry point. Calls `init()`, then enters the main `while (!WindowShouldClose())` loop calling `handleInput()`, `update(dt)` (with `dt` clamped to max 0.033f to prevent physics tunneling during lag spikes), and `render()` each frame. Calls `cleanup()` on exit. |
 | `init()` | Initializes Raylib window (`InitWindow`), sets target FPS to 60, initializes `GameManager` and `AudioManager` singletons, loads all shared textures and sounds, creates the initial `MenuState`, calls `setGame(this)` and `enter()` on the initial state. |
 | `handleInput()` | Delegates to `stateStack.back()->handleInput()`. No game-level input processing — all input is state-specific. |
 | `update(float dt)` | Passes `GetFrameTime()` delta to `stateStack.back()->update(dt)`. |
@@ -575,6 +575,8 @@ classDiagram
         #float height
         #bool isActive
         #Texture2D sprite
+        +float renderOffsetX
+        +float renderOffsetY
         +Entity(float x, float y, float w, float h)
         +virtual ~Entity()
         +virtual update(float dt) void
@@ -744,7 +746,7 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `applyGravity(float dt)` | If `!isGrounded`, adds `gravity * dt` to `vy`. Gravity constant is ~800 pixels/sec². `isGrounded` is set to `true` by `PhysicsSystem` when a downward collision is resolved. Reset to `false` at the start of each frame. |
+| `applyGravity(float dt)` | If `!isGrounded`, adds `gravity * dt` to `vy`, capped at a terminal velocity of 800 pixels/sec to prevent tile-skipping. Gravity constant is ~800 pixels/sec². `isGrounded` is set to `true` by `PhysicsSystem` when a downward collision is resolved. Reset to `false` at the start of each frame. |
 | `move(float dx, float dy)` | Adds `dx` to `x` and `dy` to `y`. Raw position change — no collision checking. Collision is handled separately by `PhysicsSystem::resolveEntityTileCollision()`. |
 | `setVelocity(float vx, float vy)` | Directly sets velocity components. Used by knockback, bounce, and state transitions (e.g., `ChaseState` sets `vx` toward player). |
 
