@@ -10,6 +10,7 @@
 #include "../entities/enemies/Enemy.h"
 #include "../entities/enemies/NemesisGhost.h"
 #include "../entities/enemies/Spike.h"
+#include "../entities/Explosion.h"
 #include "../level/LevelGenerator.h"
 #include "../player/Player.h"
 #include "../shop/ShopSystem.h"
@@ -301,6 +302,9 @@ void PlayState::enter() {
   ghostTimer = 0.0f;
   ghostSpawned = false;
 
+  cameraShakeTimer = 0.0f;
+  cameraShakeIntensity = 0.0f;
+
   combo = std::make_unique<ComboSystem>();
   // Initialize shop
   shop = std::make_unique<ShopSystem>();
@@ -425,6 +429,23 @@ void PlayState::enter() {
               }
             }
           }
+        }
+        
+        // 4. Add visual explosion flash and sprite
+        explosionFlashes.push_back({data.worldX, data.worldY, 0.3f}); // 0.3s lifetime
+        
+        // Spawn the explosion visual entity (centered on bomb)
+        pendingEntities.push_back(EntityFactory::createExplosion(data.worldX - 80.0f, data.worldY - 80.0f));
+
+        // 5. Camera Shake
+        if (player) {
+            float dx = player->getX() - data.worldX;
+            float dy = player->getY() - data.worldY;
+            float dist = std::sqrt(dx*dx + dy*dy);
+            if (dist < 600.0f) {
+                this->cameraShakeTimer = 0.5f;
+                this->cameraShakeIntensity = 10.0f * (1.0f - (dist / 600.0f));
+            }
         }
       });
 
@@ -698,6 +719,17 @@ void PlayState::update(float dt) {
 
     camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
 
+    if (cameraShakeTimer > 0.0f) {
+      cameraShakeTimer -= dt;
+      float offsetX = ((float)GetRandomValue(-100, 100) / 100.0f) * cameraShakeIntensity;
+      float offsetY = ((float)GetRandomValue(-100, 100) / 100.0f) * cameraShakeIntensity;
+      camera.offset.x = (GetScreenWidth() / 2.0f) + offsetX;
+      camera.offset.y = (GetScreenHeight() / 2.0f) + offsetY;
+    } else {
+      camera.offset.x = GetScreenWidth() / 2.0f;
+      camera.offset.y = GetScreenHeight() / 2.0f;
+    }
+
     if (liquids) {
       liquids->update(dt);
       liquids->updateSpurts(dt, player->getX(), player->getY());
@@ -734,7 +766,8 @@ void PlayState::update(float dt) {
         radius *= 0.5f;
       }
 
-      lighting->addLight(trueX, trueY, intensity, radius);
+      Vector3 torchColor = {intensity, intensity * 0.9f, intensity * 0.6f};
+      lighting->addLight(trueX, trueY, torchColor, radius);
 
       // Shop Lantern glow
       if (tempLevel.shopArea.width > 0) {
@@ -745,8 +778,33 @@ void PlayState::update(float dt) {
                        tempLevel.tileMap->getTileSize(); // At y=5 in the room
         double t = GetTime();
         float flicker = std::sin(t * 15.0) * 0.03f + std::sin(t * 22.0) * 0.02f;
-        lighting->addLight(shopCx, shopCy, 1.2f + flicker,
-                           8.0f + (flicker * 2.0f));
+        Vector3 lanternColor = {1.4f, 1.2f, 0.4f}; // Bright gold
+        lighting->addLight(shopCx, shopCy, lanternColor, 8.0f + (flicker * 2.0f));
+      }
+
+      // Add Lava Glow
+      for (int y = 0; y < tempLevel.tileMap->getHeight(); y++) {
+          for (int x = 0; x < tempLevel.tileMap->getWidth(); x++) {
+              if (tempLevel.tileMap->getTile(x, y) == TileType::LAVA) {
+                  double t = GetTime();
+                  float flicker = std::sin(t * 8.0 + x * 0.5 + y) * 0.05f;
+                  Vector3 lavaColor = {1.0f + flicker, 0.3f + flicker*0.5f, 0.0f};
+                  lighting->addLight(x + 0.5f, y + 0.5f, lavaColor, 3.5f);
+              }
+          }
+      }
+
+      // Process Explosion Flashes
+      for (auto it = explosionFlashes.begin(); it != explosionFlashes.end(); ) {
+          it->timer -= dt;
+          if (it->timer <= 0) {
+              it = explosionFlashes.erase(it);
+          } else {
+              float progress = it->timer / 0.3f;
+              Vector3 expColor = {1.5f * progress, 1.2f * progress, 0.8f * progress};
+              lighting->addLight(it->x / tempLevel.tileMap->getTileSize(), it->y / tempLevel.tileMap->getTileSize(), expColor, 10.0f * progress);
+              ++it;
+          }
       }
 
       lighting->update(tempLevel.tileMap.get());
@@ -829,8 +887,8 @@ void PlayState::render() {
     int tx = static_cast<int>((x + w / 2) / tempLevel.tileMap->getTileSize());
     int ty = static_cast<int>((y + h / 2) / tempLevel.tileMap->getTileSize());
     const auto &lMap = lighting->getLightMap();
-    if (ty >= 0 && ty < lMap.size() && tx >= 0 && tx < lMap[ty].size()) {
-      return lMap[ty][tx];
+    if (ty >= 0 && static_cast<size_t>(ty) < lMap.size() && tx >= 0 && static_cast<size_t>(tx) < lMap[ty].size()) {
+      return (lMap[ty][tx].x + lMap[ty][tx].y + lMap[ty][tx].z) / 3.0f;
     }
     return 1.0f;
   };
@@ -1471,7 +1529,7 @@ void EditorState::render() {
 
   // Render Editor
   BeginMode2D(camera);
-  std::vector<std::vector<float>> dummyLight(32, std::vector<float>(40, 1.0f));
+  std::vector<std::vector<Vector3>> dummyLight(32, std::vector<Vector3>(40, {1.0f, 1.0f, 1.0f}));
   tileMap->render(camera, dummyLight, false);
   tileMap->render(camera, dummyLight, true);
 
@@ -1607,7 +1665,8 @@ void TransitionState::enter() {
       16 * 32.0f, 11 * 32.0f,
       GameManager::getInstance()->getSelectedCharacter());
   lighting = std::make_unique<LightingSystem>(40, 15);
-  lighting->setAmbientLight(0.25f);
+  // Lit up by 20% (0.20f) compared to normal caves
+  lighting->setAmbientLight({0.35f, 0.35f, 0.45f});
   camera.target = {(20 * 32.0f), (10 * 32.0f)};
   camera.offset = {(float)GetScreenWidth() / 2.0f,
                    (float)GetScreenHeight() / 2.0f};
@@ -1633,14 +1692,18 @@ void TransitionState::update(float dt) {
     physics->resolveEntityTileCollision(player.get());
     if (lighting) {
       lighting->clearLights();
+    }
+    if (player) {
       float trueX = (player->getX() + player->getAABB().width / 2.0f) /
                     tunnelMap->getTileSize();
       float trueY = (player->getY() + player->getAABB().height / 2.0f) /
                     tunnelMap->getTileSize();
       double time = GetTime();
-      float flicker =
-          std::sin(time * 12.0) * 0.02f + std::sin(time * 23.0) * 0.015f;
-      lighting->addLight(trueX, trueY, 0.95f + flicker,
+      float flicker = std::sin(time * 12.0) * 0.02f;
+      flicker += std::sin(time * 23.0) * 0.015f;
+      flicker += std::sin(time * 5.0) * 0.01f;
+      Vector3 torchColor = {0.95f + flicker, (0.95f + flicker) * 0.9f, (0.95f + flicker) * 0.6f};
+      lighting->addLight(trueX, trueY, torchColor,
                          4.5f + (flicker * 1.5f));
       lighting->update(tunnelMap.get());
     }

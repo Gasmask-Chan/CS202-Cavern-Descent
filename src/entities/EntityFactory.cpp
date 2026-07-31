@@ -10,6 +10,7 @@
 #include "enemies/NemesisGhost.h"
 #include "enemies/Spike.h"
 #include "enemies/Flame.h"
+#include "Explosion.h"
 
 namespace Platformer {
 
@@ -43,6 +44,7 @@ void EntityFactory::preloadTextures() {
     getTexture("assets/npc/Ghost.png");
     getTexture("assets/sprites/lava/LavaDrip.png");
     getTexture("assets/sprites/8x8/bubble.png");
+    getTexture("assets/sprites/64x64/gfx_explosion.png");
 }
 
 std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, float y) {
@@ -134,6 +136,12 @@ std::unique_ptr<Arrow> EntityFactory::createArrow(float x, float y, float vx) {
     auto arrow = std::make_unique<Arrow>(x, y, vx);
     arrow->setSprite(getTexture("assets/sprites/8x8/gfx_arrow.png"), Rectangle{0, 0, 8, 8});
     return arrow;
+}
+
+std::unique_ptr<Explosion> EntityFactory::createExplosion(float x, float y) {
+    auto exp = std::make_unique<Explosion>(x, y);
+    exp->setSprite(getTexture("assets/sprites/64x64/gfx_explosion.png"), Rectangle{0, 0, 64, 64});
+    return exp;
 }
 
 std::unique_ptr<Trap> EntityFactory::createTrap(char code, float x, float y) {

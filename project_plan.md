@@ -618,6 +618,8 @@ classDiagram
         -int currentFrame
         -Rectangle frameRec
         -bool whipHitThisFrame
+        -bool isGodMode
+        -int cheatSequence
         -Texture2D whipSprite
         +Player(float x, float y, CharacterType type)
         +handleInput() void
@@ -677,6 +679,14 @@ classDiagram
         +explode() void
     }
 
+    class Explosion {
+        -int currentFrame
+        -float frameTimer
+        +Explosion(float x, float y)
+        +update(float dt, Player* player) void
+        +render(float lightLevel) void
+    }
+
     class Bat {
         -float flySpeed
         -float swoopAngle
@@ -709,6 +719,7 @@ classDiagram
     DynamicEntity <|-- Player
     DynamicEntity <|-- Enemy
     DynamicEntity <|-- Bomb
+    DynamicEntity <|-- Explosion
     Enemy <|-- Bat
     Enemy <|-- Snake
     Enemy <|-- Spider
@@ -959,8 +970,10 @@ classDiagram
         -int height
         -int tileSize
         -Texture2D dsTileset
+        -Color zoneTint
         +TileMap(int w, int h, int size)
         +~TileMap()
+        +setZoneTint(Color tint) void
         +getTile(int x, int y) TileType
         +setTile(int x, int y, TileType type) void
         +isSolid(int x, int y) bool
@@ -1181,6 +1194,10 @@ classDiagram
         +virtual update(float dt) void
         +virtual render(float lightLevel) void
         +getDamage() int
+    }
+
+    class Explosion {
+        +Explosion(float x, float y)
     }
 
     class Spike {
