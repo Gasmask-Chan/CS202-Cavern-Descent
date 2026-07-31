@@ -782,14 +782,31 @@ void PlayState::update(float dt) {
         lighting->addLight(shopCx, shopCy, lanternColor, 8.0f + (flicker * 2.0f));
       }
 
-      // Add Lava Glow
-      for (int y = 0; y < tempLevel.tileMap->getHeight(); y++) {
-          for (int x = 0; x < tempLevel.tileMap->getWidth(); x++) {
+      // Add Lava Glow (Optimized: Camera Culling + Surface Exposure)
+      Vector2 screenTL = GetScreenToWorld2D(Vector2{0, 0}, camera);
+      Vector2 screenBR = GetScreenToWorld2D(Vector2{(float)GetScreenWidth(), (float)GetScreenHeight()}, camera);
+
+      int startX = std::max(0, (int)(screenTL.x / tempLevel.tileMap->getTileSize()) - 5);
+      int startY = std::max(0, (int)(screenTL.y / tempLevel.tileMap->getTileSize()) - 5);
+      int endX = std::min(tempLevel.tileMap->getWidth() - 1, (int)(screenBR.x / tempLevel.tileMap->getTileSize()) + 5);
+      int endY = std::min(tempLevel.tileMap->getHeight() - 1, (int)(screenBR.y / tempLevel.tileMap->getTileSize()) + 5);
+
+      for (int y = startY; y <= endY; y++) {
+          for (int x = startX; x <= endX; x++) {
               if (tempLevel.tileMap->getTile(x, y) == TileType::LAVA) {
-                  double t = GetTime();
-                  float flicker = std::sin(t * 8.0 + x * 0.5 + y) * 0.05f;
-                  Vector3 lavaColor = {1.0f + flicker, 0.3f + flicker*0.5f, 0.0f};
-                  lighting->addLight(x + 0.5f, y + 0.5f, lavaColor, 3.5f);
+                  // Only emit light if exposed to air
+                  bool exposed = false;
+                  if (x > 0 && tempLevel.tileMap->getTile(x - 1, y) == TileType::NOTHING) exposed = true;
+                  else if (x < tempLevel.tileMap->getWidth() - 1 && tempLevel.tileMap->getTile(x + 1, y) == TileType::NOTHING) exposed = true;
+                  else if (y > 0 && tempLevel.tileMap->getTile(x, y - 1) == TileType::NOTHING) exposed = true;
+                  else if (y < tempLevel.tileMap->getHeight() - 1 && tempLevel.tileMap->getTile(x, y + 1) == TileType::NOTHING) exposed = true;
+
+                  if (exposed) {
+                      double t = GetTime();
+                      float lavaFlicker = std::sin(t * 8.0 + x * 0.5 + y) * 0.05f;
+                      Vector3 lavaColor = {1.0f + lavaFlicker, 0.3f + lavaFlicker*0.5f, 0.0f};
+                      lighting->addLight(x + 0.5f, y + 0.5f, lavaColor, 3.5f);
+                  }
               }
           }
       }
