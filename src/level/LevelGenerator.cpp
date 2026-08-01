@@ -536,7 +536,7 @@ void LevelGenerator::instantiateTiles(ZoneType zone, const int tileGrid[ROOM_HEI
         if (tileVal >= 1 && tileVal <= 8) {
             tileVal = 51; // LUSH_ROCK
         } else if (tileVal == 24) {
-            tileVal = 74; // LUSH_SMOOTH
+            tileVal = 58; // LUSH_SMOOTH
         }
       }
         

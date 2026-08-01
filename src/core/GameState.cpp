@@ -202,23 +202,34 @@ void PlayState::enter() {
             }
             tempLevel.tileMap->setTile(x, y, newTile);
           } else if (type == TileType::LUSH_ROCK) {
-            bool top = isSolid(x, y - 1);
-            bool bottom = isSolid(x, y + 1);
+            bool top = (y > 0 && isSolid(x, y - 1));
+            bool bottom = (y < 31 && isSolid(x, y + 1));
+            bool left = (x > 0 && isSolid(x - 1, y));
+            bool right = (x < 39 && isSolid(x + 1, y));
 
             TileType newTile = TileType::LUSH_ROCK;
-            if (!top && !bottom) {
-              newTile = TileType::LUSH_UP_DOWN_ORIENTED;
-            } else if (!top) {
-              newTile = TileType::LUSH_UP_ORIENTED;
+
+            if (!top) {
+              int r = GetRandomValue(1, 3);
+              if (r == 1) newTile = TileType::LUSH_TOP_1;
+              else if (r == 2) newTile = TileType::LUSH_TOP_2;
+              else newTile = TileType::LUSH_UP_1;
             } else if (!bottom) {
-              newTile = TileType::LUSH_DOWN_ORIENTED;
+              int r = GetRandomValue(1, 2);
+              if (r == 1) newTile = TileType::LUSH_BOTTOM_1;
+              else newTile = TileType::LUSH_BOTTOM_2;
+            } else if (!left) {
+              newTile = TileType::LUSH_LEFT;
+            } else if (!right) {
+              newTile = TileType::LUSH_RIGHT;
             } else {
-              newTile = TileType::LUSH_REGULAR; // Inner dirt
-              int r = GetRandomValue(1, 100);
-              if (r <= 5)
-                newTile = TileType::LUSH_SOME_GOLD;
-              else if (r <= 7)
+              newTile = TileType::LUSH_ROCK; // Inner dirt
+              int goldChance = GetRandomValue(1, 100);
+              if (goldChance <= 2) {
                 newTile = TileType::LUSH_MUCH_GOLD;
+              } else if (goldChance <= 10) {
+                newTile = TileType::LUSH_SOME_GOLD;
+              }
             }
             tempLevel.tileMap->setTile(x, y, newTile);
           }
