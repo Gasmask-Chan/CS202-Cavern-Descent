@@ -22,7 +22,8 @@ protected:
 
 public:
     bool isShopItem = false;
-    bool isHeld;
+    bool isHeld = false;
+    bool isEmbedded = false;
     
     Item(float x, float y, float w, float h, ItemType type);
 

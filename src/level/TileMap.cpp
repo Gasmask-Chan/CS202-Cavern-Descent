@@ -31,6 +31,10 @@ void TileMap::setTile(int x, int y, TileType type) {
   }
 }
 
+void TileMap::setZoneTint(Color tint) {
+    zoneTint = tint;
+}
+
 void TileMap::destroyBlock(int x, int y) {
   // Whip already checks isCracked, Bomb destroys indiscriminately.
   setTile(x, y, TileType::NOTHING);
@@ -82,7 +86,7 @@ bool TileMap::isLadder(int x, int y) const {
          (type >= TileType::VINE && type <= TileType::VINE_SOURCE);
 }
 
-void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap, bool foregroundPass) {
+void TileMap::render(Camera2D &cam, const std::vector<std::vector<Vector3>>& lightMap, bool foregroundPass) {
   Vector2 screenTL = GetScreenToWorld2D(Vector2{0, 0}, cam);
   Vector2 screenBR = GetScreenToWorld2D(Vector2{(float)GetScreenWidth(), (float)GetScreenHeight()}, cam);
 
@@ -95,31 +99,35 @@ void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& light
     for (int x = startX; x <= endX; ++x) {
       TileType type = getTile(x, y);
 
-      auto getVertexLight = [&](int vx, int vy) -> float {
-        float sum = 0.0f;
+      auto getVertexLight = [&](int vx, int vy) -> Vector3 {
+        Vector3 sum = {0.0f, 0.0f, 0.0f};
         for (int dy = -1; dy <= 0; dy++) {
             for (int dx = -1; dx <= 0; dx++) {
                 int tx = vx + dx;
                 int ty = vy + dy;
                 if (ty >= 0 && static_cast<size_t>(ty) < lightMap.size() && tx >= 0 && static_cast<size_t>(tx) < lightMap[ty].size()) {
-                    sum += lightMap[ty][tx];
+                    sum.x += lightMap[ty][tx].x;
+                    sum.y += lightMap[ty][tx].y;
+                    sum.z += lightMap[ty][tx].z;
                 } else {
-                    sum += 0.15f; // Ambient light for out-of-bounds tiles
+                    sum.x += 0.15f; // Ambient light for out-of-bounds tiles
+                    sum.y += 0.15f;
+                    sum.z += 0.25f;
                 }
             }
         }
-        return sum / 4.0f;
+        return {sum.x / 4.0f, sum.y / 4.0f, sum.z / 4.0f};
       };
 
-      float lTL = getVertexLight(x, y);
-      float lTR = getVertexLight(x + 1, y);
-      float lBL = getVertexLight(x, y + 1);
-      float lBR = getVertexLight(x + 1, y + 1);
+      Vector3 lTL = getVertexLight(x, y);
+      Vector3 lTR = getVertexLight(x + 1, y);
+      Vector3 lBL = getVertexLight(x, y + 1);
+      Vector3 lBR = getVertexLight(x + 1, y + 1);
       
-      Color cTL = Color{(unsigned char)(255 * lTL), (unsigned char)(255 * lTL), (unsigned char)(255 * lTL), 255};
-      Color cTR = Color{(unsigned char)(255 * lTR), (unsigned char)(255 * lTR), (unsigned char)(255 * lTR), 255};
-      Color cBL = Color{(unsigned char)(255 * lBL), (unsigned char)(255 * lBL), (unsigned char)(255 * lBL), 255};
-      Color cBR = Color{(unsigned char)(255 * lBR), (unsigned char)(255 * lBR), (unsigned char)(255 * lBR), 255};
+      Color cTL = Color{(unsigned char)std::min(255.0f, (float)zoneTint.r * lTL.x), (unsigned char)std::min(255.0f, (float)zoneTint.g * lTL.y), (unsigned char)std::min(255.0f, (float)zoneTint.b * lTL.z), 255};
+      Color cTR = Color{(unsigned char)std::min(255.0f, (float)zoneTint.r * lTR.x), (unsigned char)std::min(255.0f, (float)zoneTint.g * lTR.y), (unsigned char)std::min(255.0f, (float)zoneTint.b * lTR.z), 255};
+      Color cBL = Color{(unsigned char)std::min(255.0f, (float)zoneTint.r * lBL.x), (unsigned char)std::min(255.0f, (float)zoneTint.g * lBL.y), (unsigned char)std::min(255.0f, (float)zoneTint.b * lBL.z), 255};
+      Color cBR = Color{(unsigned char)std::min(255.0f, (float)zoneTint.r * lBR.x), (unsigned char)std::min(255.0f, (float)zoneTint.g * lBR.y), (unsigned char)std::min(255.0f, (float)zoneTint.b * lBR.z), 255};
 
       Rectangle dest = { (float)x * tileSize, (float)y * tileSize, (float)tileSize, (float)tileSize };
 

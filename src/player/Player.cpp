@@ -18,6 +18,8 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     isWhipping = false;
     whipTimer = 0.0f;
     whipHitThisFrame = false;
+    isGodMode = false;
+    cheatSequence = 0;
     tileMap = nullptr;
     liquidSim = nullptr;
     bubbleTimer = 0;
@@ -168,6 +170,21 @@ void Player::handleInput() {
     }
     if (IsKeyPressed(KEY_L)) {
         useRope();
+    }
+
+    int key = GetKeyPressed();
+    while (key > 0) {
+        if (key == KEY_G) {
+            cheatSequence = 1;
+        } else if (key == KEY_O && cheatSequence == 1) {
+            cheatSequence = 2;
+        } else if (key == KEY_D && cheatSequence == 2) {
+            isGodMode = !isGodMode; // Toggle God Mode
+            cheatSequence = 0;
+        } else {
+            cheatSequence = 0;
+        }
+        key = GetKeyPressed();
     }
 }
 
@@ -480,6 +497,7 @@ void Player::render(float lightLevel) {
 }
 
 void Player::takeDamage(int dmg) {
+    if (isGodMode) return;
     if (invincibilityTimer > 0.0f) return;
     
     health -= dmg;
@@ -490,6 +508,8 @@ void Player::takeDamage(int dmg) {
     
     EventData data;
     data.amount = dmg;
+    data.worldX = x + width / 2.0f;
+    data.worldY = y + height / 2.0f;
     EventBus::getInstance()->publish(EventType::EVENT_PLAYER_DAMAGED, data);
     
     if (health <= 0) {

@@ -53,6 +53,19 @@ void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
                     float penRight = (tileRect.x + tileRect.width) - aabb.x;
                     float penTop = (aabb.y + aabb.height) - tileRect.y;
                     float penBottom = (tileRect.y + tileRect.height) - aabb.y;
+                    
+                    // Prevent tunneling: If the entity is falling straight down or is fully within the tile's horizontal bounds, ignore horizontal penetration.
+                    bool fullyInsideX = (penLeft >= aabb.width - 0.1f && penRight >= aabb.width - 0.1f);
+                    if (fullyInsideX || (std::abs(e->vx) < 1.0f && e->vy > 0.0f)) {
+                        penLeft = 9999.0f;
+                        penRight = 9999.0f;
+                    }
+
+                    // Prevent tunneling: Do not resolve collision in a direction opposite to velocity
+                    if (e->vy > 0.0f) penBottom = 9999.0f; // Falling: can't hit a ceiling
+                    if (e->vy < 0.0f) penTop = 9999.0f;    // Rising: can't hit a floor
+                    if (e->vx > 0.0f) penRight = 9999.0f;  // Moving right: can't hit a left-facing wall
+                    if (e->vx < 0.0f) penLeft = 9999.0f;   // Moving left: can't hit a right-facing wall
 
                     float minPen = std::min({penLeft, penRight, penTop, penBottom});
 

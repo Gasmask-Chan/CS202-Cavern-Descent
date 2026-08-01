@@ -96,6 +96,12 @@ public:
     void render() override;
 };
 
+struct ExplosionFlash {
+    float x;
+    float y;
+    float timer;
+};
+
 class PlayState : public GameState {
 private:
     std::unique_ptr<Player> player;
@@ -110,6 +116,10 @@ private:
     std::unique_ptr<ShopSystem> shop;
     std::vector<std::unique_ptr<Item>> pendingItems;
     std::vector<std::unique_ptr<DynamicEntity>> pendingEntities;
+    std::vector<ExplosionFlash> explosionFlashes;
+    
+    float cameraShakeTimer;
+    float cameraShakeIntensity;
     
     float ghostTimer;
     bool ghostSpawned;
@@ -277,6 +287,7 @@ private:
     void loadLevel(const std::string& path);
 
 public:
+    ~EditorState() override;
     /**
      * @brief Creates `LevelEditor` instance. Initializes empty tilemap. Shows tile/entity palette UI.
      * 

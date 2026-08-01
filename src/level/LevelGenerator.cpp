@@ -19,6 +19,8 @@
 
 namespace Platformer {
 
+LevelGenerator::~LevelGenerator() = default;
+
 // ---------------------------------------------------------------------------
 // generate()
 // ---------------------------------------------------------------------------
@@ -685,8 +687,10 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
           case 13: { // Shop Item
             char shopCodes[] = {'$', 'I', 'Y', 'L'};
             char itemCode = shopCodes[GetRandomValue(0, 3)];
-            auto item = EntityFactory::createItem(itemCode, px, py + (32 - 16));
+            auto item = EntityFactory::createItem(itemCode, px, py);
             if (item) {
+                float h = item->getAABB().height;
+                item->move(0, MAP_TILE_SIZE - h);
                 item->isShopItem = true;
                 tempItems.push_back(std::move(item));
             }
@@ -722,7 +726,13 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
         }
         if (itemCode != 0) {
           auto item = EntityFactory::createItem(itemCode, px, py);
-          if (item) tempItems.push_back(std::move(item));
+          if (item) {
+              if (map->isSolid(tx, ty)) {
+                  item->isEmbedded = true;
+                  item->setPassesThroughWalls(true);
+              }
+              tempItems.push_back(std::move(item));
+          }
         }
       }
     }

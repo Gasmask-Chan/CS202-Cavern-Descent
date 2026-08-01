@@ -10,6 +10,8 @@
 #include "enemies/NemesisGhost.h"
 #include "enemies/Spike.h"
 #include "enemies/Flame.h"
+#include "Explosion.h"
+#include "Particle.h"
 
 namespace Platformer {
 
@@ -43,6 +45,7 @@ void EntityFactory::preloadTextures() {
     getTexture("assets/npc/Ghost.png");
     getTexture("assets/sprites/lava/LavaDrip.png");
     getTexture("assets/sprites/8x8/bubble.png");
+    getTexture("assets/sprites/64x64/gfx_explosion.png");
 }
 
 std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, float y) {
@@ -94,6 +97,7 @@ std::unique_ptr<Item> EntityFactory::createItem(char code, float x, float y) {
         case 'G': 
             item = std::make_unique<LootPickup>(x, y, 32.0f, 32.0f, 500); // Gold Bar
             item->setSprite(getTexture(texGold), Rectangle{0, 0, 16, 16});
+            item->renderOffsetY = 16.0f;
             break;
         case 'R': {
             item = std::make_unique<LootPickup>(x, y, 16.0f, 16.0f, 100); // Ruby
@@ -108,6 +112,7 @@ std::unique_ptr<Item> EntityFactory::createItem(char code, float x, float y) {
         case 'C': // Chest (Closed)
             item = std::make_unique<Chest>(x, y, 32.0f, 32.0f);
             item->setSprite(getTexture(texSpikes), Rectangle{32, 0, 16, 16}); // Row 0 Col 2
+            item->renderOffsetY = 16.0f;
             break;
         case '$': 
             return createItem('C', x, y); // Chest
@@ -134,6 +139,26 @@ std::unique_ptr<Arrow> EntityFactory::createArrow(float x, float y, float vx) {
     auto arrow = std::make_unique<Arrow>(x, y, vx);
     arrow->setSprite(getTexture("assets/sprites/8x8/gfx_arrow.png"), Rectangle{0, 0, 8, 8});
     return arrow;
+}
+
+std::unique_ptr<Explosion> EntityFactory::createExplosion(float x, float y) {
+    auto exp = std::make_unique<Explosion>(x, y);
+    exp->setSprite(getTexture("assets/sprites/64x64/gfx_explosion.png"), Rectangle{0, 0, 64, 64});
+    return exp;
+}
+
+std::unique_ptr<Particle> EntityFactory::createBloodParticle(float x, float y) {
+    float vx = static_cast<float>(GetRandomValue(-150, 150));
+    float vy = static_cast<float>(GetRandomValue(-250, -50));
+    float lifetime = static_cast<float>(GetRandomValue(10, 30)) / 10.0f; // 1.0s to 3.0s
+    
+    auto particle = std::make_unique<Particle>(x, y, vx, vy, lifetime);
+    
+    // Choose random blood frame (columns 0 to 5)
+    int frameCol = GetRandomValue(0, 5);
+    particle->setSprite(getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"), Rectangle{frameCol * 8.0f, 0, 8, 8});
+    
+    return particle;
 }
 
 std::unique_ptr<Trap> EntityFactory::createTrap(char code, float x, float y) {

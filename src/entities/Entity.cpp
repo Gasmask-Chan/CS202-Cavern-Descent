@@ -17,9 +17,9 @@ void Entity::render(float lightLevel) {
     Color tint = { tintVal, tintVal, tintVal, 255 };
     if (sprite.id != 0) {
         if (srcRect.width == 0) {
-            DrawTextureEx(sprite, Vector2{x, y}, 0.0f, 1.0f, tint);
+            DrawTextureEx(sprite, Vector2{x + renderOffsetX, y + renderOffsetY}, 0.0f, 1.0f, tint);
         } else {
-            Rectangle destRect = { x, y, width, height };
+            Rectangle destRect = { x + renderOffsetX, y + renderOffsetY, width, height };
             DrawTexturePro(sprite, srcRect, destRect, Vector2{0,0}, 0.0f, tint);
         }
     }

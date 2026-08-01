@@ -281,7 +281,7 @@ Exactly **5 design patterns**, each mapped to a concrete system:
 | **Factory** | `EntityFactory` | Translates integer IDs (from the room templates) into `TileType` enums and spawns items/enemies at runtime via concrete subclass constructors. |
 | **State** | Enemy AI & Game Screens | Enemies: `EnemyState` → Idle/Chase/Return. Game: `GameState` → Menu/CharSelect/Play/Pause/GameOver/Editor. |
 | **Strategy** | Character Movement | `MovementStrategy` → Explorer (balanced), Ninja (high jump, fast), Tank (slow, high HP). Swapped at character select. |
-| **Observer** | Event System | `EventBus::subscribe/publish`. Events: bomb → terrain+lighting+liquid+audio; treasure pickup → combo system; ghost timer → spawn ghost. |
+| **Observer** | Event System | `EventBus::subscribe/publish`. Events: bomb → terrain+lighting+liquid+audio; treasure pickup → combo system; ghost timer → spawn ghost; taking damage → spawn blood particles. |
 
 ### Pattern Interaction Example
 
@@ -505,7 +505,7 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `run()` | Main entry point. Calls `init()`, then enters the main `while (!WindowShouldClose())` loop calling `handleInput()`, `update(dt)`, `render()` each frame. Calls `cleanup()` on exit. |
+| `run()` | Main entry point. Calls `init()`, then enters the main `while (!WindowShouldClose())` loop calling `handleInput()`, `update(dt)` (with `dt` clamped to max 0.033f to prevent physics tunneling during lag spikes), and `render()` each frame. Calls `cleanup()` on exit. |
 | `init()` | Initializes Raylib window (`InitWindow`), sets target FPS to 60, initializes `GameManager` and `AudioManager` singletons, loads all shared textures and sounds, creates the initial `MenuState`, calls `setGame(this)` and `enter()` on the initial state. |
 | `handleInput()` | Delegates to `stateStack.back()->handleInput()`. No game-level input processing — all input is state-specific. |
 | `update(float dt)` | Passes `GetFrameTime()` delta to `stateStack.back()->update(dt)`. |
@@ -575,6 +575,8 @@ classDiagram
         #float height
         #bool isActive
         #Texture2D sprite
+        +float renderOffsetX
+        +float renderOffsetY
         +Entity(float x, float y, float w, float h)
         +virtual ~Entity()
         +virtual update(float dt) void
@@ -618,6 +620,8 @@ classDiagram
         -int currentFrame
         -Rectangle frameRec
         -bool whipHitThisFrame
+        -bool isGodMode
+        -int cheatSequence
         -Texture2D whipSprite
         +Player(float x, float y, CharacterType type)
         +handleInput() void
@@ -677,6 +681,14 @@ classDiagram
         +explode() void
     }
 
+    class Explosion {
+        -int currentFrame
+        -float frameTimer
+        +Explosion(float x, float y)
+        +update(float dt, Player* player) void
+        +render(float lightLevel) void
+    }
+
     class Bat {
         -float flySpeed
         -float swoopAngle
@@ -701,6 +713,14 @@ classDiagram
         +update(float dt) void
     }
 
+    class Particle {
+        -float lifetime
+        -float maxLifetime
+        +Particle(float x, float y, float vx, float vy, float lifetime)
+        +update(float dt, Player* player) void
+        +render(float lightLevel) void
+    }
+
 
 
     Entity <|-- DynamicEntity
@@ -709,6 +729,8 @@ classDiagram
     DynamicEntity <|-- Player
     DynamicEntity <|-- Enemy
     DynamicEntity <|-- Bomb
+    DynamicEntity <|-- Explosion
+    DynamicEntity <|-- Particle
     Enemy <|-- Bat
     Enemy <|-- Snake
     Enemy <|-- Spider
@@ -733,7 +755,7 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `applyGravity(float dt)` | If `!isGrounded`, adds `gravity * dt` to `vy`. Gravity constant is ~800 pixels/sec². `isGrounded` is set to `true` by `PhysicsSystem` when a downward collision is resolved. Reset to `false` at the start of each frame. |
+| `applyGravity(float dt)` | If `!isGrounded`, adds `gravity * dt` to `vy`, capped at a terminal velocity of 800 pixels/sec to prevent tile-skipping. Gravity constant is ~800 pixels/sec². `isGrounded` is set to `true` by `PhysicsSystem` when a downward collision is resolved. Reset to `false` at the start of each frame. |
 | `move(float dx, float dy)` | Adds `dx` to `x` and `dy` to `y`. Raw position change — no collision checking. Collision is handled separately by `PhysicsSystem::resolveEntityTileCollision()`. |
 | `setVelocity(float vx, float vy)` | Directly sets velocity components. Used by knockback, bounce, and state transitions (e.g., `ChaseState` sets `vx` toward player). |
 
@@ -959,8 +981,10 @@ classDiagram
         -int height
         -int tileSize
         -Texture2D dsTileset
+        -Color zoneTint
         +TileMap(int w, int h, int size)
         +~TileMap()
+        +setZoneTint(Color tint) void
         +getTile(int x, int y) TileType
         +setTile(int x, int y, TileType type) void
         +isSolid(int x, int y) bool
@@ -1181,6 +1205,10 @@ classDiagram
         +virtual update(float dt) void
         +virtual render(float lightLevel) void
         +getDamage() int
+    }
+
+    class Explosion {
+        +Explosion(float x, float y)
     }
 
     class Spike {
