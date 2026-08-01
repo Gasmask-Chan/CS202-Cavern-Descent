@@ -198,6 +198,26 @@ void PlayState::enter() {
                 newTile = TileType::CAVE_MUCH_GOLD;
             }
             tempLevel.tileMap->setTile(x, y, newTile);
+          } else if (type == TileType::LUSH_ROCK) {
+            bool top = isSolid(x, y - 1);
+            bool bottom = isSolid(x, y + 1);
+
+            TileType newTile = TileType::LUSH_ROCK;
+            if (!top && !bottom) {
+              newTile = TileType::LUSH_UP_DOWN_ORIENTED;
+            } else if (!top) {
+              newTile = TileType::LUSH_UP_ORIENTED;
+            } else if (!bottom) {
+              newTile = TileType::LUSH_DOWN_ORIENTED;
+            } else {
+              newTile = TileType::LUSH_REGULAR; // Inner dirt
+              int r = GetRandomValue(1, 100);
+              if (r <= 5)
+                newTile = TileType::LUSH_SOME_GOLD;
+              else if (r <= 7)
+                newTile = TileType::LUSH_MUCH_GOLD;
+            }
+            tempLevel.tileMap->setTile(x, y, newTile);
           }
         }
       }
@@ -210,8 +230,14 @@ void PlayState::enter() {
           float py = y * 32.0f;
 
           if (type == TileType::CAVE_SOME_GOLD ||
-              type == TileType::CAVE_MUCH_GOLD) {
-            type = TileType::CAVE_ROCK;
+              type == TileType::CAVE_MUCH_GOLD ||
+              type == TileType::LUSH_SOME_GOLD ||
+              type == TileType::LUSH_MUCH_GOLD) {
+            if (type == TileType::CAVE_SOME_GOLD || type == TileType::CAVE_MUCH_GOLD) {
+                type = TileType::CAVE_ROCK;
+            } else {
+                type = TileType::LUSH_ROCK;
+            }
             auto gold = EntityFactory::createItem('G', px, py);
             if (gold)
               tempLevel.items.push_back(std::move(gold));
@@ -262,7 +288,7 @@ void PlayState::enter() {
     }
   } else {
     tempLevel = tempGenerator->generate(GameManager::getInstance()->getFloor(),
-                                        ZoneType::CAVE);
+                                        GameManager::getInstance()->getZone());
   }
 
   physics = std::make_unique<PhysicsSystem>(tempLevel.tileMap.get());

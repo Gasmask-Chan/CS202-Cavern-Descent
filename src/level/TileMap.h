@@ -25,7 +25,29 @@ enum class TileType {
     ENTRANCE = 13,
     EXIT = 14,
     CAVE_SMOOTH = 24, // Shop floor (Col 1, Row 11)
-    // (Other Spelunky DS tiles 15-42 omitted as they aren't used in cave generation, but can be added if needed)
+    
+    // --- LUSH JUNGLE TILES (51-75) ---
+    LUSH_ROCK = 51,
+    LUSH_REGULAR = 52,
+    LUSH_STONE_BLOCK = 53,
+    LUSH_DOWN_ORIENTED = 54,
+    LUSH_SOME_GOLD = 55,
+    LUSH_MUCH_GOLD = 56,
+    LUSH_UP_ORIENTED = 57,
+    LUSH_UP_DOWN_ORIENTED = 58,
+    LUSH_SMOOTH = 74,
+    VINE = 65,
+    VINE_BOTTOM = 66,
+    VINE_TOP = 67,
+    VINE_SOURCE = 68,
+    TREE_TRUNK = 69,
+    TREE_TOP = 70,
+    TREE_BRANCH_LEFT = 71,
+    TREE_BRANCH_RIGHT = 72,
+    LEAVE = 73,
+    LEAVE_TOP = 74,
+    LEAVE_RIGHT = 75,
+    TEMPLE_ROCK = 76,
     
     // We add a few custom ones we need for logic that aren't in DS tiles natively
     SPIKE_TRAP = 100, 
@@ -46,6 +68,8 @@ private:
     int tileSize;
 
     Texture2D dsTileset;
+    Texture2D dsTilesetJungle;
+    Texture2D dsTilesetTemple;
 
 public:
     TileMap(int w, int h, int size);

@@ -29,7 +29,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
   bool isValid   = false;
 
   for (int attempt = 0; attempt < maxRetries; ++attempt) {
-    bool wantsLake = true; // 100% chance for testing
+    bool wantsLake = (GetRandomValue(1, 100) <= 70);
     bool hasValidLakeRoom = false;
 
     // Retry macro grid until it satisfies our lake requirements
@@ -66,12 +66,12 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempPlayerSpawn = Vector2{0, 0};
     tempExitPos     = Vector2{0, 0};
 
-    // Reset entity limits (Reduced for testing lava)
-    snakesLeft    = 1;
-    batsLeft      = 1;
-    spidersLeft   = 1;
-    cavemenLeft   = 1;
-    skeletonsLeft = 1;
+    // Reset entity limits (Spelunky-DS style)
+    snakesLeft    = 4;
+    batsLeft      = 4;
+    spidersLeft   = 4;
+    cavemenLeft   = 3;
+    skeletonsLeft = 3;
     damselsLeft   = 1;
     spikesLeft    = 4;
     lastPlacement = 3;
@@ -110,16 +110,22 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
               case RoomRole::TYPE_3:
                 memcpy(tileGrid, left_right_up_rooms[v], sizeof(tileGrid));
                 break;
-              case RoomRole::TYPE_SHOP:
-                memcpy(tileGrid, shops[v % 2], sizeof(tileGrid));
+              case RoomRole::TYPE_SHOP: {
+                bool leftOpen = (gx > 0) && macroGrid[gy][gx - 1] != RoomRole::TYPE_0;
+                if (leftOpen) {
+                  memcpy(tileGrid, shops[0], sizeof(tileGrid));
+                } else {
+                  memcpy(tileGrid, shops[1], sizeof(tileGrid));
+                }
                 break;
+              }
               case RoomRole::TYPE_0:
               default:
                 memcpy(tileGrid, closed_rooms[v], sizeof(tileGrid));
                 break;
             }
         }
-        instantiateTiles(tileGrid, gx, gy, role, level.tileMap.get());
+        instantiateTiles(zone, tileGrid, gx, gy, role, level.tileMap.get());
         
         if (role == RoomRole::TYPE_SHOP) {
             level.shopArea = Rectangle{
@@ -256,7 +262,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
             }
             
             // Fill water basin. Water fills the inside from floorY - 1 up to floorY - targetHeight
-            LiquidType lakeType = (GetRandomValue(0, 1) == 0) ? LiquidType::WATER : LiquidType::LAVA;
+            LiquidType lakeType = (zone == ZoneType::TEMPLE) ? LiquidType::LAVA : LiquidType::WATER;
             for (int y = floorY - 1; y >= floorY - targetHeight; --y) {
                 for (int x = startX + 1; x < endX - 1; ++x) {
                     if (!level.tileMap->isSolid(x, y)) {
@@ -320,10 +326,13 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
                 memcpy(npcGrid,  left_right_up_npcs[v],  sizeof(npcGrid));
                 memcpy(lootGrid, left_right_up_loot[v],  sizeof(lootGrid));
                 break;
-              case RoomRole::TYPE_SHOP:
-                memcpy(npcGrid,  shops_npcs[v % 2],  sizeof(npcGrid));
-                memcpy(lootGrid, shops_loot[v % 2],  sizeof(lootGrid));
+              case RoomRole::TYPE_SHOP: {
+                bool leftOpen = (gx > 0) && macroGrid[gy][gx - 1] != RoomRole::TYPE_0;
+                int shopIdx = leftOpen ? 0 : 1;
+                memcpy(npcGrid,  shops_npcs[shopIdx],  sizeof(npcGrid));
+                memcpy(lootGrid, shops_loot[shopIdx],  sizeof(lootGrid));
                 break;
+              }
               case RoomRole::TYPE_0:
               default:
                 memcpy(npcGrid,  closed_rooms_npcs[v], sizeof(npcGrid));
@@ -497,7 +506,7 @@ int LevelGenerator::selectVariation(RoomRole role, bool isEntrance) const {
 }
 
 // ---------------------------------------------------------------------------
-void LevelGenerator::instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map) {
+void LevelGenerator::instantiateTiles(ZoneType zone, const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map) {
   for (int cy = 0; cy < ROOM_HEIGHT; ++cy) {
     for (int cx = 0; cx < ROOM_WIDTH; ++cx) {
       int tx = gx * ROOM_WIDTH  + cx;
@@ -519,6 +528,16 @@ void LevelGenerator::instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH
       }
 
       int tileVal = tileGrid[cy][cx];
+        
+      // Translate Cave tiles to Jungle tiles if needed
+      if (zone == ZoneType::JUNGLE) {
+        if (tileVal >= 1 && tileVal <= 8) {
+            tileVal = 51; // LUSH_ROCK
+        } else if (tileVal == 24) {
+            tileVal = 74; // LUSH_SMOOTH
+        }
+      }
+        
       map->setTile(tx, ty, static_cast<TileType>(tileVal));
     }
   }

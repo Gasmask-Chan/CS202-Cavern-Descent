@@ -9,10 +9,14 @@ namespace Platformer {
 TileMap::TileMap(int w, int h, int size) : width(w), height(h), tileSize(size) {
   tiles.assign(height, std::vector<TileType>(width, TileType::NOTHING));
   dsTileset = LoadTexture("assets/tilemaps/gfx_cavebg.png");
+  dsTilesetJungle = LoadTexture("assets/tilemaps/gfx_junglebg.png");
+  dsTilesetTemple = LoadTexture("assets/tilemaps/gfx_templebg.png");
 }
 
 TileMap::~TileMap() { 
   UnloadTexture(dsTileset); 
+  UnloadTexture(dsTilesetJungle);
+  UnloadTexture(dsTilesetTemple);
 }
 
 TileType TileMap::getTile(int x, int y) const {
@@ -40,7 +44,10 @@ void TileMap::destroyBlock(int x, int y) {
 bool TileMap::isSolid(int x, int y) const {
   TileType type = getTile(x, y);
   if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) || 
-      type == TileType::CAVE_SMOOTH || type == TileType::STONE_BLOCK || type == TileType::SPIKE_TRAP || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT) {
+      type == TileType::CAVE_SMOOTH || type == TileType::STONE_BLOCK || type == TileType::SPIKE_TRAP || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT ||
+      (type >= TileType::LUSH_ROCK && type <= TileType::LUSH_UP_DOWN_ORIENTED) ||
+      type == TileType::TREE_TRUNK || type == TileType::TREE_TOP ||
+      type == TileType::TEMPLE_ROCK) {
       return true; 
   }
   return false;
@@ -48,14 +55,18 @@ bool TileMap::isSolid(int x, int y) const {
 
 bool TileMap::isOneWayPlatform(int x, int y) const {
     TileType type = getTile(x, y);
-    return type == TileType::LADDER_DECK;
+    return type == TileType::LADDER_DECK ||
+           type == TileType::VINE_TOP ||
+           (type >= TileType::TREE_BRANCH_LEFT && type <= TileType::LEAVE_RIGHT);
 }
 
 bool TileMap::isOpaque(int x, int y) const {
   TileType type = getTile(x, y);
   // Opaque blocks light
   if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED && type != TileType::CAVE_DOWN_ORIENTED) || 
-      type == TileType::CAVE_SMOOTH || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT) {
+      type == TileType::CAVE_SMOOTH || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT ||
+      (type >= TileType::LUSH_ROCK && type <= TileType::LUSH_UP_DOWN_ORIENTED && type != TileType::LUSH_DOWN_ORIENTED) ||
+      type == TileType::TEMPLE_ROCK) {
       return true; 
   }
   return false;
@@ -67,7 +78,8 @@ bool TileMap::isCracked(int x, int y) const {
 
 bool TileMap::isLadder(int x, int y) const {
   TileType type = getTile(x, y);
-  return type == TileType::LADDER || type == TileType::LADDER_DECK;
+  return type == TileType::LADDER || type == TileType::LADDER_DECK ||
+         (type >= TileType::VINE && type <= TileType::VINE_SOURCE);
 }
 
 void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap, bool foregroundPass) {
@@ -117,34 +129,57 @@ void TileMap::render(Camera2D &cam, const std::vector<std::vector<float>>& light
             continue; 
         }
 
-        bool isBackgroundTile = (type == TileType::ENTRANCE || type == TileType::EXIT || type == TileType::LADDER || type == TileType::LADDER_DECK);
+        bool isBackgroundTile = (type == TileType::ENTRANCE || type == TileType::EXIT || type == TileType::LADDER || type == TileType::LADDER_DECK ||
+                                 (type >= TileType::VINE && type <= TileType::VINE_SOURCE) ||
+                                 (type >= TileType::LEAVE && type <= TileType::LEAVE_RIGHT));
         
         if (foregroundPass && isBackgroundTile) continue;
         if (!foregroundPass && !isBackgroundTile) continue;
 
-        int dsIndex = static_cast<int>(type);
+          int dsIndex = static_cast<int>(type);
+          
+
+          
+          Texture2D* currentTileset = nullptr;
+        Rectangle dsSrc;
+
         if (dsIndex > 0 && dsIndex <= 42) {
+            currentTileset = &dsTileset;
             int logical_index = dsIndex - 1;
             int pixel_x = (logical_index % 2) * 16;
             int pixel_y = (logical_index / 2) * 16;
-            Rectangle dsSrc = { (float)pixel_x, (float)pixel_y, 16.0f, 16.0f };
-            
-            rlSetTexture(dsTileset.id);
+            dsSrc = { (float)pixel_x, (float)pixel_y, 16.0f, 16.0f };
+        } else if (dsIndex >= 51 && dsIndex <= 75) {
+            currentTileset = &dsTilesetJungle;
+            int logical_index = (dsIndex - 50) - 1;
+            int pixel_x = (logical_index % 2) * 16;
+            int pixel_y = (logical_index / 2) * 16;
+            dsSrc = { (float)pixel_x, (float)pixel_y, 16.0f, 16.0f };
+        } else if (dsIndex >= 76 && dsIndex <= 100) {
+            currentTileset = &dsTilesetTemple;
+            int logical_index = (dsIndex - 75) - 1;
+            int pixel_x = (logical_index % 2) * 16;
+            int pixel_y = (logical_index / 2) * 16;
+            dsSrc = { (float)pixel_x, (float)pixel_y, 16.0f, 16.0f };
+        }
+        
+        if (currentTileset && currentTileset->id != 0) {
+            rlSetTexture(currentTileset->id);
             rlBegin(RL_QUADS);
                 rlColor4ub(cTL.r, cTL.g, cTL.b, cTL.a);
-                rlTexCoord2f(dsSrc.x / dsTileset.width, dsSrc.y / dsTileset.height);
+                rlTexCoord2f(dsSrc.x / currentTileset->width, dsSrc.y / currentTileset->height);
                 rlVertex2f(dest.x, dest.y);
 
                 rlColor4ub(cBL.r, cBL.g, cBL.b, cBL.a);
-                rlTexCoord2f(dsSrc.x / dsTileset.width, (dsSrc.y + dsSrc.height) / dsTileset.height);
+                rlTexCoord2f(dsSrc.x / currentTileset->width, (dsSrc.y + dsSrc.height) / currentTileset->height);
                 rlVertex2f(dest.x, dest.y + dest.height);
 
                 rlColor4ub(cBR.r, cBR.g, cBR.b, cBR.a);
-                rlTexCoord2f((dsSrc.x + dsSrc.width) / dsTileset.width, (dsSrc.y + dsSrc.height) / dsTileset.height);
+                rlTexCoord2f((dsSrc.x + dsSrc.width) / currentTileset->width, (dsSrc.y + dsSrc.height) / currentTileset->height);
                 rlVertex2f(dest.x + dest.width, dest.y + dest.height);
 
                 rlColor4ub(cTR.r, cTR.g, cTR.b, cTR.a);
-                rlTexCoord2f((dsSrc.x + dsSrc.width) / dsTileset.width, dsSrc.y / dsTileset.height);
+                rlTexCoord2f((dsSrc.x + dsSrc.width) / currentTileset->width, dsSrc.y / currentTileset->height);
                 rlVertex2f(dest.x + dest.width, dest.y);
             rlEnd();
             rlSetTexture(0);
