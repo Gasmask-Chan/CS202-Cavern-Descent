@@ -49,7 +49,7 @@ bool TileMap::isSolid(int x, int y) const {
   TileType type = getTile(x, y);
   if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) || 
       type == TileType::CAVE_SMOOTH || type == TileType::STONE_BLOCK || type == TileType::SPIKE_TRAP || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT ||
-      (type >= TileType::LUSH_ROCK && type <= TileType::LUSH_BOTTOM_RIGHT) ||
+      (type >= TileType::LUSH_ROCK && type <= TileType::LUSH_SMOOTH) ||
       type == TileType::TREE_TRUNK || type == TileType::TREE_TOP ||
       type == TileType::TEMPLE_ROCK) {
       return true; 
@@ -69,7 +69,7 @@ bool TileMap::isOpaque(int x, int y) const {
   // Opaque blocks light
   if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED && type != TileType::CAVE_DOWN_ORIENTED) || 
       type == TileType::CAVE_SMOOTH || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT ||
-      (type >= TileType::LUSH_ROCK && type <= TileType::LUSH_BOTTOM_RIGHT && type != TileType::LUSH_DOWN && type != TileType::LUSH_BOTTOM_LEFT && type != TileType::LUSH_BOTTOM_RIGHT) ||
+      (type >= TileType::LUSH_ROCK && type <= TileType::LUSH_SMOOTH && type != TileType::LUSH_DOWN) ||
       type == TileType::TEMPLE_ROCK) {
       return true; 
   }

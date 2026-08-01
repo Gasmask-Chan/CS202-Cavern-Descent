@@ -164,18 +164,21 @@ void PlayState::enter() {
       in.close();
 
       // Auto-Beautify CAVE_ROCK (Turn into Cave Up, Down, Gold, etc)
-      auto isSolid = [&](int x, int y) {
-        if (x < 0 || y < 0 || x >= 40 || y >= 32)
+      auto isSolid = [&](int cx, int cy) {
+        if (cx < 0 || cx >= 40 || cy < 0 || cy >= 32)
           return true;
-        TileType t = tempLevel.tileMap->getTile(x, y);
-        return t != TileType::NOTHING && t != TileType::LADDER &&
-               t != TileType::LADDER_DECK && t != TileType::ENTRANCE &&
+        TileType t = tempLevel.tileMap->getTile(cx, cy);
+        return t != TileType::NOTHING && t != TileType::ENTRANCE &&
                t != TileType::EXIT && t != TileType::ENEMY_SNAKE &&
                t != TileType::ENEMY_BAT && t != TileType::ENEMY_SPIDER &&
                t != TileType::CHEST && t != TileType::LAVA &&
                t != TileType::WATER && t != TileType::SPIKE_TRAP &&
-               t != TileType::ARROW_TRAP_LEFT && t != TileType::ARROW_TRAP_RIGHT;
+               t != TileType::ARROW_TRAP_LEFT && t != TileType::ARROW_TRAP_RIGHT &&
+               !(t >= TileType::LUSH_TOP_1 && t <= TileType::LUSH_LEFT);
       };
+
+      std::vector<std::pair<Vector2i, TileType>> borderTiles;
+
 
       for (int y = 0; y < 32; y++) {
         for (int x = 0; x < 40; x++) {
@@ -209,37 +212,43 @@ void PlayState::enter() {
 
             TileType newTile = TileType::LUSH_ROCK;
 
-            if (!top && !left) {
-              newTile = TileType::LUSH_TOP_LEFT;
-            } else if (!top && !right) {
-              newTile = TileType::LUSH_TOP_RIGHT;
-            } else if (!bottom && !left) {
-              newTile = TileType::LUSH_BOTTOM_LEFT;
-            } else if (!bottom && !right) {
-              newTile = TileType::LUSH_BOTTOM_RIGHT;
-            } else if (!top) {
-              int r = GetRandomValue(1, 3);
-              if (r == 1) newTile = TileType::LUSH_UP_1;
-              else if (r == 2) newTile = TileType::LUSH_UP_2;
+            if (!top) {
+              int r = GetRandomValue(1, 5);
+              if (r == 1) borderTiles.push_back({{x, y - 1}, TileType::LUSH_TOP_1});
+              else if (r == 2) borderTiles.push_back({{x, y - 1}, TileType::LUSH_TOP_2});
+              else if (r == 3) newTile = TileType::LUSH_UP_1;
+              else if (r == 4) newTile = TileType::LUSH_UP_2;
               else newTile = TileType::LUSH_UP_3;
-            } else if (!bottom) {
-              newTile = TileType::LUSH_DOWN;
-            } else if (!left) {
-              newTile = TileType::LUSH_LEFT;
-            } else if (!right) {
-              newTile = TileType::LUSH_RIGHT;
-            } else {
+            } 
+            if (!bottom) {
+              int r = GetRandomValue(1, 2);
+              if (r == 1) borderTiles.push_back({{x, y + 1}, TileType::LUSH_BOTTOM_1});
+              else borderTiles.push_back({{x, y + 1}, TileType::LUSH_BOTTOM_2});
+            } 
+            if (!left) {
+              borderTiles.push_back({{x - 1, y}, TileType::LUSH_LEFT});
+            } 
+            if (!right) {
+              borderTiles.push_back({{x + 1, y}, TileType::LUSH_RIGHT});
+            }
+            
+            if (top && bottom && left && right) {
               newTile = TileType::LUSH_ROCK; // Inner dirt
-              int goldChance = GetRandomValue(1, 100);
-              if (goldChance <= 2) {
-                newTile = TileType::LUSH_MUCH_GOLD;
-              } else if (goldChance <= 10) {
+              int r = GetRandomValue(1, 100);
+              if (r <= 5)
                 newTile = TileType::LUSH_SOME_GOLD;
-              }
+              else if (r <= 7)
+                newTile = TileType::LUSH_MUCH_GOLD;
             }
             tempLevel.tileMap->setTile(x, y, newTile);
           }
         }
+      }
+
+      for (auto& border : borderTiles) {
+          if (tempLevel.tileMap->getTile(border.first.x, border.first.y) == TileType::NOTHING) {
+              tempLevel.tileMap->setTile(border.first.x, border.first.y, border.second);
+          }
       }
 
       // Spawn Custom Entities pass
