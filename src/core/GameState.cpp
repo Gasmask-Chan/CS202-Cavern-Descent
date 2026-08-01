@@ -209,15 +209,21 @@ void PlayState::enter() {
 
             TileType newTile = TileType::LUSH_ROCK;
 
-            if (!top) {
+            if (!top && !left) {
+              newTile = TileType::LUSH_TOP_LEFT;
+            } else if (!top && !right) {
+              newTile = TileType::LUSH_TOP_RIGHT;
+            } else if (!bottom && !left) {
+              newTile = TileType::LUSH_BOTTOM_LEFT;
+            } else if (!bottom && !right) {
+              newTile = TileType::LUSH_BOTTOM_RIGHT;
+            } else if (!top) {
               int r = GetRandomValue(1, 3);
-              if (r == 1) newTile = TileType::LUSH_TOP_1;
-              else if (r == 2) newTile = TileType::LUSH_TOP_2;
-              else newTile = TileType::LUSH_UP_1;
+              if (r == 1) newTile = TileType::LUSH_UP_1;
+              else if (r == 2) newTile = TileType::LUSH_UP_2;
+              else newTile = TileType::LUSH_UP_3;
             } else if (!bottom) {
-              int r = GetRandomValue(1, 2);
-              if (r == 1) newTile = TileType::LUSH_BOTTOM_1;
-              else newTile = TileType::LUSH_BOTTOM_2;
+              newTile = TileType::LUSH_DOWN;
             } else if (!left) {
               newTile = TileType::LUSH_LEFT;
             } else if (!right) {
