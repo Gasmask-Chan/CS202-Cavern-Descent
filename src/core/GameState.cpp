@@ -213,14 +213,22 @@ void PlayState::enter() {
             TileType newTile = TileType::LUSH_ROCK;
 
             if (!top) {
-              int r = GetRandomValue(1, 5);
-              if (r == 1) borderTiles.push_back({{x, y - 1}, TileType::LUSH_TOP_1});
-              else if (r == 2) borderTiles.push_back({{x, y - 1}, TileType::LUSH_TOP_2});
-              else if (r == 3) newTile = TileType::LUSH_UP_1;
-              else if (r == 4) newTile = TileType::LUSH_UP_2;
+              // The block itself gets a grassy top
+              int r = GetRandomValue(1, 3);
+              if (r == 1) newTile = TileType::LUSH_UP_1;
+              else if (r == 2) newTile = TileType::LUSH_UP_2;
               else newTile = TileType::LUSH_UP_3;
+              
+              // We also have a chance to spawn tall grass in the empty space above
+              int r2 = GetRandomValue(1, 5);
+              if (r2 == 1) borderTiles.push_back({{x, y - 1}, TileType::LUSH_TOP_1});
+              else if (r2 == 2) borderTiles.push_back({{x, y - 1}, TileType::LUSH_TOP_2});
             } 
             if (!bottom) {
+              // The block itself gets a bottom texture
+              newTile = TileType::LUSH_DOWN;
+              
+              // We also have a chance to spawn hanging vines in the empty space below
               int r = GetRandomValue(1, 2);
               if (r == 1) borderTiles.push_back({{x, y + 1}, TileType::LUSH_BOTTOM_1});
               else borderTiles.push_back({{x, y + 1}, TileType::LUSH_BOTTOM_2});
