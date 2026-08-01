@@ -94,6 +94,7 @@ private:
 
 public:
     LevelGenerator() = default;
+    ~LevelGenerator();
 
     GeneratedLevel generate(int floor, ZoneType zone);
 };

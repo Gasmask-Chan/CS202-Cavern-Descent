@@ -10,6 +10,9 @@
 #include "../entities/enemies/Enemy.h"
 #include "../entities/enemies/NemesisGhost.h"
 #include "../entities/enemies/Spike.h"
+#include "../entities/Explosion.h"
+#include "../entities/Particle.h"
+#include "../liquid/LiquidSimulator.h"
 #include "../level/LevelGenerator.h"
 #include "../player/Player.h"
 #include "../shop/ShopSystem.h"
@@ -213,8 +216,11 @@ void PlayState::enter() {
               type == TileType::CAVE_MUCH_GOLD) {
             type = TileType::CAVE_ROCK;
             auto gold = EntityFactory::createItem('G', px, py);
-            if (gold)
-              tempLevel.items.push_back(std::move(gold));
+            if (gold) {
+                gold->isEmbedded = true;
+                gold->setPassesThroughWalls(true);
+                tempLevel.items.push_back(std::move(gold));
+            }
           } else if (type == TileType::CHEST) {
             type = TileType::NOTHING;
             auto chest = EntityFactory::createItem('C', px, py);
@@ -261,8 +267,22 @@ void PlayState::enter() {
       }
     }
   } else {
-    tempLevel = tempGenerator->generate(GameManager::getInstance()->getFloor(),
-                                        ZoneType::CAVE);
+    int currentFloor = GameManager::getInstance()->getFloor();
+    ZoneType currentZone = ZoneType::CAVE;
+    Color zoneTint = WHITE;
+
+    if (currentFloor >= 4 && currentFloor <= 6) {
+        currentZone = ZoneType::JUNGLE;
+        zoneTint = Color{180, 255, 180, 255};
+    } else if (currentFloor >= 7) {
+        currentZone = ZoneType::TEMPLE;
+        zoneTint = Color{255, 200, 150, 255};
+    }
+
+    tempLevel = tempGenerator->generate(currentFloor, currentZone);
+    if (tempLevel.tileMap) {
+        tempLevel.tileMap->setZoneTint(zoneTint);
+    }
   }
 
   physics = std::make_unique<PhysicsSystem>(tempLevel.tileMap.get());
@@ -286,6 +306,9 @@ void PlayState::enter() {
 
   ghostTimer = 0.0f;
   ghostSpawned = false;
+
+  cameraShakeTimer = 0.0f;
+  cameraShakeIntensity = 0.0f;
 
   combo = std::make_unique<ComboSystem>();
   // Initialize shop
@@ -346,6 +369,19 @@ void PlayState::enter() {
           this->pendingEntities.push_back(std::move(flame));
         }
       });
+      
+  auto spawnBloodParticles = [this](EventData data) {
+    int numParticles = GetRandomValue(4, 8);
+    for (int i = 0; i < numParticles; i++) {
+        this->pendingEntities.push_back(EntityFactory::createBloodParticle(data.worldX, data.worldY));
+    }
+  };
+  
+  EventBus::getInstance()->clearListeners(EventType::EVENT_PLAYER_DAMAGED);
+  EventBus::getInstance()->subscribe(EventType::EVENT_PLAYER_DAMAGED, spawnBloodParticles);
+  
+  EventBus::getInstance()->clearListeners(EventType::EVENT_ENEMY_DAMAGED);
+  EventBus::getInstance()->subscribe(EventType::EVENT_ENEMY_DAMAGED, spawnBloodParticles);
 
   EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_LAVA_DRIP);
   EventBus::getInstance()->subscribe(
@@ -411,6 +447,23 @@ void PlayState::enter() {
               }
             }
           }
+        }
+        
+        // 4. Add visual explosion flash and sprite
+        explosionFlashes.push_back({data.worldX, data.worldY, 0.3f}); // 0.3s lifetime
+        
+        // Spawn the explosion visual entity (centered on bomb)
+        pendingEntities.push_back(EntityFactory::createExplosion(data.worldX - 80.0f, data.worldY - 80.0f));
+
+        // 5. Camera Shake
+        if (player) {
+            float dx = player->getX() - data.worldX;
+            float dy = player->getY() - data.worldY;
+            float dist = std::sqrt(dx*dx + dy*dy);
+            if (dist < 600.0f) {
+                this->cameraShakeTimer = 0.5f;
+                this->cameraShakeIntensity = 10.0f * (1.0f - (dist / 600.0f));
+            }
         }
       });
 
@@ -490,6 +543,17 @@ void PlayState::update(float dt) {
 
       for (auto &item : tempLevel.items) {
         if (item && !item->isPickedUp()) {
+          if (item->isEmbedded) {
+              int tx = static_cast<int>(item->getX() / 32.0f);
+              int ty = static_cast<int>(item->getY() / 32.0f);
+              if (!tempLevel.tileMap->isSolid(tx, ty)) {
+                  item->isEmbedded = false;
+                  item->setPassesThroughWalls(false);
+              } else {
+                  // Keep rendering it, but don't apply physics/updates
+                  continue;
+              }
+          }
           item->update(dt, player.get());
           physics->resolveEntityTileCollision(item.get());
         }
@@ -684,6 +748,17 @@ void PlayState::update(float dt) {
 
     camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
 
+    if (cameraShakeTimer > 0.0f) {
+      cameraShakeTimer -= dt;
+      float offsetX = ((float)GetRandomValue(-100, 100) / 100.0f) * cameraShakeIntensity;
+      float offsetY = ((float)GetRandomValue(-100, 100) / 100.0f) * cameraShakeIntensity;
+      camera.offset.x = (GetScreenWidth() / 2.0f) + offsetX;
+      camera.offset.y = (GetScreenHeight() / 2.0f) + offsetY;
+    } else {
+      camera.offset.x = GetScreenWidth() / 2.0f;
+      camera.offset.y = GetScreenHeight() / 2.0f;
+    }
+
     if (liquids) {
       liquids->update(dt);
       liquids->updateSpurts(dt, player->getX(), player->getY());
@@ -720,7 +795,8 @@ void PlayState::update(float dt) {
         radius *= 0.5f;
       }
 
-      lighting->addLight(trueX, trueY, intensity, radius);
+      Vector3 torchColor = {intensity, intensity * 0.9f, intensity * 0.6f};
+      lighting->addLight(trueX, trueY, torchColor, radius);
 
       // Shop Lantern glow
       if (tempLevel.shopArea.width > 0) {
@@ -731,8 +807,50 @@ void PlayState::update(float dt) {
                        tempLevel.tileMap->getTileSize(); // At y=5 in the room
         double t = GetTime();
         float flicker = std::sin(t * 15.0) * 0.03f + std::sin(t * 22.0) * 0.02f;
-        lighting->addLight(shopCx, shopCy, 1.2f + flicker,
-                           8.0f + (flicker * 2.0f));
+        Vector3 lanternColor = {1.4f, 1.2f, 0.4f}; // Bright gold
+        lighting->addLight(shopCx, shopCy, lanternColor, 8.0f + (flicker * 2.0f));
+      }
+
+      // Add Lava Glow (Optimized: Camera Culling + Surface Exposure)
+      Vector2 screenTL = GetScreenToWorld2D(Vector2{0, 0}, camera);
+      Vector2 screenBR = GetScreenToWorld2D(Vector2{(float)GetScreenWidth(), (float)GetScreenHeight()}, camera);
+
+      int startX = std::max(0, (int)(screenTL.x / tempLevel.tileMap->getTileSize()) - 5);
+      int startY = std::max(0, (int)(screenTL.y / tempLevel.tileMap->getTileSize()) - 5);
+      int endX = std::min(tempLevel.tileMap->getWidth() - 1, (int)(screenBR.x / tempLevel.tileMap->getTileSize()) + 5);
+      int endY = std::min(tempLevel.tileMap->getHeight() - 1, (int)(screenBR.y / tempLevel.tileMap->getTileSize()) + 5);
+
+      for (int y = startY; y <= endY; y++) {
+          for (int x = startX; x <= endX; x++) {
+              if (tempLevel.tileMap->getTile(x, y) == TileType::LAVA) {
+                  // Only emit light if exposed to air
+                  bool exposed = false;
+                  if (x > 0 && tempLevel.tileMap->getTile(x - 1, y) == TileType::NOTHING) exposed = true;
+                  else if (x < tempLevel.tileMap->getWidth() - 1 && tempLevel.tileMap->getTile(x + 1, y) == TileType::NOTHING) exposed = true;
+                  else if (y > 0 && tempLevel.tileMap->getTile(x, y - 1) == TileType::NOTHING) exposed = true;
+                  else if (y < tempLevel.tileMap->getHeight() - 1 && tempLevel.tileMap->getTile(x, y + 1) == TileType::NOTHING) exposed = true;
+
+                  if (exposed) {
+                      double t = GetTime();
+                      float lavaFlicker = std::sin(t * 8.0 + x * 0.5 + y) * 0.05f;
+                      Vector3 lavaColor = {1.0f + lavaFlicker, 0.3f + lavaFlicker*0.5f, 0.0f};
+                      lighting->addLight(x + 0.5f, y + 0.5f, lavaColor, 3.5f);
+                  }
+              }
+          }
+      }
+
+      // Process Explosion Flashes
+      for (auto it = explosionFlashes.begin(); it != explosionFlashes.end(); ) {
+          it->timer -= dt;
+          if (it->timer <= 0) {
+              it = explosionFlashes.erase(it);
+          } else {
+              float progress = it->timer / 0.3f;
+              Vector3 expColor = {1.5f * progress, 1.2f * progress, 0.8f * progress};
+              lighting->addLight(it->x / tempLevel.tileMap->getTileSize(), it->y / tempLevel.tileMap->getTileSize(), expColor, 10.0f * progress);
+              ++it;
+          }
       }
 
       lighting->update(tempLevel.tileMap.get());
@@ -815,8 +933,8 @@ void PlayState::render() {
     int tx = static_cast<int>((x + w / 2) / tempLevel.tileMap->getTileSize());
     int ty = static_cast<int>((y + h / 2) / tempLevel.tileMap->getTileSize());
     const auto &lMap = lighting->getLightMap();
-    if (ty >= 0 && ty < lMap.size() && tx >= 0 && tx < lMap[ty].size()) {
-      return lMap[ty][tx];
+    if (ty >= 0 && static_cast<size_t>(ty) < lMap.size() && tx >= 0 && static_cast<size_t>(tx) < lMap[ty].size()) {
+      return (lMap[ty][tx].x + lMap[ty][tx].y + lMap[ty][tx].z) / 3.0f;
     }
     return 1.0f;
   };
@@ -1100,6 +1218,7 @@ void CharSelectState::handleInput() {
     selectedIndex = (selectedIndex + 1) % 3;
   }
   if (IsKeyPressed(KEY_ENTER)) {
+    GameManager::getInstance()->resetRun();
     GameManager::getInstance()->setSelectedCharacter(characters[selectedIndex]);
     game->changeState(GameStateType::PLAY);
   }
@@ -1282,6 +1401,8 @@ void EditorFileMenuState::render() {
 =======================================================
 */
 
+EditorState::~EditorState() = default;
+
 void EditorState::enter() {
   EntityFactory::preloadTextures();
   tileMap = std::make_unique<TileMap>(40, 32, 16);
@@ -1454,7 +1575,7 @@ void EditorState::render() {
 
   // Render Editor
   BeginMode2D(camera);
-  std::vector<std::vector<float>> dummyLight(32, std::vector<float>(40, 1.0f));
+  std::vector<std::vector<Vector3>> dummyLight(32, std::vector<Vector3>(40, {1.0f, 1.0f, 1.0f}));
   tileMap->render(camera, dummyLight, false);
   tileMap->render(camera, dummyLight, true);
 
@@ -1590,7 +1711,8 @@ void TransitionState::enter() {
       16 * 32.0f, 11 * 32.0f,
       GameManager::getInstance()->getSelectedCharacter());
   lighting = std::make_unique<LightingSystem>(40, 15);
-  lighting->setAmbientLight(0.25f);
+  // Lit up by 20% (0.20f) compared to normal caves
+  lighting->setAmbientLight({0.35f, 0.35f, 0.45f});
   camera.target = {(20 * 32.0f), (10 * 32.0f)};
   camera.offset = {(float)GetScreenWidth() / 2.0f,
                    (float)GetScreenHeight() / 2.0f};
@@ -1616,14 +1738,18 @@ void TransitionState::update(float dt) {
     physics->resolveEntityTileCollision(player.get());
     if (lighting) {
       lighting->clearLights();
+    }
+    if (player) {
       float trueX = (player->getX() + player->getAABB().width / 2.0f) /
                     tunnelMap->getTileSize();
       float trueY = (player->getY() + player->getAABB().height / 2.0f) /
                     tunnelMap->getTileSize();
       double time = GetTime();
-      float flicker =
-          std::sin(time * 12.0) * 0.02f + std::sin(time * 23.0) * 0.015f;
-      lighting->addLight(trueX, trueY, 0.95f + flicker,
+      float flicker = std::sin(time * 12.0) * 0.02f;
+      flicker += std::sin(time * 23.0) * 0.015f;
+      flicker += std::sin(time * 5.0) * 0.01f;
+      Vector3 torchColor = {0.95f + flicker, (0.95f + flicker) * 0.9f, (0.95f + flicker) * 0.6f};
+      lighting->addLight(trueX, trueY, torchColor,
                          4.5f + (flicker * 1.5f));
       lighting->update(tunnelMap.get());
     }

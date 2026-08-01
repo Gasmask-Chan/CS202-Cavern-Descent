@@ -16,6 +16,10 @@ void Item::update(float dt, Player* player) {
         this->y = player->getY() + player->getAABB().height / 2.0f - this->height;
         this->vx = 0;
         this->vy = 0;
+    } else if (isEmbedded) {
+        this->vx = 0;
+        this->vy = 0;
+        // Skip gravity. isEmbedded is unset by GameState when the block is destroyed.
     } else {
         prevVy = this->vy;
         applyGravity(dt);
@@ -59,8 +63,6 @@ void LootPickup::activate(Player* player) {
     player->collectGold(value);
     collect();
 }
-
-
 
 // Chest
 Chest::Chest(float x, float y, float w, float h)

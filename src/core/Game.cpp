@@ -19,6 +19,7 @@ void Game::run() {
     init();
     while (!WindowShouldClose() && isRunning) {
         this->deltaTime = GetFrameTime();
+        if (this->deltaTime > 0.033f) this->deltaTime = 0.033f; // Clamp to 30fps to prevent physics tunneling
         handleInput();
         update(deltaTime);
         render();

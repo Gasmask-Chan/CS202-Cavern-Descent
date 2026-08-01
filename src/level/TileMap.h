@@ -46,6 +46,7 @@ private:
     int tileSize;
 
     Texture2D dsTileset;
+    Color zoneTint = WHITE;
 
 public:
     TileMap(int w, int h, int size);
@@ -134,7 +135,7 @@ public:
      * @param lightMap 
      * @param foregroundPass
      */
-    void render(Camera2D &cam, const std::vector<std::vector<float>>& lightMap, bool foregroundPass);
+    void render(Camera2D &cam, const std::vector<std::vector<Vector3>>& lightMap, bool foregroundPass);
 
     /**
      * @brief Renders a repeating background layer with parallax scrolling based on the camera.
@@ -166,6 +167,8 @@ public:
     int getHeight();
 
     int getTileSize();
+
+    void setZoneTint(Color tint);
 
     bool isInBounds(int x, int y) const;
 };

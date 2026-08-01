@@ -1,15 +1,16 @@
 #include "LightingSystem.h"
 #include <algorithm>
 #include <cmath>
+#include "raymath.h"
 
 namespace Platformer {
 
 LightingSystem::LightingSystem(int mapWidth, int mapHeight) 
-    : ambientLight(0.15f), width(mapWidth), height(mapHeight) {
-    lightMap.resize(height, std::vector<float>(width, ambientLight));
+    : ambientLight({0.15f, 0.15f, 0.25f}), width(mapWidth), height(mapHeight) {
+    lightMap.resize(height, std::vector<Vector3>(width, ambientLight));
 }
 
-void LightingSystem::setAmbientLight(float level) {
+void LightingSystem::setAmbientLight(Vector3 level) {
     ambientLight = level;
 }
 
@@ -22,8 +23,8 @@ void LightingSystem::clearLights() {
     sources.clear();
 }
 
-void LightingSystem::addLight(float fx, float fy, float intensity, float radius) {
-    sources.push_back({fx, fy, intensity, radius});
+void LightingSystem::addLight(float fx, float fy, Vector3 color, float radius) {
+    sources.push_back({fx, fy, color, radius});
 }
 
 void LightingSystem::update(TileMap* map) {
@@ -33,8 +34,10 @@ void LightingSystem::update(TileMap* map) {
         
         if (cx >= 0 && cx < width && cy >= 0 && cy < height) {
             // Light the origin tile
-            if (src.intensity > lightMap[cy][cx]) {
-                lightMap[cy][cx] = src.intensity;
+            float srcLum = (src.color.x + src.color.y + src.color.z) / 3.0f;
+            float curLum = (lightMap[cy][cx].x + lightMap[cy][cx].y + lightMap[cy][cx].z) / 3.0f;
+            if (srcLum > curLum) {
+                lightMap[cy][cx] = src.color;
             }
             
             // If the light source itself is inside a wall, do not cast light outward to prevent bleeding.
@@ -43,19 +46,19 @@ void LightingSystem::update(TileMap* map) {
             }
             
             // Cast light into all 8 octants
-            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  1,  0,  0,  1, src.intensity);
-            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  1,  0,  0, -1, src.intensity);
-            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius, -1,  0,  0,  1, src.intensity);
-            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius, -1,  0,  0, -1, src.intensity);
-            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  0,  1,  1,  0, src.intensity);
-            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  0,  1, -1,  0, src.intensity);
-            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  0, -1,  1,  0, src.intensity);
-            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  0, -1, -1,  0, src.intensity);
+            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  1,  0,  0,  1, src.color);
+            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  1,  0,  0, -1, src.color);
+            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius, -1,  0,  0,  1, src.color);
+            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius, -1,  0,  0, -1, src.color);
+            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  0,  1,  1,  0, src.color);
+            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  0,  1, -1,  0, src.color);
+            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  0, -1,  1,  0, src.color);
+            castLight(map, cx, cy, src.fx, src.fy, 1, 1.0f, 0.0f, src.radius,  0, -1, -1,  0, src.color);
         }
     }
 }
 
-void LightingSystem::castLight(TileMap* map, int cx, int cy, float fx, float fy, int row, float startSlope, float endSlope, float radius, int xx, int xy, int yx, int yy, float intensity) {
+void LightingSystem::castLight(TileMap* map, int cx, int cy, float fx, float fy, int row, float startSlope, float endSlope, float radius, int xx, int xy, int yx, int yy, Vector3 color) {
     if (startSlope <= endSlope) return;
     float nextStartSlope = startSlope;
     for (int i = row; i <= radius; i++) {
@@ -104,7 +107,7 @@ void LightingSystem::castLight(TileMap* map, int cx, int cy, float fx, float fy,
                 float falloff = 1.0f - (distance / radius);
                 // Boost the falloff slightly so it's less linear and more spherical
                 falloff = std::pow(falloff, 1.5f); 
-                float currentIntensity = intensity * falloff;
+                Vector3 currentIntensity = { color.x * falloff, color.y * falloff, color.z * falloff };
                 
                 float overlap_top = std::min(startSlope, l_slope);
                 float overlap_bottom = std::max(endSlope, r_slope);
@@ -120,10 +123,14 @@ void LightingSystem::castLight(TileMap* map, int cx, int cy, float fx, float fy,
                 }
                 
                 if (visibility > 0.0f) {
-                    float finalIntensity = ambientLight + (currentIntensity - ambientLight) * visibility;
-                    if (finalIntensity > lightMap[ay][ax]) {
-                        lightMap[ay][ax] = std::min(1.0f, std::max(ambientLight, finalIntensity));
-                    }
+                    Vector3 finalIntensity = {
+                        ambientLight.x + (currentIntensity.x - ambientLight.x) * visibility,
+                        ambientLight.y + (currentIntensity.y - ambientLight.y) * visibility,
+                        ambientLight.z + (currentIntensity.z - ambientLight.z) * visibility
+                    };
+                    lightMap[ay][ax].x = std::max(lightMap[ay][ax].x, finalIntensity.x);
+                    lightMap[ay][ax].y = std::max(lightMap[ay][ax].y, finalIntensity.y);
+                    lightMap[ay][ax].z = std::max(lightMap[ay][ax].z, finalIntensity.z);
                 }
             }
 
@@ -138,7 +145,7 @@ void LightingSystem::castLight(TileMap* map, int cx, int cy, float fx, float fy,
             } else {
                 if (isSolid && i < radius) {
                     blocked = true;
-                    castLight(map, cx, cy, fx, fy, i + 1, startSlope, l_slope, radius, xx, xy, yx, yy, intensity);
+                    castLight(map, cx, cy, fx, fy, i + 1, startSlope, l_slope, radius, xx, xy, yx, yy, color);
                     nextStartSlope = r_slope;
                 }
             }
@@ -147,7 +154,7 @@ void LightingSystem::castLight(TileMap* map, int cx, int cy, float fx, float fy,
     }
 }
 
-const std::vector<std::vector<float>>& LightingSystem::getLightMap() const {
+const std::vector<std::vector<Vector3>>& LightingSystem::getLightMap() const {
     return lightMap;
 }
 

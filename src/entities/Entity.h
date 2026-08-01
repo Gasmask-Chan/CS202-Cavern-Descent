@@ -15,6 +15,9 @@ protected:
     Rectangle srcRect;
 
 public:
+    float renderOffsetX = 0.0f;
+    float renderOffsetY = 0.0f;
+
     Entity(float x, float y, float w, float h);
 
     virtual ~Entity();

@@ -85,6 +85,12 @@ std::shared_ptr<EnemyState> Enemy::getState() const { return currentStateObj; }
 void Enemy::takeDamage(int dmg) {
     health -= dmg;
     vy = -150.0f;
+    
+    EventData data;
+    data.amount = dmg;
+    data.worldX = x + width / 2.0f;
+    data.worldY = y + height / 2.0f;
+    EventBus::getInstance()->publish(EventType::EVENT_ENEMY_DAMAGED, data);
 }
 
 void Enemy::changeState(std::shared_ptr<EnemyState> newState) {

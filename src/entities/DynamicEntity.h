@@ -19,6 +19,7 @@ protected:
     bool passesThroughWalls;
 
 public:
+    void setPassesThroughWalls(bool pass);
     DynamicEntity(float x, float y, float w, float h);
 
     /**

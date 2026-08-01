@@ -25,6 +25,8 @@ private:
     float whipTimer;
     bool whipHitThisFrame;
     bool isClimbing;
+    bool isGodMode;
+    int cheatSequence;
     TileMap* tileMap;
     LiquidSimulator* liquidSim;
     Texture2D whipSprite;
