@@ -79,7 +79,7 @@ private:
     // ---- Room population ----
     void instantiateTiles(ZoneType zone, const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map);
     void instantiateLakeRoom(int gx, int gy, TileMap* map, LiquidType lType, std::vector<LiquidSpawn>& initialLiquids);
-    void populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH], const int lootGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map, bool forceSpawn = false);
+    void populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH], const int lootGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map);
 
     // ---- Post-passes ----
     // (generateChunks and generateBorders removed for Spelunky DS native rendering)

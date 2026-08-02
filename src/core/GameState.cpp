@@ -1575,14 +1575,12 @@ void EditorState::enter() {
       EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png");
   Texture2D spikeTex = EntityFactory::getTexture(
       "assets/sprites/16x16/gfx_spike_collectibles_flame.png");
-  Texture2D arrowTex =
-      EntityFactory::getTexture("assets/sprites/8x8/gfx_arrow.png");
+
   Texture2D batSnakeTex = EntityFactory::getTexture(
       "assets/sprites/16x16/gfx_bat_snake_jetpack.png");
   Texture2D spiderTex =
       EntityFactory::getTexture("assets/sprites/16x16/gfx_spider_skeleton.png");
-  Texture2D goldTex =
-      EntityFactory::getTexture("assets/sprites/16x16/gfx_goldbars.png");
+
   Texture2D lavaTex = EntityFactory::getTexture("assets/sprites/lava/Lava.png");
   Texture2D waterTex =
       EntityFactory::getTexture("assets/sprites/16x16/water.png");

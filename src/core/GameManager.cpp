@@ -22,9 +22,9 @@ GameManager *GameManager::getInstance() {
 int GameManager::getFloor() { return currentFloor; }
 
 ZoneType GameManager::getZone() {
-  if (currentFloor >= 7)
+  if (currentFloor >= 9)
     return ZoneType::TEMPLE;
-  if (currentFloor >= 1)
+  if (currentFloor >= 5)
     return ZoneType::JUNGLE;
   return ZoneType::CAVE;
 }
@@ -47,9 +47,9 @@ void GameManager::syncPlayerStats(int hp, int b, int r, int g) {
 
 void GameManager::nextFloor() {
   currentFloor++;
-  if (currentFloor >= 7) {
+  if (currentFloor >= 9) {
     ghostTimer = 120.0f;
-  } else if (currentFloor >= 4) {
+  } else if (currentFloor >= 5) {
     ghostTimer = 150.0f;
   } else {
     ghostTimer = 180.0f;
