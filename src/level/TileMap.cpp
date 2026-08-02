@@ -40,10 +40,12 @@ void TileMap::setZoneTint(Color tint) {
 
 void TileMap::destroyBlock(int x, int y) {
   // Whip already checks isCracked, Bomb destroys indiscriminately.
+  TileType oldType = getTile(x, y);
   setTile(x, y, TileType::NOTHING);
   EventData data;
   data.gridX = x;
   data.gridY = y;
+  data.tileType = static_cast<int>(oldType);
   EventBus::getInstance()->publish(EventType::EVENT_TERRAIN_DESTROYED, data);
   // TODO: spawn rubble particle effects here in the future
 }
@@ -157,6 +159,7 @@ void TileMap::render(Camera2D &cam, const std::vector<std::vector<Vector3>>& lig
         if (dsIndex > 0 && dsIndex <= 42) {
             currentTileset = &dsTileset;
             int logical_index = dsIndex - 1;
+            
             int pixel_x = (logical_index % 2) * 16;
             int pixel_y = (logical_index / 2) * 16;
             dsSrc = { (float)pixel_x, (float)pixel_y, 16.0f, 16.0f };

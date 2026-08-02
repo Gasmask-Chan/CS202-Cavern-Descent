@@ -370,26 +370,8 @@ void PlayState::enter() {
       float px = x * 32.0f;
       float py = y * 32.0f;
 
-      if (type == TileType::CAVE_SOME_GOLD ||
-          type == TileType::CAVE_MUCH_GOLD ||
-          type == TileType::LUSH_SOME_GOLD ||
-          type == TileType::LUSH_MUCH_GOLD ||
-          type == TileType::TEMPLE_SOME_GOLD ||
-          type == TileType::TEMPLE_MUCH_GOLD) {
-        if (type == TileType::CAVE_SOME_GOLD || type == TileType::CAVE_MUCH_GOLD) {
-            type = TileType::CAVE_ROCK;
-        } else if (type == TileType::LUSH_SOME_GOLD || type == TileType::LUSH_MUCH_GOLD) {
-            type = TileType::LUSH_ROCK;
-        } else {
-            type = TileType::TEMPLE_ROCK;
-        }
-        auto gold = EntityFactory::createItem('G', px, py);
-        if (gold) {
-            gold->isEmbedded = true;
-            gold->setPassesThroughWalls(true);
-            tempLevel.items.push_back(std::move(gold));
-        }
-      } else if (type == TileType::CHEST) {
+
+      if (type == TileType::CHEST) {
         type = TileType::NOTHING;
         auto chest = EntityFactory::createItem('C', px, py);
         if (chest)
@@ -546,6 +528,34 @@ void PlayState::enter() {
           this->liquids->addLiquid(data.gridX, data.gridY, 0,
                                    (LiquidType)data.amount);
         }
+      });
+
+  EventBus::getInstance()->clearListeners(EventType::EVENT_TERRAIN_DESTROYED);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_TERRAIN_DESTROYED, [this](EventData data) {
+          int type = data.tileType;
+          bool someGold = (type == 5 || type == 53 || type == 78);
+          bool muchGold = (type == 6 || type == 52 || type == 77);
+
+          if (someGold || muchGold) {
+              Texture2D tex = EntityFactory::getTexture("assets/sprites/8x8/gold.png");
+              
+              // Spawn 3 Gold Chunks
+              for (int i = 0; i < 3; i++) {
+                  auto chunk = std::make_unique<LootPickup>(data.gridX * 32.0f + 14.0f, data.gridY * 32.0f + 14.0f, 4.0f, 4.0f, 100);
+                  chunk->setSprite(tex, Rectangle{4, 4, 4, 4});
+                  chunk->setVelocity(GetRandomValue(-150, 150), GetRandomValue(-300, -100));
+                  pendingItems.push_back(std::move(chunk));
+              }
+
+              // Spawn 1 Gold Nugget if much gold
+              if (muchGold) {
+                  auto nugget = std::make_unique<LootPickup>(data.gridX * 32.0f + 12.0f, data.gridY * 32.0f + 12.0f, 8.0f, 8.0f, 500);
+                  nugget->setSprite(tex, Rectangle{0, 0, 8, 8});
+                  nugget->setVelocity(GetRandomValue(-100, 100), GetRandomValue(-350, -150));
+                  pendingItems.push_back(std::move(nugget));
+              }
+          }
       });
 
   EventBus::getInstance()->clearListeners(EventType::EVENT_BOMB_EXPLODE);

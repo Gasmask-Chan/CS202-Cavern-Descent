@@ -56,6 +56,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
         }
     }
 
+    int mapW = MAP_ROOMS_X * ROOM_WIDTH;
     int mapH = MAP_ROOMS_Y * ROOM_HEIGHT;
     level.tileMap = std::make_unique<TileMap>(mapW, mapH, MAP_TILE_SIZE);
     level.tileMap->setZone(zone);
@@ -535,7 +536,11 @@ void LevelGenerator::instantiateTiles(ZoneType zone, const int tileGrid[ROOM_HEI
       int tileVal = tileGrid[cy][cx];
         
       if (zone == ZoneType::JUNGLE) {
-        if (tileVal >= 1 && tileVal <= 8) {
+        if (tileVal == 5) {
+            tileVal = 53; // LUSH_SOME_GOLD
+        } else if (tileVal == 6) {
+            tileVal = 52; // LUSH_MUCH_GOLD
+        } else if (tileVal >= 1 && tileVal <= 8 && tileVal != 3) {
             tileVal = 51; // LUSH_ROCK
         } else if (tileVal == 24) {
             tileVal = 58; // LUSH_SMOOTH
@@ -545,7 +550,11 @@ void LevelGenerator::instantiateTiles(ZoneType zone, const int tileGrid[ROOM_HEI
             tileVal = 67; // VINE_TOP
         }
       } else if (zone == ZoneType::TEMPLE) {
-        if (tileVal >= 1 && tileVal <= 8) {
+        if (tileVal == 5) {
+            tileVal = 78; // TEMPLE_SOME_GOLD
+        } else if (tileVal == 6) {
+            tileVal = 77; // TEMPLE_MUCH_GOLD
+        } else if (tileVal >= 1 && tileVal <= 8 && tileVal != 3) {
             tileVal = 76; // TEMPLE_ROCK
         } else if (tileVal == 24) {
             tileVal = 76; // TEMPLE_ROCK (no smooth specified)
