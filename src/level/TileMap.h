@@ -91,10 +91,14 @@ private:
     Texture2D dsTilesetJungle;
     Texture2D dsTilesetTemple;
     Color zoneTint = WHITE;
+    ZoneType currentZone = ZoneType::CAVE;
 
 public:
     TileMap(int w, int h, int size);
     ~TileMap();
+
+    void setZone(ZoneType zone) { currentZone = zone; }
+    ZoneType getZone() const { return currentZone; }
 
     /**
      * @brief Returns `tiles[y][x] if in bounds, else `TileType::NOTHING` (out-of-bounds treated as solid for safety).

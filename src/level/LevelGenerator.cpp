@@ -56,9 +56,9 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
         }
     }
 
-    int mapW = MAP_ROOMS_X * ROOM_WIDTH;
     int mapH = MAP_ROOMS_Y * ROOM_HEIGHT;
     level.tileMap = std::make_unique<TileMap>(mapW, mapH, MAP_TILE_SIZE);
+    level.tileMap->setZone(zone);
 
     tempEnemies.clear();
     tempItems.clear();

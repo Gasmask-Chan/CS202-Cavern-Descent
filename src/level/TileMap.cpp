@@ -20,8 +20,11 @@ TileMap::~TileMap() {
 }
 
 TileType TileMap::getTile(int x, int y) const {
-  if (!isInBounds(x, y))
+  if (!isInBounds(x, y)) {
+    if (currentZone == ZoneType::JUNGLE) return TileType::LUSH_ROCK;
+    if (currentZone == ZoneType::TEMPLE) return TileType::TEMPLE_ROCK;
     return TileType::CAVE_ROCK; // Treat out-of-bounds as solid dirt/rock
+  }
   return tiles[y][x];
 }
 
