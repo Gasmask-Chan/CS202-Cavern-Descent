@@ -74,12 +74,12 @@ private:
 
     // ---- Template selection ----
     // Returns a random variation index for the given room role.
-    int selectVariation(RoomRole role, bool isEntrance = false) const;
+    int selectVariation(RoomRole role, bool isEntrance = false, ZoneType zone = ZoneType::CAVE) const;
 
     // ---- Room population ----
     void instantiateTiles(ZoneType zone, const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map);
     void instantiateLakeRoom(int gx, int gy, TileMap* map, LiquidType lType, std::vector<LiquidSpawn>& initialLiquids);
-    void populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH], const int lootGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map);
+    void populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH], const int lootGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map, bool forceSpawn = false);
 
     // ---- Post-passes ----
     // (generateChunks and generateBorders removed for Spelunky DS native rendering)
