@@ -305,6 +305,49 @@ void PlayState::enter() {
             newTile = TileType::LUSH_MUCH_GOLD;
         }
         tempLevel.tileMap->setTile(x, y, newTile);
+      } else if (type == TileType::TEMPLE_ROCK) {
+        bool top = (y > 0 && isSolid(x, y - 1));
+        bool bottom = (y < tempLevel.tileMap->getHeight() - 1 && isSolid(x, y + 1));
+        bool left = (x > 0 && isSolid(x - 1, y));
+        bool right = (x < tempLevel.tileMap->getWidth() - 1 && isSolid(x + 1, y));
+
+        TileType newTile = TileType::TEMPLE_ROCK;
+
+        if (!top) {
+          int r = GetRandomValue(1, 8);
+          if (r == 1) newTile = TileType::TEMPLE_UP_1;
+          else if (r == 2) newTile = TileType::TEMPLE_UP_2;
+          else if (r == 3) newTile = TileType::TEMPLE_UP_3;
+          else if (r == 4) newTile = TileType::TEMPLE_UP_4;
+          else if (r == 5) newTile = TileType::TEMPLE_UP_5;
+          else if (r == 6) newTile = TileType::TEMPLE_UP_6;
+          else if (r == 7) newTile = TileType::TEMPLE_UP_7;
+          else newTile = TileType::TEMPLE_UP_8;
+          
+          int r2 = GetRandomValue(1, 2);
+          if (r2 == 1) borderTiles.push_back({{x, y - 1}, TileType::TEMPLE_TOP_1});
+          else borderTiles.push_back({{x, y - 1}, TileType::TEMPLE_TOP_2});
+        } 
+        if (!bottom) {
+          newTile = TileType::TEMPLE_DOWN;
+          borderTiles.push_back({{x, y + 1}, TileType::TEMPLE_BOTTOM});
+        } 
+        if (!left) {
+          borderTiles.push_back({{x - 1, y}, TileType::TEMPLE_LEFT});
+        } 
+        if (!right) {
+          borderTiles.push_back({{x + 1, y}, TileType::TEMPLE_RIGHT});
+        }
+        
+        if (top && bottom && left && right) {
+          newTile = TileType::TEMPLE_ROCK; // Inner dirt
+          int r = GetRandomValue(1, 100);
+          if (r <= 5)
+            newTile = TileType::TEMPLE_SOME_GOLD;
+          else if (r <= 7)
+            newTile = TileType::TEMPLE_MUCH_GOLD;
+        }
+        tempLevel.tileMap->setTile(x, y, newTile);
       }
     }
   }
@@ -330,11 +373,15 @@ void PlayState::enter() {
       if (type == TileType::CAVE_SOME_GOLD ||
           type == TileType::CAVE_MUCH_GOLD ||
           type == TileType::LUSH_SOME_GOLD ||
-          type == TileType::LUSH_MUCH_GOLD) {
+          type == TileType::LUSH_MUCH_GOLD ||
+          type == TileType::TEMPLE_SOME_GOLD ||
+          type == TileType::TEMPLE_MUCH_GOLD) {
         if (type == TileType::CAVE_SOME_GOLD || type == TileType::CAVE_MUCH_GOLD) {
             type = TileType::CAVE_ROCK;
-        } else {
+        } else if (type == TileType::LUSH_SOME_GOLD || type == TileType::LUSH_MUCH_GOLD) {
             type = TileType::LUSH_ROCK;
+        } else {
+            type = TileType::TEMPLE_ROCK;
         }
         auto gold = EntityFactory::createItem('G', px, py);
         if (gold) {

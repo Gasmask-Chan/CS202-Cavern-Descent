@@ -536,7 +536,6 @@ void LevelGenerator::instantiateTiles(ZoneType zone, const int tileGrid[ROOM_HEI
 
       int tileVal = tileGrid[cy][cx];
         
-      // Translate Cave tiles to Jungle tiles if needed
       if (zone == ZoneType::JUNGLE) {
         if (tileVal >= 1 && tileVal <= 8) {
             tileVal = 51; // LUSH_ROCK
@@ -546,6 +545,12 @@ void LevelGenerator::instantiateTiles(ZoneType zone, const int tileGrid[ROOM_HEI
             tileVal = 65; // VINE
         } else if (tileVal == 10) { // LADDER_DECK
             tileVal = 67; // VINE_TOP
+        }
+      } else if (zone == ZoneType::TEMPLE) {
+        if (tileVal >= 1 && tileVal <= 8) {
+            tileVal = 76; // TEMPLE_ROCK
+        } else if (tileVal == 24) {
+            tileVal = 76; // TEMPLE_ROCK (no smooth specified)
         }
       }
         

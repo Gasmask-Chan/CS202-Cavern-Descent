@@ -51,7 +51,7 @@ bool TileMap::isSolid(int x, int y) const {
       type == TileType::CAVE_SMOOTH || type == TileType::STONE_BLOCK || type == TileType::SPIKE_TRAP || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT ||
       (type >= TileType::LUSH_ROCK && type <= TileType::LUSH_SMOOTH) ||
       type == TileType::TREE_TRUNK || type == TileType::TREE_TOP ||
-      type == TileType::TEMPLE_ROCK) {
+      (type >= TileType::TEMPLE_ROCK && type <= TileType::TEMPLE_UP_8)) {
       return true; 
   }
   return false;
