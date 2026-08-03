@@ -32,11 +32,19 @@ void Bomb::update(float dt, Player* player) {
         return;
     }
 
-    prevVx = vx;
-    prevVy = vy;
-
-    applyGravity(dt);
+    // Check for bounce from physics resolution in the previous frame
+    if (vx == 0.0f && std::abs(prevVx) > 10.0f) {
+        vx = -prevVx * 0.5f; // Bounce horizontally
+    }
+    if (vy == 0.0f && prevVy > 10.0f) {
+        vy = -prevVy * 0.3f; // Bounce vertically
+        if (std::abs(vy) > 20.0f) {
+            isGrounded = false;
+        }
+    }
     
+    // PlayState already calls applyGravity, so we don't call it here to avoid double gravity.
+
     // Apply horizontal friction when grounded
     if (isGrounded) {
         vx *= 0.8f;
@@ -44,6 +52,10 @@ void Bomb::update(float dt, Player* player) {
     }
 
     move(vx * dt, vy * dt);
+    
+    // Save velocities before PhysicsSystem zeroes them out this frame
+    prevVx = vx;
+    prevVy = vy;
     
     // Animate sprite based on fuse? (For now, use basic update)
     DynamicEntity::update(dt, player);

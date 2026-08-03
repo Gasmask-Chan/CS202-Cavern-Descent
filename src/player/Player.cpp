@@ -538,8 +538,8 @@ bool Player::useBomb() {
     if (bombs > 0) {
         bombs--;
         EventData data;
-        data.worldX = x + width / 2.0f;
-        data.worldY = y + height / 2.0f;
+        data.worldX = x + width / 2.0f - 8.0f;
+        data.worldY = y + height / 2.0f - 8.0f;
         data.vx = vx + (isFacingRight ? 150.0f : -150.0f);
         data.vy = -150.0f;
         EventBus::getInstance()->publish(EventType::EVENT_SPAWN_BOMB, data);
