@@ -34,7 +34,7 @@ private:
     int bubbleTimer;
 
     // Animation state
-    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP, CLIMB, SWIM } currentAnim;
+    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP, CLIMB, SWIM, DEAD } currentAnim;
     float frameTimer;
     int currentFrame;
     Rectangle frameRec;

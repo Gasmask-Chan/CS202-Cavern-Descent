@@ -125,10 +125,10 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
         
         if (role == RoomRole::TYPE_SHOP) {
             level.shopArea = Rectangle{
-                (float)gx * ROOM_WIDTH * MAP_TILE_SIZE,
-                (float)gy * ROOM_HEIGHT * MAP_TILE_SIZE,
-                (float)ROOM_WIDTH * MAP_TILE_SIZE,
-                (float)ROOM_HEIGHT * MAP_TILE_SIZE
+                (float)(gx * ROOM_WIDTH + 2) * MAP_TILE_SIZE,
+                (float)(gy * ROOM_HEIGHT + 3) * MAP_TILE_SIZE,
+                (float)(ROOM_WIDTH - 4) * MAP_TILE_SIZE,
+                (float)(ROOM_HEIGHT - 3) * MAP_TILE_SIZE
             };
         }
       }

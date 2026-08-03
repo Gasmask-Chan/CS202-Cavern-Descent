@@ -281,7 +281,10 @@ void Player::update(float dt, Player* player) {
     
     // Animation state machine
     AnimState newAnim = AnimState::IDLE;
-    if (isWhipping) {
+    if (health <= 0) {
+        newAnim = AnimState::DEAD;
+        vx = 0; // Stop moving when dead
+    } else if (isWhipping) {
         whipTimer += dt;
         currentVx = 0; // Lock horizontal movement while whipping
         newAnim = AnimState::WHIP;
@@ -407,9 +410,15 @@ void Player::update(float dt, Player* player) {
             break;
         case AnimState::SWIM:
             maxFrames = 4;
-            row = 2;
+            row = 3;
             colOffset = 0;
             frameDuration = 0.15f;
+            break;
+        case AnimState::DEAD:
+            maxFrames = 4;
+            row = 2;
+            colOffset = 0;
+            frameDuration = 0.2f;
             break;
     }
     
@@ -430,6 +439,8 @@ void Player::update(float dt, Player* player) {
             currentFrame = 0;
             row = 0;
             colOffset = 0;
+        } else if (currentAnim == AnimState::DEAD && currentFrame == maxFrames - 1) {
+            // Stay on the last frame of death animation
         } else {
             currentFrame = (currentFrame + 1) % maxFrames;
         }
@@ -501,6 +512,8 @@ void Player::takeDamage(int dmg) {
     if (invincibilityTimer > 0.0f) return;
     
     health -= dmg;
+    if (health < 0) health = 0;
+    
     invincibilityTimer = 1.5f;
     vy = -300.0f;
     vx = isFacingRight ? -200.0f : 200.0f;
