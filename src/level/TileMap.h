@@ -135,6 +135,11 @@ public:
      * @return false 
      */
     bool isSolid(int x, int y) const;
+    
+    /**
+     * @brief Returns `true` if tile at `(x,y)` is a visual border padding tile (not solid).
+     */
+    bool isBorder(int x, int y) const;
 
     /**
      * @brief Returns `true` if tile at `(x,y)` is a one-way platform (can be stood on, but passed through from below).

@@ -253,11 +253,15 @@ void PlayState::enter() {
           newTile = TileType::CAVE_DOWN_ORIENTED;
         } else {
           newTile = TileType::CAVE_REGULAR; // Inner dirt
-          int r = GetRandomValue(1, 100);
-          if (r <= 5)
-            newTile = TileType::CAVE_SOME_GOLD;
-          else if (r <= 7)
-            newTile = TileType::CAVE_MUCH_GOLD;
+          bool isOuterBoundary = (x == 0 || x == tempLevel.tileMap->getWidth() - 1 || 
+                                  y == 0 || y == tempLevel.tileMap->getHeight() - 1);
+          if (!isOuterBoundary) {
+              int r = GetRandomValue(1, 100);
+              if (r <= 5)
+                newTile = TileType::CAVE_SOME_GOLD;
+              else if (r <= 7)
+                newTile = TileType::CAVE_MUCH_GOLD;
+          }
         }
         tempLevel.tileMap->setTile(x, y, newTile);
       } else if (type == TileType::LUSH_ROCK) {
@@ -298,11 +302,15 @@ void PlayState::enter() {
         
         if (top && bottom && left && right) {
           newTile = TileType::LUSH_ROCK; // Inner dirt
-          int r = GetRandomValue(1, 100);
-          if (r <= 5)
-            newTile = TileType::LUSH_SOME_GOLD;
-          else if (r <= 7)
-            newTile = TileType::LUSH_MUCH_GOLD;
+          bool isOuterBoundary = (x == 0 || x == tempLevel.tileMap->getWidth() - 1 || 
+                                  y == 0 || y == tempLevel.tileMap->getHeight() - 1);
+          if (!isOuterBoundary) {
+              int r = GetRandomValue(1, 100);
+              if (r <= 5)
+                newTile = TileType::LUSH_SOME_GOLD;
+              else if (r <= 7)
+                newTile = TileType::LUSH_MUCH_GOLD;
+          }
         }
         tempLevel.tileMap->setTile(x, y, newTile);
       } else if (type == TileType::TEMPLE_ROCK) {
@@ -341,11 +349,15 @@ void PlayState::enter() {
         
         if (top && bottom && left && right) {
           newTile = TileType::TEMPLE_ROCK; // Inner dirt
-          int r = GetRandomValue(1, 100);
-          if (r <= 5)
-            newTile = TileType::TEMPLE_SOME_GOLD;
-          else if (r <= 7)
-            newTile = TileType::TEMPLE_MUCH_GOLD;
+          bool isOuterBoundary = (x == 0 || x == tempLevel.tileMap->getWidth() - 1 || 
+                                  y == 0 || y == tempLevel.tileMap->getHeight() - 1);
+          if (!isOuterBoundary) {
+              int r = GetRandomValue(1, 100);
+              if (r <= 5)
+                newTile = TileType::TEMPLE_SOME_GOLD;
+              else if (r <= 7)
+                newTile = TileType::TEMPLE_MUCH_GOLD;
+          }
         }
         tempLevel.tileMap->setTile(x, y, newTile);
       }

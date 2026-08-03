@@ -22,9 +22,9 @@ GameManager *GameManager::getInstance() {
 int GameManager::getFloor() { return currentFloor; }
 
 ZoneType GameManager::getZone() {
-  if (currentFloor >= 9)
+  if (currentFloor >= 7)
     return ZoneType::TEMPLE;
-  if (currentFloor >= 5)
+  if (currentFloor >= 4)
     return ZoneType::JUNGLE;
   return ZoneType::CAVE;
 }

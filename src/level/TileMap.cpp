@@ -39,27 +39,46 @@ void TileMap::setZoneTint(Color tint) {
 }
 
 void TileMap::destroyBlock(int x, int y) {
-  // Whip already checks isCracked, Bomb destroys indiscriminately.
-  TileType oldType = getTile(x, y);
-  setTile(x, y, TileType::NOTHING);
-  EventData data;
-  data.gridX = x;
-  data.gridY = y;
-  data.tileType = static_cast<int>(oldType);
-  EventBus::getInstance()->publish(EventType::EVENT_TERRAIN_DESTROYED, data);
-  // TODO: spawn rubble particle effects here in the future
+    // Whip already checks isCracked, Bomb destroys indiscriminately.
+    TileType oldType = getTile(x, y);
+    setTile(x, y, TileType::NOTHING);
+    EventData data;
+    data.gridX = x;
+    data.gridY = y;
+    data.tileType = static_cast<int>(oldType);
+    EventBus::getInstance()->publish(EventType::EVENT_TERRAIN_DESTROYED, data);
+
+    // Also destroy any attached padding border tiles
+    int dx[] = {-1, 1, 0, 0};
+    int dy[] = {0, 0, -1, 1};
+    for (int i = 0; i < 4; i++) {
+        if (isBorder(x + dx[i], y + dy[i])) {
+            setTile(x + dx[i], y + dy[i], TileType::NOTHING);
+        }
+    }
+    
+    // TODO: spawn rubble particle effects here in the future
+}
+
+bool TileMap::isBorder(int x, int y) const {
+    TileType type = getTile(x, y);
+    if ((type >= TileType::LUSH_TOP_1 && type <= TileType::LUSH_LEFT) ||
+        (type >= TileType::TEMPLE_RIGHT && type <= TileType::TEMPLE_BOTTOM)) {
+        return true;
+    }
+    return false;
 }
 
 bool TileMap::isSolid(int x, int y) const {
-  TileType type = getTile(x, y);
-  if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) || 
-      type == TileType::CAVE_SMOOTH || type == TileType::STONE_BLOCK || type == TileType::SPIKE_TRAP || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT ||
-      (type >= TileType::LUSH_ROCK && type <= TileType::LUSH_SMOOTH) ||
-      type == TileType::TREE_TRUNK || type == TileType::TREE_TOP ||
-      (type >= TileType::TEMPLE_ROCK && type <= TileType::TEMPLE_UP_8)) {
-      return true; 
-  }
-  return false;
+    TileType type = getTile(x, y);
+    if ((type >= TileType::CAVE_ROCK && type <= TileType::CAVE_UP_DOWN_ORIENTED) || 
+        type == TileType::CAVE_SMOOTH || type == TileType::STONE_BLOCK || type == TileType::SPIKE_TRAP || type == TileType::ARROW_TRAP_LEFT || type == TileType::ARROW_TRAP_RIGHT ||
+        (type >= TileType::LUSH_ROCK && type <= TileType::LUSH_SMOOTH) ||
+        type == TileType::TREE_TRUNK || type == TileType::TREE_TOP ||
+        (type >= TileType::TEMPLE_ROCK && type <= TileType::TEMPLE_UP_8)) {
+        return true; 
+    }
+    return false;
 }
 
 bool TileMap::isOneWayPlatform(int x, int y) const {
