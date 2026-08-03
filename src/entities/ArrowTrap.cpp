@@ -1,5 +1,10 @@
 #include "ArrowTrap.h"
 #include "../level/TileMap.h"
+#include "enemies/Enemy.h"
+#include "enemies/NemesisGhost.h"
+#include "enemies/Spike.h"
+#include "enemies/Flame.h"
+#include "Bomb.h"
 
 namespace Platformer {
 
@@ -54,12 +59,23 @@ void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::uniq
         trigger = true;
     }
     if (!trigger) {
-        for (const auto& enemy : enemies) {
-            if (enemy && enemy->isAlive() && 
-               (std::abs(enemy->getVelocityX()) > 10.0f || std::abs(enemy->getVelocityY()) > 10.0f) && 
-               checkLOS(enemy->getX(), enemy->getY(), enemy->getAABB().width, enemy->getAABB().height)) {
-                trigger = true;
-                break;
+        for (const auto& entity : enemies) {
+            if (entity && entity->isAlive() && 
+               (std::abs(entity->getVelocityX()) > 10.0f || std::abs(entity->getVelocityY()) > 10.0f)) {
+                
+                bool validTrigger = false;
+                if (auto* enemy = dynamic_cast<Enemy*>(entity.get())) {
+                    if (!dynamic_cast<NemesisGhost*>(enemy) && !dynamic_cast<Spike*>(enemy) && !dynamic_cast<Flame*>(enemy)) {
+                        validTrigger = true;
+                    }
+                } else if (dynamic_cast<Bomb*>(entity.get())) {
+                    validTrigger = true;
+                }
+
+                if (validTrigger && checkLOS(entity->getX(), entity->getY(), entity->getAABB().width, entity->getAABB().height)) {
+                    trigger = true;
+                    break;
+                }
             }
         }
     }

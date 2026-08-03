@@ -46,6 +46,7 @@ void EntityFactory::preloadTextures() {
     getTexture("assets/sprites/lava/LavaDrip.png");
     getTexture("assets/sprites/8x8/bubble.png");
     getTexture("assets/sprites/64x64/gfx_explosion.png");
+    getTexture("assets/sprites/8x8/gfx_arrow.png");
 }
 
 std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, float y) {
