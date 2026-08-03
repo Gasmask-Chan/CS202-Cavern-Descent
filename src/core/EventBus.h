@@ -22,7 +22,8 @@ enum class EventType {
     EVENT_SPAWN_ITEM,
     EVENT_SPAWN_ARROW,
     EVENT_SPAWN_BUBBLE,
-    EVENT_ADD_LIQUID
+    EVENT_ADD_LIQUID,
+    EVENT_SPAWN_ROPE
 };
 
 struct EventData {

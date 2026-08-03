@@ -46,11 +46,15 @@ private:
     int tileSize;
 
     Texture2D dsTileset;
+  Texture2D ropeTex;
     Color zoneTint = WHITE;
 
 public:
     TileMap(int w, int h, int size);
     ~TileMap();
+
+    void setTileset(Texture2D tex);
+    void setRopeTexture(Texture2D tex);
 
     /**
      * @brief Returns `tiles[y][x] if in bounds, else `TileType::NOTHING` (out-of-bounds treated as solid for safety).

@@ -551,7 +551,11 @@ bool Player::useBomb() {
 bool Player::useRope() {
     if (ropes > 0) {
         ropes--;
-        // TODO: Create vertical Rope entity above player
+        EventData data;
+        data.worldX = x + width / 2.0f;
+        data.worldY = y;
+        data.vy = -600.0f; 
+        EventBus::getInstance()->publish(EventType::EVENT_SPAWN_ROPE, data);
         return true;
     }
     return false;

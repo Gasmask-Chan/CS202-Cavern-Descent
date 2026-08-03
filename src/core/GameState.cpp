@@ -12,6 +12,7 @@
 #include "../entities/enemies/Spike.h"
 #include "../entities/Explosion.h"
 #include "../entities/Particle.h"
+#include "../entities/RopeProjectile.h"
 #include "../liquid/LiquidSimulator.h"
 #include "../level/LevelGenerator.h"
 #include "../player/Player.h"
@@ -282,6 +283,8 @@ void PlayState::enter() {
     tempLevel = tempGenerator->generate(currentFloor, currentZone);
     if (tempLevel.tileMap) {
         tempLevel.tileMap->setZoneTint(zoneTint);
+        tempLevel.tileMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
+        tempLevel.tileMap->setRopeTexture(EntityFactory::getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"));
     }
   }
 
@@ -348,6 +351,14 @@ void PlayState::enter() {
         auto bomb =
             std::make_unique<Bomb>(data.worldX, data.worldY, data.vx, data.vy);
         this->pendingEntities.push_back(std::move(bomb));
+      });
+
+  EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ROPE);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_SPAWN_ROPE, [this](EventData data) {
+        auto ropeProj =
+            std::make_unique<RopeProjectile>(data.worldX, data.worldY, data.vy, this->tempLevel.tileMap.get());
+        this->pendingEntities.push_back(std::move(ropeProj));
       });
 
   EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ARROW);
