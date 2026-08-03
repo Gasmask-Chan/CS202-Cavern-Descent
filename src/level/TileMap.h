@@ -25,8 +25,50 @@ enum class TileType {
     ENTRANCE = 13,
     EXIT = 14,
     CAVE_SMOOTH = 24, // Shop floor (Col 1, Row 11)
-    // (Other Spelunky DS tiles 15-42 omitted as they aren't used in cave generation, but can be added if needed)
     
+    // --- LUSH JUNGLE TILES (51-75) ---
+    LUSH_ROCK = 51,
+    LUSH_MUCH_GOLD = 52,
+    LUSH_SOME_GOLD = 53,
+    LUSH_UP_1 = 54,
+    LUSH_UP_2 = 55,
+    LUSH_UP_3 = 56,
+    LUSH_DOWN = 57,
+    LUSH_SMOOTH = 58,
+    LUSH_TOP_1 = 59,
+    LUSH_TOP_2 = 60,
+    LUSH_BOTTOM_1 = 61,
+    LUSH_BOTTOM_2 = 62,
+    LUSH_RIGHT = 63,
+    LUSH_LEFT = 64,
+    VINE = 65,
+    VINE_BOTTOM = 66,
+    VINE_TOP = 67,
+    VINE_SOURCE = 68,
+    TREE_TRUNK = 69,
+    TREE_TOP = 70,
+    TREE_BRANCH_LEFT = 71,
+    TREE_BRANCH_RIGHT = 72,
+    LEAVE = 73,
+    LEAVE_TOP = 74,
+    LEAVE_RIGHT = 75,
+    TEMPLE_ROCK = 76,
+    TEMPLE_MUCH_GOLD = 77,
+    TEMPLE_SOME_GOLD = 78,
+    TEMPLE_DOWN = 79,
+    TEMPLE_UP_1 = 80,
+    TEMPLE_UP_2 = 81,
+    TEMPLE_UP_3 = 82,
+    TEMPLE_UP_4 = 83,
+    TEMPLE_UP_5 = 84,
+    TEMPLE_UP_6 = 85,
+    TEMPLE_UP_7 = 86,
+    TEMPLE_UP_8 = 87,
+    TEMPLE_RIGHT = 88,
+    TEMPLE_LEFT = 89,
+    TEMPLE_TOP_1 = 90,
+    TEMPLE_TOP_2 = 91,
+    TEMPLE_BOTTOM = 92,
     // We add a few custom ones we need for logic that aren't in DS tiles natively
     SPIKE_TRAP = 100, 
     ROPE_NODE = 101,
@@ -46,11 +88,17 @@ private:
     int tileSize;
 
     Texture2D dsTileset;
+    Texture2D dsTilesetJungle;
+    Texture2D dsTilesetTemple;
     Color zoneTint = WHITE;
+    ZoneType currentZone = ZoneType::CAVE;
 
 public:
     TileMap(int w, int h, int size);
     ~TileMap();
+
+    void setZone(ZoneType zone) { currentZone = zone; }
+    ZoneType getZone() const { return currentZone; }
 
     /**
      * @brief Returns `tiles[y][x] if in bounds, else `TileType::NOTHING` (out-of-bounds treated as solid for safety).
@@ -87,6 +135,11 @@ public:
      * @return false 
      */
     bool isSolid(int x, int y) const;
+    
+    /**
+     * @brief Returns `true` if tile at `(x,y)` is a visual border padding tile (not solid).
+     */
+    bool isBorder(int x, int y) const;
 
     /**
      * @brief Returns `true` if tile at `(x,y)` is a one-way platform (can be stood on, but passed through from below).

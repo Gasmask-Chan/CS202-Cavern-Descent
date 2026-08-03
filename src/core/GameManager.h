@@ -41,6 +41,7 @@ public:
     void setCustomLevelPath(const std::string& p) { customLevelPath = p; }
 
     int getFloor();
+    ZoneType getZone();
 
     int getScore();
     void addScore(int points);

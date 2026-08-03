@@ -162,126 +162,269 @@ void PlayState::enter() {
         }
       }
       in.close();
-
-      // Auto-Beautify CAVE_ROCK (Turn into Cave Up, Down, Gold, etc)
-      auto isSolid = [&](int x, int y) {
-        if (x < 0 || y < 0 || x >= 40 || y >= 32)
-          return true;
-        TileType t = tempLevel.tileMap->getTile(x, y);
-        return t != TileType::NOTHING && t != TileType::LADDER &&
-               t != TileType::LADDER_DECK && t != TileType::ENTRANCE &&
-               t != TileType::EXIT && t != TileType::ENEMY_SNAKE &&
-               t != TileType::ENEMY_BAT && t != TileType::ENEMY_SPIDER &&
-               t != TileType::CHEST && t != TileType::LAVA &&
-               t != TileType::WATER && t != TileType::SPIKE_TRAP &&
-               t != TileType::ARROW_TRAP_LEFT && t != TileType::ARROW_TRAP_RIGHT;
-      };
-
-      for (int y = 0; y < 32; y++) {
-        for (int x = 0; x < 40; x++) {
-          TileType type = tempLevel.tileMap->getTile(x, y);
-
-          if (type == TileType::CAVE_ROCK) {
-            bool top = isSolid(x, y - 1);
-            bool bottom = isSolid(x, y + 1);
-
-            TileType newTile = TileType::CAVE_ROCK;
-            if (!top && !bottom) {
-              newTile = TileType::CAVE_UP_DOWN_ORIENTED;
-            } else if (!top) {
-              newTile = TileType::CAVE_UP_ORIENTED;
-            } else if (!bottom) {
-              newTile = TileType::CAVE_DOWN_ORIENTED;
-            } else {
-              newTile = TileType::CAVE_REGULAR; // Inner dirt
-              int r = GetRandomValue(1, 100);
-              if (r <= 5)
-                newTile = TileType::CAVE_SOME_GOLD;
-              else if (r <= 7)
-                newTile = TileType::CAVE_MUCH_GOLD;
-            }
-            tempLevel.tileMap->setTile(x, y, newTile);
-          }
-        }
-      }
-
-      // Spawn Custom Entities pass
-      for (int y = 0; y < 32; y++) {
-        for (int x = 0; x < 40; x++) {
-          TileType type = tempLevel.tileMap->getTile(x, y);
-          float px = x * 32.0f;
-          float py = y * 32.0f;
-
-          if (type == TileType::CAVE_SOME_GOLD ||
-              type == TileType::CAVE_MUCH_GOLD) {
-            type = TileType::CAVE_ROCK;
-            auto gold = EntityFactory::createItem('G', px, py);
-            if (gold) {
-                gold->isEmbedded = true;
-                gold->setPassesThroughWalls(true);
-                tempLevel.items.push_back(std::move(gold));
-            }
-          } else if (type == TileType::CHEST) {
-            type = TileType::NOTHING;
-            auto chest = EntityFactory::createItem('C', px, py);
-            if (chest)
-              tempLevel.items.push_back(std::move(chest));
-          } else if (type == TileType::ENEMY_SNAKE) {
-            type = TileType::NOTHING;
-            auto enemy = EntityFactory::createEnemy('S', px, py);
-            if (enemy)
-              tempLevel.dynamicEntities.push_back(std::move(enemy));
-          } else if (type == TileType::ENEMY_BAT) {
-            type = TileType::NOTHING;
-            auto enemy = EntityFactory::createEnemy('B', px, py);
-            if (enemy)
-              tempLevel.dynamicEntities.push_back(std::move(enemy));
-          } else if (type == TileType::ENEMY_SPIDER) {
-            type = TileType::NOTHING;
-            auto enemy = EntityFactory::createEnemy('P', px, py);
-            if (enemy)
-              tempLevel.dynamicEntities.push_back(std::move(enemy));
-          } else if (type == TileType::LAVA) {
-            type = TileType::NOTHING;
-            tempLevel.initialLiquids.push_back({x, y, LiquidType::LAVA});
-          } else if (type == TileType::WATER) {
-            type = TileType::NOTHING;
-            tempLevel.initialLiquids.push_back({x, y, LiquidType::WATER});
-          } else if (type == TileType::SPIKE_TRAP) {
-            type = TileType::NOTHING;
-            auto spike = EntityFactory::createEnemy('^', px, py + 8.0f);
-            if (spike)
-              tempLevel.dynamicEntities.push_back(std::move(spike));
-          } else if (type == TileType::ARROW_TRAP_LEFT) {
-            auto trap = EntityFactory::createTrap('<', px, py);
-            if (trap)
-              tempLevel.traps.push_back(std::move(trap));
-          } else if (type == TileType::ARROW_TRAP_RIGHT) {
-            auto trap = EntityFactory::createTrap('>', px, py);
-            if (trap)
-              tempLevel.traps.push_back(std::move(trap));
-          }
-
-          tempLevel.tileMap->setTile(x, y, type);
-        }
-      }
     }
   } else {
     int currentFloor = GameManager::getInstance()->getFloor();
-    ZoneType currentZone = ZoneType::CAVE;
+    ZoneType currentZone = GameManager::getInstance()->getZone();
     Color zoneTint = WHITE;
 
-    if (currentFloor >= 4 && currentFloor <= 6) {
-        currentZone = ZoneType::JUNGLE;
+    if (currentZone == ZoneType::JUNGLE) {
         zoneTint = Color{180, 255, 180, 255};
-    } else if (currentFloor >= 7) {
-        currentZone = ZoneType::TEMPLE;
+    } else if (currentZone == ZoneType::TEMPLE) {
         zoneTint = Color{255, 200, 150, 255};
     }
 
     tempLevel = tempGenerator->generate(currentFloor, currentZone);
     if (tempLevel.tileMap) {
         tempLevel.tileMap->setZoneTint(zoneTint);
+    }
+  }
+
+  // Auto-Beautify CAVE_ROCK (Turn into Cave Up, Down, Gold, etc)
+  auto isSolid = [&](int cx, int cy) {
+    if (cx < 0 || cx >= tempLevel.tileMap->getWidth() || cy < 0 || cy >= tempLevel.tileMap->getHeight())
+      return true;
+    TileType t = tempLevel.tileMap->getTile(cx, cy);
+    return t != TileType::NOTHING && t != TileType::ENTRANCE &&
+           t != TileType::EXIT && t != TileType::ENEMY_SNAKE &&
+           t != TileType::ENEMY_BAT && t != TileType::ENEMY_SPIDER &&
+           t != TileType::CHEST && t != TileType::LAVA &&
+           t != TileType::WATER && t != TileType::SPIKE_TRAP &&
+           t != TileType::ARROW_TRAP_LEFT && t != TileType::ARROW_TRAP_RIGHT &&
+           !(t >= TileType::LUSH_TOP_1 && t <= TileType::LUSH_LEFT) &&
+           !(t >= TileType::VINE && t <= TileType::VINE_SOURCE) &&
+           !(t >= TileType::LEAVE && t <= TileType::LEAVE_RIGHT);
+  };
+
+  std::vector<std::pair<Vector2i, TileType>> borderTiles;
+
+
+  for (int y = 0; y < tempLevel.tileMap->getHeight(); y++) {
+    for (int x = 0; x < tempLevel.tileMap->getWidth(); x++) {
+      TileType type = tempLevel.tileMap->getTile(x, y);
+
+      if (type == TileType::VINE || type == TileType::VINE_TOP) {
+        TileType above = (y > 0) ? tempLevel.tileMap->getTile(x, y - 1) : TileType::NOTHING;
+        if (above != TileType::VINE && above != TileType::VINE_TOP && 
+            above != TileType::VINE_SOURCE && above != TileType::VINE_BOTTOM) {
+            
+            int topY = y;
+            while (topY > 0) {
+                TileType t = tempLevel.tileMap->getTile(x, topY - 1);
+                if (t == TileType::NOTHING || t == TileType::VINE || t == TileType::VINE_TOP || t == TileType::VINE_SOURCE || t == TileType::VINE_BOTTOM) {
+                    topY--;
+                } else {
+                    TraceLog(LOG_INFO, "Vine at x=%d upwards trace blocked by tile %d at y=%d", x, (int)t, topY - 1);
+                    break;
+                }
+            }
+            int bottomY = y;
+            while (bottomY + 1 < tempLevel.tileMap->getHeight()) {
+                TileType t = tempLevel.tileMap->getTile(x, bottomY + 1);
+                if (t == TileType::VINE || t == TileType::VINE_TOP || t == TileType::VINE_SOURCE || t == TileType::VINE_BOTTOM) {
+                    bottomY++;
+                } else {
+                    break;
+                }
+            }
+            for (int cy = topY; cy <= bottomY; cy++) {
+                if (cy == topY) {
+                    tempLevel.tileMap->setTile(x, cy, TileType::VINE_SOURCE);
+                } else if (cy == bottomY) {
+                    tempLevel.tileMap->setTile(x, cy, TileType::VINE_BOTTOM);
+                } else {
+                    tempLevel.tileMap->setTile(x, cy, TileType::VINE);
+                }
+            }
+        }
+        type = tempLevel.tileMap->getTile(x, y);
+      }
+
+      if (type == TileType::CAVE_ROCK) {
+        bool top = isSolid(x, y - 1);
+        bool bottom = isSolid(x, y + 1);
+
+        TileType newTile = TileType::CAVE_ROCK;
+        if (!top && !bottom) {
+          newTile = TileType::CAVE_UP_DOWN_ORIENTED;
+        } else if (!top) {
+          newTile = TileType::CAVE_UP_ORIENTED;
+        } else if (!bottom) {
+          newTile = TileType::CAVE_DOWN_ORIENTED;
+        } else {
+          newTile = TileType::CAVE_REGULAR; // Inner dirt
+          bool isOuterBoundary = (x == 0 || x == tempLevel.tileMap->getWidth() - 1 || 
+                                  y == 0 || y == tempLevel.tileMap->getHeight() - 1);
+          if (!isOuterBoundary) {
+              int r = GetRandomValue(1, 100);
+              if (r <= 5)
+                newTile = TileType::CAVE_SOME_GOLD;
+              else if (r <= 7)
+                newTile = TileType::CAVE_MUCH_GOLD;
+          }
+        }
+        tempLevel.tileMap->setTile(x, y, newTile);
+      } else if (type == TileType::LUSH_ROCK) {
+        bool top = (y > 0 && isSolid(x, y - 1));
+        bool bottom = (y < tempLevel.tileMap->getHeight() - 1 && isSolid(x, y + 1));
+        bool left = (x > 0 && isSolid(x - 1, y));
+        bool right = (x < tempLevel.tileMap->getWidth() - 1 && isSolid(x + 1, y));
+
+        TileType newTile = TileType::LUSH_ROCK;
+
+        if (!top) {
+          // The block itself gets a grassy top
+          int r = GetRandomValue(1, 3);
+          if (r == 1) newTile = TileType::LUSH_UP_1;
+          else if (r == 2) newTile = TileType::LUSH_UP_2;
+          else newTile = TileType::LUSH_UP_3;
+          
+          // We also have a chance to spawn tall grass in the empty space above
+          int r2 = GetRandomValue(1, 2);
+          if (r2 == 1) borderTiles.push_back({{x, y - 1}, TileType::LUSH_TOP_1});
+          else if (r2 == 2) borderTiles.push_back({{x, y - 1}, TileType::LUSH_TOP_2});
+        } 
+        if (!bottom) {
+          // The block itself gets a bottom texture
+          newTile = TileType::LUSH_DOWN;
+          
+          // We also have a chance to spawn hanging vines in the empty space below
+          int r = GetRandomValue(1, 2);
+          if (r == 1) borderTiles.push_back({{x, y + 1}, TileType::LUSH_BOTTOM_1});
+          else borderTiles.push_back({{x, y + 1}, TileType::LUSH_BOTTOM_2});
+        } 
+        if (!left) {
+          borderTiles.push_back({{x - 1, y}, TileType::LUSH_LEFT});
+        } 
+        if (!right) {
+          borderTiles.push_back({{x + 1, y}, TileType::LUSH_RIGHT});
+        }
+        
+        if (top && bottom && left && right) {
+          newTile = TileType::LUSH_ROCK; // Inner dirt
+          bool isOuterBoundary = (x == 0 || x == tempLevel.tileMap->getWidth() - 1 || 
+                                  y == 0 || y == tempLevel.tileMap->getHeight() - 1);
+          if (!isOuterBoundary) {
+              int r = GetRandomValue(1, 100);
+              if (r <= 5)
+                newTile = TileType::LUSH_SOME_GOLD;
+              else if (r <= 7)
+                newTile = TileType::LUSH_MUCH_GOLD;
+          }
+        }
+        tempLevel.tileMap->setTile(x, y, newTile);
+      } else if (type == TileType::TEMPLE_ROCK) {
+        bool top = (y > 0 && isSolid(x, y - 1));
+        bool bottom = (y < tempLevel.tileMap->getHeight() - 1 && isSolid(x, y + 1));
+        bool left = (x > 0 && isSolid(x - 1, y));
+        bool right = (x < tempLevel.tileMap->getWidth() - 1 && isSolid(x + 1, y));
+
+        TileType newTile = TileType::TEMPLE_ROCK;
+
+        if (!top) {
+          int r = GetRandomValue(1, 8);
+          if (r == 1) newTile = TileType::TEMPLE_UP_1;
+          else if (r == 2) newTile = TileType::TEMPLE_UP_2;
+          else if (r == 3) newTile = TileType::TEMPLE_UP_3;
+          else if (r == 4) newTile = TileType::TEMPLE_UP_4;
+          else if (r == 5) newTile = TileType::TEMPLE_UP_5;
+          else if (r == 6) newTile = TileType::TEMPLE_UP_6;
+          else if (r == 7) newTile = TileType::TEMPLE_UP_7;
+          else newTile = TileType::TEMPLE_UP_8;
+          
+          int r2 = GetRandomValue(1, 2);
+          if (r2 == 1) borderTiles.push_back({{x, y - 1}, TileType::TEMPLE_TOP_1});
+          else borderTiles.push_back({{x, y - 1}, TileType::TEMPLE_TOP_2});
+        } 
+        if (!bottom) {
+          newTile = TileType::TEMPLE_DOWN;
+          borderTiles.push_back({{x, y + 1}, TileType::TEMPLE_BOTTOM});
+        } 
+        if (!left) {
+          borderTiles.push_back({{x - 1, y}, TileType::TEMPLE_LEFT});
+        } 
+        if (!right) {
+          borderTiles.push_back({{x + 1, y}, TileType::TEMPLE_RIGHT});
+        }
+        
+        if (top && bottom && left && right) {
+          newTile = TileType::TEMPLE_ROCK; // Inner dirt
+          bool isOuterBoundary = (x == 0 || x == tempLevel.tileMap->getWidth() - 1 || 
+                                  y == 0 || y == tempLevel.tileMap->getHeight() - 1);
+          if (!isOuterBoundary) {
+              int r = GetRandomValue(1, 100);
+              if (r <= 5)
+                newTile = TileType::TEMPLE_SOME_GOLD;
+              else if (r <= 7)
+                newTile = TileType::TEMPLE_MUCH_GOLD;
+          }
+        }
+        tempLevel.tileMap->setTile(x, y, newTile);
+      }
+    }
+  }
+
+  TraceLog(LOG_INFO, "BorderTiles total generated: %d", (int)borderTiles.size());
+      int placedBorders = 0;
+      for (auto& border : borderTiles) {
+          TileType currentTile = tempLevel.tileMap->getTile(border.first.x, border.first.y);
+          if (currentTile == TileType::NOTHING) {
+              tempLevel.tileMap->setTile(border.first.x, border.first.y, border.second);
+              placedBorders++;
+          }
+      }
+  TraceLog(LOG_INFO, "BorderTiles actually placed on NOTHING: %d", placedBorders);
+
+  // Spawn Custom Entities pass
+  for (int y = 0; y < tempLevel.tileMap->getHeight(); y++) {
+    for (int x = 0; x < tempLevel.tileMap->getWidth(); x++) {
+      TileType type = tempLevel.tileMap->getTile(x, y);
+      float px = x * 32.0f;
+      float py = y * 32.0f;
+
+
+      if (type == TileType::CHEST) {
+        type = TileType::NOTHING;
+        auto chest = EntityFactory::createItem('C', px, py);
+        if (chest)
+          tempLevel.items.push_back(std::move(chest));
+      } else if (type == TileType::ENEMY_SNAKE) {
+        type = TileType::NOTHING;
+        auto enemy = EntityFactory::createEnemy('S', px, py);
+        if (enemy)
+          tempLevel.dynamicEntities.push_back(std::move(enemy));
+      } else if (type == TileType::ENEMY_BAT) {
+        type = TileType::NOTHING;
+        auto enemy = EntityFactory::createEnemy('B', px, py);
+        if (enemy)
+          tempLevel.dynamicEntities.push_back(std::move(enemy));
+      } else if (type == TileType::ENEMY_SPIDER) {
+        type = TileType::NOTHING;
+        auto enemy = EntityFactory::createEnemy('P', px, py);
+        if (enemy)
+          tempLevel.dynamicEntities.push_back(std::move(enemy));
+      } else if (type == TileType::LAVA) {
+        type = TileType::NOTHING;
+        tempLevel.initialLiquids.push_back({x, y, LiquidType::LAVA});
+      } else if (type == TileType::WATER) {
+        type = TileType::NOTHING;
+        tempLevel.initialLiquids.push_back({x, y, LiquidType::WATER});
+      } else if (type == TileType::SPIKE_TRAP) {
+        type = TileType::NOTHING;
+        auto spike = EntityFactory::createEnemy('^', px, py + 8.0f);
+        if (spike)
+          tempLevel.dynamicEntities.push_back(std::move(spike));
+      } else if (type == TileType::ARROW_TRAP_LEFT) {
+        auto trap = EntityFactory::createTrap('<', px, py);
+        if (trap)
+          tempLevel.traps.push_back(std::move(trap));
+      } else if (type == TileType::ARROW_TRAP_RIGHT) {
+        auto trap = EntityFactory::createTrap('>', px, py);
+        if (trap)
+          tempLevel.traps.push_back(std::move(trap));
+      }
+
+      tempLevel.tileMap->setTile(x, y, type);
     }
   }
 
@@ -397,6 +540,34 @@ void PlayState::enter() {
           this->liquids->addLiquid(data.gridX, data.gridY, 0,
                                    (LiquidType)data.amount);
         }
+      });
+
+  EventBus::getInstance()->clearListeners(EventType::EVENT_TERRAIN_DESTROYED);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_TERRAIN_DESTROYED, [this](EventData data) {
+          int type = data.tileType;
+          bool someGold = (type == 5 || type == 53 || type == 78);
+          bool muchGold = (type == 6 || type == 52 || type == 77);
+
+          if (someGold || muchGold) {
+              Texture2D tex = EntityFactory::getTexture("assets/sprites/8x8/gold.png");
+              
+              // Spawn 3 Gold Chunks
+              for (int i = 0; i < 3; i++) {
+                  auto chunk = std::make_unique<LootPickup>(data.gridX * 32.0f + 14.0f, data.gridY * 32.0f + 14.0f, 4.0f, 4.0f, 100);
+                  chunk->setSprite(tex, Rectangle{4, 4, 4, 4});
+                  chunk->setVelocity(GetRandomValue(-150, 150), GetRandomValue(-300, -100));
+                  pendingItems.push_back(std::move(chunk));
+              }
+
+              // Spawn 1 Gold Nugget if much gold
+              if (muchGold) {
+                  auto nugget = std::make_unique<LootPickup>(data.gridX * 32.0f + 12.0f, data.gridY * 32.0f + 12.0f, 8.0f, 8.0f, 500);
+                  nugget->setSprite(tex, Rectangle{0, 0, 8, 8});
+                  nugget->setVelocity(GetRandomValue(-100, 100), GetRandomValue(-350, -150));
+                  pendingItems.push_back(std::move(nugget));
+              }
+          }
       });
 
   EventBus::getInstance()->clearListeners(EventType::EVENT_BOMB_EXPLODE);
@@ -940,7 +1111,7 @@ void PlayState::render() {
   };
 
   for (auto &item : tempLevel.items) {
-    if (item && item->isAlive() && !item->isPickedUp()) {
+    if (item && item->isAlive() && !item->isPickedUp() && item->isEmbedded) {
       item->render(getEntityLight(item->getX(), item->getY(),
                                   item->getAABB().width,
                                   item->getAABB().height));
@@ -982,6 +1153,15 @@ void PlayState::render() {
       liquids->render(camera);
     tempLevel.tileMap->render(camera, lighting->getLightMap(),
                               true); // Foreground pass (Solid blocks)
+  }
+
+  // Render non-embedded items ON TOP of foreground tiles (so they are visible in tall grass)
+  for (auto &item : tempLevel.items) {
+    if (item && item->isAlive() && !item->isPickedUp() && !item->isEmbedded) {
+      item->render(getEntityLight(item->getX(), item->getY(),
+                                  item->getAABB().width,
+                                  item->getAABB().height));
+    }
   }
 
   // Render Ghost OVER foreground tiles as a transparent shadow
@@ -1417,14 +1597,12 @@ void EditorState::enter() {
       EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png");
   Texture2D spikeTex = EntityFactory::getTexture(
       "assets/sprites/16x16/gfx_spike_collectibles_flame.png");
-  Texture2D arrowTex =
-      EntityFactory::getTexture("assets/sprites/8x8/gfx_arrow.png");
+
   Texture2D batSnakeTex = EntityFactory::getTexture(
       "assets/sprites/16x16/gfx_bat_snake_jetpack.png");
   Texture2D spiderTex =
       EntityFactory::getTexture("assets/sprites/16x16/gfx_spider_skeleton.png");
-  Texture2D goldTex =
-      EntityFactory::getTexture("assets/sprites/16x16/gfx_goldbars.png");
+
   Texture2D lavaTex = EntityFactory::getTexture("assets/sprites/lava/Lava.png");
   Texture2D waterTex =
       EntityFactory::getTexture("assets/sprites/16x16/water.png");

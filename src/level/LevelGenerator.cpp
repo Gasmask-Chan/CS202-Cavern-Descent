@@ -31,7 +31,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
   bool isValid   = false;
 
   for (int attempt = 0; attempt < maxRetries; ++attempt) {
-    bool wantsLake = true; // 100% chance for testing
+    bool wantsLake = (GetRandomValue(1, 100) <= 70);
     bool hasValidLakeRoom = false;
 
     // Retry macro grid until it satisfies our lake requirements
@@ -59,6 +59,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     int mapW = MAP_ROOMS_X * ROOM_WIDTH;
     int mapH = MAP_ROOMS_Y * ROOM_HEIGHT;
     level.tileMap = std::make_unique<TileMap>(mapW, mapH, MAP_TILE_SIZE);
+    level.tileMap->setZone(zone);
 
     tempEnemies.clear();
     tempItems.clear();
@@ -68,12 +69,12 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempPlayerSpawn = Vector2{0, 0};
     tempExitPos     = Vector2{0, 0};
 
-    // Reset entity limits (Reduced for testing lava)
-    snakesLeft    = 1;
-    batsLeft      = 1;
-    spidersLeft   = 1;
-    cavemenLeft   = 1;
-    skeletonsLeft = 1;
+    // Reset entity limits (Spelunky-DS style)
+    snakesLeft    = 4;
+    batsLeft      = 4;
+    spidersLeft   = 4;
+    cavemenLeft   = 3;
+    skeletonsLeft = 3;
     damselsLeft   = 1;
     spikesLeft    = 4;
     lastPlacement = 3;
@@ -83,7 +84,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
       for (int gx = 0; gx < MAP_ROOMS_X; ++gx) {
         RoomRole role = macroGrid[gy][gx];
         bool isEntrance = (gx == startRoomX && gy == startRoomY);
-        roomVariations[gy][gx] = selectVariation(role, isEntrance);
+        roomVariations[gy][gx] = selectVariation(role, isEntrance, zone);
       }
     }
 
@@ -112,16 +113,22 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
               case RoomRole::TYPE_3:
                 memcpy(tileGrid, left_right_up_rooms[v], sizeof(tileGrid));
                 break;
-              case RoomRole::TYPE_SHOP:
-                memcpy(tileGrid, shops[v % 2], sizeof(tileGrid));
+              case RoomRole::TYPE_SHOP: {
+                bool leftOpen = (gx > 0) && macroGrid[gy][gx - 1] != RoomRole::TYPE_0;
+                if (leftOpen) {
+                  memcpy(tileGrid, shops[0], sizeof(tileGrid));
+                } else {
+                  memcpy(tileGrid, shops[1], sizeof(tileGrid));
+                }
                 break;
+              }
               case RoomRole::TYPE_0:
               default:
                 memcpy(tileGrid, closed_rooms[v], sizeof(tileGrid));
                 break;
             }
         }
-        instantiateTiles(tileGrid, gx, gy, role, level.tileMap.get());
+        instantiateTiles(zone, tileGrid, gx, gy, role, level.tileMap.get());
         
         if (role == RoomRole::TYPE_SHOP) {
             level.shopArea = Rectangle{
@@ -258,7 +265,7 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
             }
             
             // Fill water basin. Water fills the inside from floorY - 1 up to floorY - targetHeight
-            LiquidType lakeType = (GetRandomValue(0, 1) == 0) ? LiquidType::WATER : LiquidType::LAVA;
+            LiquidType lakeType = (zone == ZoneType::TEMPLE) ? LiquidType::LAVA : LiquidType::WATER;
             for (int y = floorY - 1; y >= floorY - targetHeight; --y) {
                 for (int x = startX + 1; x < endX - 1; ++x) {
                     if (!level.tileMap->isSolid(x, y)) {
@@ -322,10 +329,13 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
                 memcpy(npcGrid,  left_right_up_npcs[v],  sizeof(npcGrid));
                 memcpy(lootGrid, left_right_up_loot[v],  sizeof(lootGrid));
                 break;
-              case RoomRole::TYPE_SHOP:
-                memcpy(npcGrid,  shops_npcs[v % 2],  sizeof(npcGrid));
-                memcpy(lootGrid, shops_loot[v % 2],  sizeof(lootGrid));
+              case RoomRole::TYPE_SHOP: {
+                bool leftOpen = (gx > 0) && macroGrid[gy][gx - 1] != RoomRole::TYPE_0;
+                int shopIdx = leftOpen ? 0 : 1;
+                memcpy(npcGrid,  shops_npcs[shopIdx],  sizeof(npcGrid));
+                memcpy(lootGrid, shops_loot[shopIdx],  sizeof(lootGrid));
                 break;
+              }
               case RoomRole::TYPE_0:
               default:
                 memcpy(npcGrid,  closed_rooms_npcs[v], sizeof(npcGrid));
@@ -339,7 +349,6 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
             memset(npcGrid, 0, sizeof(npcGrid));
             memset(lootGrid, 0, sizeof(lootGrid));
         }
-        
         populateEntities(npcGrid, lootGrid, gx, gy, role, level.tileMap.get());
       }
     }
@@ -487,11 +496,15 @@ void LevelGenerator::placeShop() {
 // ---------------------------------------------------------------------------
 // selectVariation() — picks a random variation index for the given role
 // ---------------------------------------------------------------------------
-int LevelGenerator::selectVariation(RoomRole role, bool isEntrance) const {
+int LevelGenerator::selectVariation(RoomRole role, bool isEntrance, ZoneType zone) const {
   if (isEntrance) return GetRandomValue(0, 5); // 6 variations for entrance rooms
 
   int numVars = 6; // Most rooms have 6 variations
   switch (role) {
+    case RoomRole::TYPE_1:             
+      if (zone == ZoneType::JUNGLE) numVars = 8;
+      else numVars = 6;
+      break;
     case RoomRole::TYPE_SHOP:          numVars = 2; break;
     default:                           break;
   }
@@ -499,7 +512,7 @@ int LevelGenerator::selectVariation(RoomRole role, bool isEntrance) const {
 }
 
 // ---------------------------------------------------------------------------
-void LevelGenerator::instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map) {
+void LevelGenerator::instantiateTiles(ZoneType zone, const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH], int gx, int gy, RoomRole role, TileMap* map) {
   for (int cy = 0; cy < ROOM_HEIGHT; ++cy) {
     for (int cx = 0; cx < ROOM_WIDTH; ++cx) {
       int tx = gx * ROOM_WIDTH  + cx;
@@ -521,6 +534,33 @@ void LevelGenerator::instantiateTiles(const int tileGrid[ROOM_HEIGHT][ROOM_WIDTH
       }
 
       int tileVal = tileGrid[cy][cx];
+        
+      if (zone == ZoneType::JUNGLE) {
+        if (tileVal == 5) {
+            tileVal = 53; // LUSH_SOME_GOLD
+        } else if (tileVal == 6) {
+            tileVal = 52; // LUSH_MUCH_GOLD
+        } else if (tileVal >= 1 && tileVal <= 8 && tileVal != 3) {
+            tileVal = 51; // LUSH_ROCK
+        } else if (tileVal == 24) {
+            tileVal = 58; // LUSH_SMOOTH
+        } else if (tileVal == 9) { // LADDER
+            tileVal = 65; // VINE
+        } else if (tileVal == 10) { // LADDER_DECK
+            tileVal = 67; // VINE_TOP
+        }
+      } else if (zone == ZoneType::TEMPLE) {
+        if (tileVal == 5) {
+            tileVal = 78; // TEMPLE_SOME_GOLD
+        } else if (tileVal == 6) {
+            tileVal = 77; // TEMPLE_MUCH_GOLD
+        } else if (tileVal >= 1 && tileVal <= 8 && tileVal != 3) {
+            tileVal = 76; // TEMPLE_ROCK
+        } else if (tileVal == 24) {
+            tileVal = 76; // TEMPLE_ROCK (no smooth specified)
+        }
+      }
+        
       map->setTile(tx, ty, static_cast<TileType>(tileVal));
     }
   }
@@ -602,7 +642,7 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
             break;
           }
           case 2: { // Bat
-            if (batsLeft > 0 && r <= 50) {
+            if (batsLeft > 0 && r <= 40) {
               auto enemyObj = EntityFactory::createEnemy('B', px, py);
               if (enemyObj) {
                   auto* e = static_cast<Enemy*>(enemyObj.get());
@@ -614,7 +654,7 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
             break;
           }
           case 3: { // Spider
-            if (spidersLeft > 0 && r <= 50) {
+            if (spidersLeft > 0 && r <= 33) {
               auto enemyObj = EntityFactory::createEnemy('P', px, py);
               if (enemyObj) {
                   auto* e = static_cast<Enemy*>(enemyObj.get());

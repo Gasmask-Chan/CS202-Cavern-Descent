@@ -38,7 +38,9 @@ void Item::activate(Player* player) {
 
 void Item::render(float lightLevel) {
     if (isAlive() && !isCollected) {
-        DynamicEntity::render(lightLevel);
+        if (!isEmbedded) {
+            DynamicEntity::render(lightLevel);
+        }
     }
 }
 
