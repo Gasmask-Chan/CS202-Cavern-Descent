@@ -19,6 +19,7 @@
 #include "../shop/ShopSystem.h"
 #include "../ui/ComboSystem.h"
 #include "../ui/Minimap.h"
+#include "../ui/MenuBackground.h"
 #include "../vendor/tinyfiledialogs.h"
 #include "Game.h"
 #include "GameManager.h"
@@ -47,6 +48,11 @@ void GameState::drawCenteredAt(const char *text, float centerX, float y,
   Vector2 size = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
   DrawTextEx(game->getFont(), text, {centerX - size.x / 2.0f, y}, fontSize,
              2.0f, color);
+}
+
+void GameState::drawLeftText(const char *text, float x, float y,
+                             float fontSize, Color color) {
+  DrawTextEx(game->getFont(), text, {x, y}, fontSize, 2.0f, color);
 }
 
 /*
@@ -96,20 +102,24 @@ void MenuState::update(float dt) {
 void MenuState::render() {
   ClearBackground(BLACK);
 
-  // Placeholder: draw background texture here
+  MenuBackground::render();
 
-  drawCenteredText("CAVERN DESCENT", 150.0f, 60.0f, RAYWHITE);
+  // Draw semi-transparent left panel
+  DrawRectangle(0, 0, 600, 720, {0, 0, 0, 200});
 
-  Color startColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
-  Color editorColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
-  Color quitColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
+  drawLeftText("CAVERN", 50.0f, 60.0f, 60.0f, RAYWHITE);
+  drawLeftText("DESCENT", 50.0f, 110.0f, 60.0f, RAYWHITE);
 
-  drawCenteredText("START GAME", 350.0f, 40.0f, startColor);
-  drawCenteredText("LEVEL EDITOR", 420.0f, 40.0f, editorColor);
-  drawCenteredText("QUIT", 490.0f, 40.0f, quitColor);
+  Color startColor = (selectedOption == 0) ? YELLOW : LIGHTGRAY;
+  Color editorColor = (selectedOption == 1) ? YELLOW : LIGHTGRAY;
+  Color quitColor = (selectedOption == 2) ? YELLOW : LIGHTGRAY;
 
-  drawCenteredText("Use UP/DOWN to navigate, ENTER to select", 650.0f, 20.0f,
-                   GRAY);
+  drawLeftText("START GAME", 50.0f, 350.0f, 40.0f, startColor);
+  drawLeftText("LEVEL EDITOR", 50.0f, 420.0f, 40.0f, editorColor);
+  drawLeftText("QUIT", 50.0f, 490.0f, 40.0f, quitColor);
+
+  drawLeftText("UP/DOWN: Navigate", 50.0f, 650.0f, 20.0f, GRAY);
+  drawLeftText("ENTER: Select", 50.0f, 680.0f, 20.0f, GRAY);
 }
 
 /*
@@ -138,6 +148,8 @@ void PlayState::enter() {
 
   tempGenerator = std::make_unique<LevelGenerator>();
 
+  Color zoneTint = WHITE;
+
   if (GameManager::getInstance()->getIsCustomLevel()) {
     tempLevel.tileMap = std::make_unique<TileMap>(40, 32, 32);
     tempLevel.playerSpawn = {32.0f, 32.0f}; // default fallback
@@ -164,11 +176,59 @@ void PlayState::enter() {
         }
       }
       in.close();
+
+      // Spawn Custom Entities pass
+      for (int y = 0; y < 32; y++) {
+        for (int x = 0; x < 40; x++) {
+          TileType type = tempLevel.tileMap->getTile(x, y);
+          float px = x * 32.0f;
+          float py = y * 32.0f;
+
+          if (type == TileType::CAVE_SOME_GOLD || type == TileType::CAVE_MUCH_GOLD) {
+            tempLevel.tileMap->setTile(x, y, TileType::CAVE_ROCK);
+            auto gold = EntityFactory::createItem('G', px, py);
+            if (gold) tempLevel.items.push_back(std::move(gold));
+          } else if (type == TileType::CHEST) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto chest = EntityFactory::createItem('C', px, py);
+            if (chest) tempLevel.items.push_back(std::move(chest));
+          } else if (type == TileType::ENEMY_SNAKE) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto enemy = EntityFactory::createEnemy('S', px, py);
+            if (enemy) tempLevel.dynamicEntities.push_back(std::move(enemy));
+          } else if (type == TileType::ENEMY_BAT) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto enemy = EntityFactory::createEnemy('B', px, py);
+            if (enemy) tempLevel.dynamicEntities.push_back(std::move(enemy));
+          } else if (type == TileType::ENEMY_SPIDER) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto enemy = EntityFactory::createEnemy('P', px, py);
+            if (enemy) tempLevel.dynamicEntities.push_back(std::move(enemy));
+          } else if (type == TileType::SPIKE_TRAP) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto enemy = EntityFactory::createEnemy('^', px, py + 8.0f); // Spikes act like enemies
+            if (enemy) tempLevel.dynamicEntities.push_back(std::move(enemy));
+          } else if (type == TileType::ARROW_TRAP_LEFT) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto trap = EntityFactory::createTrap('<', px, py);
+            if (trap) tempLevel.traps.push_back(std::move(trap));
+          } else if (type == TileType::ARROW_TRAP_RIGHT) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto trap = EntityFactory::createTrap('>', px, py);
+            if (trap) tempLevel.traps.push_back(std::move(trap));
+          } else if (type == TileType::LAVA) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            tempLevel.initialLiquids.push_back({x, y, LiquidType::LAVA});
+          } else if (type == TileType::WATER) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            tempLevel.initialLiquids.push_back({x, y, LiquidType::WATER});
+          }
+        }
+      }
     }
   } else {
     int currentFloor = GameManager::getInstance()->getFloor();
     ZoneType currentZone = GameManager::getInstance()->getZone();
-    Color zoneTint = WHITE;
 
     if (currentZone == ZoneType::JUNGLE) {
         zoneTint = Color{180, 255, 180, 255};
@@ -177,13 +237,15 @@ void PlayState::enter() {
     }
 
     tempLevel = tempGenerator->generate(currentFloor, currentZone);
-    if (tempLevel.tileMap) {
-        tempLevel.tileMap->setZoneTint(zoneTint);
-        tempLevel.tileMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
-        tempLevel.tileMap->setJungleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png"));
-        tempLevel.tileMap->setTempleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png"));
-        tempLevel.tileMap->setRopeTexture(EntityFactory::getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"));
-    }
+  }
+
+  // Apply tilesets to the loaded or generated map
+  if (tempLevel.tileMap) {
+      tempLevel.tileMap->setZoneTint(zoneTint);
+      tempLevel.tileMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
+      tempLevel.tileMap->setJungleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png"));
+      tempLevel.tileMap->setTempleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png"));
+      tempLevel.tileMap->setRopeTexture(EntityFactory::getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"));
   }
 
   // Auto-Beautify CAVE_ROCK (Turn into Cave Up, Down, Gold, etc)
@@ -1070,7 +1132,7 @@ void PlayState::update(float dt) {
     }
 
     // Death check
-    if (player->getHealth() <= 0) {
+    if (!player->isAlive()) {
       if (deathTimer < 0.0f) {
         // Just died, start the sequence
         deathTimer = 2.5f;
@@ -1144,7 +1206,7 @@ void PlayState::render() {
   };
 
   for (auto &item : tempLevel.items) {
-    if (item && item->isAlive() && !item->isPickedUp() && item->isEmbedded) {
+    if (item && item->isAlive() && !item->isPickedUp()) {
       item->render(getEntityLight(item->getX(), item->getY(),
                                   item->getAABB().width,
                                   item->getAABB().height));
@@ -1188,14 +1250,6 @@ void PlayState::render() {
                               true); // Foreground pass (Solid blocks)
   }
 
-  // Render non-embedded items ON TOP of foreground tiles (so they are visible in tall grass)
-  for (auto &item : tempLevel.items) {
-    if (item && item->isAlive() && !item->isPickedUp() && !item->isEmbedded) {
-      item->render(getEntityLight(item->getX(), item->getY(),
-                                  item->getAABB().width,
-                                  item->getAABB().height));
-    }
-  }
 
   // Render Ghost OVER foreground tiles as a transparent shadow
   for (auto &enemy : tempLevel.dynamicEntities) {
@@ -1269,7 +1323,7 @@ void PlayState::render() {
     } else if (tempLevel.shopArea.width > 0 && player && player->getHealth() > 0 &&
                CheckCollisionRecs(player->getAABB(), tempLevel.shopArea)) {
       const char *text = "PRESS 'Y' TO OPEN OR CLOSE SHOP";
-      float fontSize = 30.0f;
+      float fontSize = 25.0f;
       Vector2 textSize = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
       DrawTextEx(game->getFont(), text,
                  {(1280.0f - textSize.x) / 2.0f, 720.0f - 100.0f}, fontSize,
@@ -1419,15 +1473,21 @@ void GameOverState::render() {
 =======================================================
 */
 
-void CharSelectState::enter() { selectedIndex = 0; }
+void CharSelectState::enter() { 
+  selectedIndex = 0; 
+  // Preload character textures to prevent stutter when hovering
+  EntityFactory::getTexture("assets/characters/explorer.png");
+  EntityFactory::getTexture("assets/characters/ninja.png");
+  EntityFactory::getTexture("assets/characters/tank.png");
+}
 
 void CharSelectState::exit() {}
 
 void CharSelectState::handleInput() {
-  if (IsKeyPressed(KEY_LEFT)) {
+  if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
     selectedIndex = (selectedIndex + 2) % 3;
   }
-  if (IsKeyPressed(KEY_RIGHT)) {
+  if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
     selectedIndex = (selectedIndex + 1) % 3;
   }
   if (IsKeyPressed(KEY_ENTER)) {
@@ -1445,17 +1505,39 @@ void CharSelectState::update(float dt) {}
 void CharSelectState::render() {
   ClearBackground(BLACK);
 
-  drawCenteredText("CHARACTER SELECT", 200.0f, 40.0f, RAYWHITE);
+  MenuBackground::render();
 
-  Color expColor = (selectedIndex == 0) ? YELLOW : DARKGRAY;
-  Color ninColor = (selectedIndex == 1) ? YELLOW : DARKGRAY;
-  Color tnkColor = (selectedIndex == 2) ? YELLOW : DARKGRAY;
+  // Draw semi-transparent left panel
+  DrawRectangle(0, 0, 600, 720, {0, 0, 0, 200});
 
-  drawCenteredAt("EXPLORER", 320.0f, 400.0f, 30.0f, expColor);
-  drawCenteredAt("NINJA", 640.0f, 400.0f, 30.0f, ninColor);
-  drawCenteredAt("TANK", 960.0f, 400.0f, 30.0f, tnkColor);
+  drawLeftText("CHARACTER", 50.0f, 60.0f, 50.0f, RAYWHITE);
+  drawLeftText("SELECT", 50.0f, 110.0f, 50.0f, RAYWHITE);
 
-  drawCenteredText("Press ENTER to start, ESC to return", 600.0f, 20.0f, GRAY);
+  Color expColor = (selectedIndex == 0) ? YELLOW : LIGHTGRAY;
+  Color ninColor = (selectedIndex == 1) ? YELLOW : LIGHTGRAY;
+  Color tnkColor = (selectedIndex == 2) ? YELLOW : LIGHTGRAY;
+
+  drawLeftText("EXPLORER", 50.0f, 300.0f, 30.0f, expColor);
+  drawLeftText("NINJA", 50.0f, 370.0f, 30.0f, ninColor);
+  drawLeftText("TANK", 50.0f, 440.0f, 30.0f, tnkColor);
+
+  // Render the selected character sprite
+  const char* texPaths[] = {
+      "assets/characters/explorer.png",
+      "assets/characters/ninja.png",
+      "assets/characters/tank.png"
+  };
+  Texture2D charTex = EntityFactory::getTexture(texPaths[selectedIndex]);
+  if (charTex.id != 0) {
+      // Idle frame is row 0, col 0, width 80, height 80
+      Rectangle src = {0, 0, 80, 80};
+      // Draw at x=320, aligned vertically with text, scale 1x (80x80)
+      Rectangle dest = {320, 275.0f + (selectedIndex * 70.0f), 80, 80};
+      DrawTexturePro(charTex, src, dest, {0, 0}, 0.0f, WHITE);
+  }
+
+  drawLeftText("ENTER: Start", 50.0f, 650.0f, 20.0f, GRAY);
+  drawLeftText("ESC: Back", 50.0f, 680.0f, 20.0f, GRAY);
 }
 
 /*
@@ -1513,18 +1595,24 @@ void LevelEditorMenuState::update(float dt) {}
 void LevelEditorMenuState::render() {
   ClearBackground(BLACK);
 
-  drawCenteredText("LEVEL EDITOR MENU", 150.0f, 60.0f, RAYWHITE);
+  MenuBackground::render();
 
-  Color playColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
-  Color editColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
-  Color backColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
+  // Draw semi-transparent left panel
+  DrawRectangle(0, 0, 600, 720, {0, 0, 0, 200});
 
-  drawCenteredText("PLAY CUSTOM LEVEL", 300.0f, 40.0f, playColor);
-  drawCenteredText("EDITOR", 370.0f, 40.0f, editColor);
-  drawCenteredText("BACK", 440.0f, 40.0f, backColor);
+  drawLeftText("LEVEL", 50.0f, 60.0f, 50.0f, RAYWHITE);
+  drawLeftText("EDITOR", 50.0f, 110.0f, 50.0f, RAYWHITE);
 
-  drawCenteredText("Use UP/DOWN to navigate, ENTER to select", 650.0f, 20.0f,
-                   GRAY);
+  Color playColor = (selectedOption == 0) ? YELLOW : LIGHTGRAY;
+  Color editColor = (selectedOption == 1) ? YELLOW : LIGHTGRAY;
+  Color backColor = (selectedOption == 2) ? YELLOW : LIGHTGRAY;
+
+  drawLeftText("PLAY CUSTOM LEVEL", 50.0f, 300.0f, 30.0f, playColor);
+  drawLeftText("EDITOR", 50.0f, 370.0f, 30.0f, editColor);
+  drawLeftText("BACK", 50.0f, 440.0f, 30.0f, backColor);
+
+  drawLeftText("ENTER: Select", 50.0f, 650.0f, 20.0f, GRAY);
+  drawLeftText("ESC: Back", 50.0f, 680.0f, 20.0f, GRAY);
 }
 
 void EditorFileMenuState::enter() { selectedOption = 0; }
@@ -1588,18 +1676,24 @@ void EditorFileMenuState::update(float dt) {}
 void EditorFileMenuState::render() {
   ClearBackground(BLACK);
 
-  drawCenteredText("FILE MENU", 150.0f, 60.0f, RAYWHITE);
+  MenuBackground::render();
 
-  Color newColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
-  Color openColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
-  Color backColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
+  // Draw semi-transparent left panel
+  DrawRectangle(0, 0, 600, 720, {0, 0, 0, 200});
 
-  drawCenteredText("NEW LEVEL", 300.0f, 40.0f, newColor);
-  drawCenteredText("OPEN LEVEL", 370.0f, 40.0f, openColor);
-  drawCenteredText("BACK", 440.0f, 40.0f, backColor);
+  drawLeftText("FILE", 50.0f, 60.0f, 50.0f, RAYWHITE);
+  drawLeftText("MENU", 50.0f, 110.0f, 50.0f, RAYWHITE);
 
-  drawCenteredText("Use UP/DOWN to navigate, ENTER to select", 650.0f, 20.0f,
-                   GRAY);
+  Color newColor = (selectedOption == 0) ? YELLOW : LIGHTGRAY;
+  Color loadColor = (selectedOption == 1) ? YELLOW : LIGHTGRAY;
+  Color backColor = (selectedOption == 2) ? YELLOW : LIGHTGRAY;
+
+  drawLeftText("NEW LEVEL", 50.0f, 300.0f, 30.0f, newColor);
+  drawLeftText("LOAD LEVEL", 50.0f, 370.0f, 30.0f, loadColor);
+  drawLeftText("BACK", 50.0f, 440.0f, 30.0f, backColor);
+
+  drawLeftText("ENTER: Select", 50.0f, 650.0f, 20.0f, GRAY);
+  drawLeftText("ESC: Back", 50.0f, 680.0f, 20.0f, GRAY);
 }
 
 /*
@@ -1628,6 +1722,14 @@ void EditorState::enter() {
 
   Texture2D caveTex =
       EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png");
+  Texture2D jungleTex = 
+      EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png");
+  Texture2D templeTex = 
+      EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png");
+
+  tileMap->setTileset(caveTex);
+  tileMap->setJungleTileset(jungleTex);
+  tileMap->setTempleTileset(templeTex);
   Texture2D spikeTex = EntityFactory::getTexture(
       "assets/sprites/16x16/gfx_spike_collectibles_flame.png");
 
@@ -1799,6 +1901,12 @@ void EditorState::render() {
         for (const auto &item : paletteItems) {
           if (item.type == t) {
             Rectangle dest = {x * 16.0f, y * 16.0f, 16.0f, 16.0f};
+            
+            // Adjust visual offset for sprites that are "flying" in the original spritesheet
+            if (t == TileType::CHEST) {
+                dest.y += 8.0f; 
+            }
+
             DrawTexturePro(item.tex, item.src, dest, {0, 0}, 0.0f, WHITE);
             break;
           }
@@ -1835,6 +1943,9 @@ void EditorState::render() {
     DrawRectangle(px - 5, py - 5, 90, 40, bgColor);
 
     Rectangle dest = {px, py, 24.0f, 24.0f};
+    if (paletteItems[i].type == TileType::CHEST) {
+        dest.y += 8.0f; // Visually center the chest in the palette button
+    }
     DrawTexturePro(paletteItems[i].tex, paletteItems[i].src, dest, {0, 0}, 0.0f,
                    WHITE);
 
@@ -1917,6 +2028,7 @@ void TransitionState::enter() {
   }
   tunnelMap->setTile(16, 11, TileType::ENTRANCE);
   tunnelMap->setTile(24, 11, TileType::EXIT);
+  tunnelMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
   physics = std::make_unique<PhysicsSystem>(tunnelMap.get());
   player = std::make_unique<Player>(
       16 * 32.0f, 11 * 32.0f,

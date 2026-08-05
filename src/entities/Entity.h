@@ -51,7 +51,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool isAlive();
+    virtual bool isAlive();
 
     /**
      * @brief Sets `isActive = false`. The entity remains in its vector until `LevelManager::removeDeadEntities()` erases it.

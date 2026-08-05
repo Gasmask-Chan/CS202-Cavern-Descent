@@ -18,6 +18,16 @@ Arrow::Arrow(float x, float y, float vx)
 
 void Arrow::update(float dt, Player* player) {
     if (_stuck) {
+        // Keep the early return for performance and to freeze rotation, 
+        // but still apply gravity so the arrow falls if the floor is destroyed.
+        applyGravity(dt);
+        move(0, vy * dt);
+        
+        // If it starts falling freely (vy accumulates beyond a single frame's gravity tick), unstick it!
+        if (vy > 20.0f) {
+            _stuck = false;
+            _isLethal = false;
+        }
         return;
     }
 

@@ -59,6 +59,7 @@ public:
 
     void drawCenteredText(const char* text, float y, float fontSize, Color color);
     void drawCenteredAt(const char* text, float centerX, float y, float fontSize, Color color);
+    void drawLeftText(const char* text, float x, float y, float fontSize, Color color);
 
     virtual void enter() = 0;
 
