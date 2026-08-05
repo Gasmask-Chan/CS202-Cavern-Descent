@@ -43,6 +43,8 @@ public:
     Player(float x, float y, CharacterType type);
     virtual ~Player();
 
+    bool isAlive() override;
+
     void handleInput();
     void update(float dt, class Player* player = nullptr) override;
     void render(float lightLevel) override;

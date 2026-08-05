@@ -188,6 +188,10 @@ void Player::handleInput() {
     }
 }
 
+bool Player::isAlive() {
+    return health > 0;
+}
+
 void Player::update(float dt, Player* player) {
     if (!moveStrategy) return;
     if (liquidSim) {
@@ -281,7 +285,7 @@ void Player::update(float dt, Player* player) {
     
     // Animation state machine
     AnimState newAnim = AnimState::IDLE;
-    if (health <= 0) {
+    if (!isAlive()) {
         newAnim = AnimState::DEAD;
         vx = 0; // Stop moving when dead
     } else if (isWhipping) {
@@ -519,6 +523,7 @@ void Player::render(float lightLevel) {
 }
 
 void Player::takeDamage(int dmg) {
+    if (!isAlive()) return; // ALREADY DEAD
     if (isGodMode) return;
     if (invincibilityTimer > 0.0f) return;
     
@@ -536,7 +541,7 @@ void Player::takeDamage(int dmg) {
     data.worldY = y + height / 2.0f;
     EventBus::getInstance()->publish(EventType::EVENT_PLAYER_DAMAGED, data);
     
-    if (health <= 0) {
+    if (!isAlive()) {
         EventBus::getInstance()->publish(EventType::EVENT_PLAYER_DEATH, data);
     }
 }

@@ -1132,7 +1132,7 @@ void PlayState::update(float dt) {
     }
 
     // Death check
-    if (player->getHealth() <= 0) {
+    if (!player->isAlive()) {
       if (deathTimer < 0.0f) {
         // Just died, start the sequence
         deathTimer = 2.5f;
