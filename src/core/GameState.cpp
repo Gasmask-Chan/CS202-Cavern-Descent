@@ -19,6 +19,7 @@
 #include "../shop/ShopSystem.h"
 #include "../ui/ComboSystem.h"
 #include "../ui/Minimap.h"
+#include "../ui/MenuBackground.h"
 #include "../vendor/tinyfiledialogs.h"
 #include "Game.h"
 #include "GameManager.h"
@@ -47,6 +48,11 @@ void GameState::drawCenteredAt(const char *text, float centerX, float y,
   Vector2 size = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
   DrawTextEx(game->getFont(), text, {centerX - size.x / 2.0f, y}, fontSize,
              2.0f, color);
+}
+
+void GameState::drawLeftText(const char *text, float x, float y,
+                             float fontSize, Color color) {
+  DrawTextEx(game->getFont(), text, {x, y}, fontSize, 2.0f, color);
 }
 
 /*
@@ -96,20 +102,24 @@ void MenuState::update(float dt) {
 void MenuState::render() {
   ClearBackground(BLACK);
 
-  // Placeholder: draw background texture here
+  MenuBackground::render();
 
-  drawCenteredText("CAVERN DESCENT", 150.0f, 60.0f, RAYWHITE);
+  // Draw semi-transparent left panel
+  DrawRectangle(0, 0, 600, 720, {0, 0, 0, 200});
 
-  Color startColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
-  Color editorColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
-  Color quitColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
+  drawLeftText("CAVERN", 50.0f, 60.0f, 60.0f, RAYWHITE);
+  drawLeftText("DESCENT", 50.0f, 110.0f, 60.0f, RAYWHITE);
 
-  drawCenteredText("START GAME", 350.0f, 40.0f, startColor);
-  drawCenteredText("LEVEL EDITOR", 420.0f, 40.0f, editorColor);
-  drawCenteredText("QUIT", 490.0f, 40.0f, quitColor);
+  Color startColor = (selectedOption == 0) ? YELLOW : LIGHTGRAY;
+  Color editorColor = (selectedOption == 1) ? YELLOW : LIGHTGRAY;
+  Color quitColor = (selectedOption == 2) ? YELLOW : LIGHTGRAY;
 
-  drawCenteredText("Use UP/DOWN to navigate, ENTER to select", 650.0f, 20.0f,
-                   GRAY);
+  drawLeftText("START GAME", 50.0f, 350.0f, 40.0f, startColor);
+  drawLeftText("LEVEL EDITOR", 50.0f, 420.0f, 40.0f, editorColor);
+  drawLeftText("QUIT", 50.0f, 490.0f, 40.0f, quitColor);
+
+  drawLeftText("UP/DOWN: Navigate", 50.0f, 650.0f, 20.0f, GRAY);
+  drawLeftText("ENTER: Select", 50.0f, 680.0f, 20.0f, GRAY);
 }
 
 /*
@@ -1419,15 +1429,21 @@ void GameOverState::render() {
 =======================================================
 */
 
-void CharSelectState::enter() { selectedIndex = 0; }
+void CharSelectState::enter() { 
+  selectedIndex = 0; 
+  // Preload character textures to prevent stutter when hovering
+  EntityFactory::getTexture("assets/characters/explorer.png");
+  EntityFactory::getTexture("assets/characters/ninja.png");
+  EntityFactory::getTexture("assets/characters/tank.png");
+}
 
 void CharSelectState::exit() {}
 
 void CharSelectState::handleInput() {
-  if (IsKeyPressed(KEY_LEFT)) {
+  if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
     selectedIndex = (selectedIndex + 2) % 3;
   }
-  if (IsKeyPressed(KEY_RIGHT)) {
+  if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
     selectedIndex = (selectedIndex + 1) % 3;
   }
   if (IsKeyPressed(KEY_ENTER)) {
@@ -1445,17 +1461,39 @@ void CharSelectState::update(float dt) {}
 void CharSelectState::render() {
   ClearBackground(BLACK);
 
-  drawCenteredText("CHARACTER SELECT", 200.0f, 40.0f, RAYWHITE);
+  MenuBackground::render();
 
-  Color expColor = (selectedIndex == 0) ? YELLOW : DARKGRAY;
-  Color ninColor = (selectedIndex == 1) ? YELLOW : DARKGRAY;
-  Color tnkColor = (selectedIndex == 2) ? YELLOW : DARKGRAY;
+  // Draw semi-transparent left panel
+  DrawRectangle(0, 0, 600, 720, {0, 0, 0, 200});
 
-  drawCenteredAt("EXPLORER", 320.0f, 400.0f, 30.0f, expColor);
-  drawCenteredAt("NINJA", 640.0f, 400.0f, 30.0f, ninColor);
-  drawCenteredAt("TANK", 960.0f, 400.0f, 30.0f, tnkColor);
+  drawLeftText("CHARACTER", 50.0f, 60.0f, 50.0f, RAYWHITE);
+  drawLeftText("SELECT", 50.0f, 110.0f, 50.0f, RAYWHITE);
 
-  drawCenteredText("Press ENTER to start, ESC to return", 600.0f, 20.0f, GRAY);
+  Color expColor = (selectedIndex == 0) ? YELLOW : LIGHTGRAY;
+  Color ninColor = (selectedIndex == 1) ? YELLOW : LIGHTGRAY;
+  Color tnkColor = (selectedIndex == 2) ? YELLOW : LIGHTGRAY;
+
+  drawLeftText("EXPLORER", 50.0f, 300.0f, 30.0f, expColor);
+  drawLeftText("NINJA", 50.0f, 370.0f, 30.0f, ninColor);
+  drawLeftText("TANK", 50.0f, 440.0f, 30.0f, tnkColor);
+
+  // Render the selected character sprite
+  const char* texPaths[] = {
+      "assets/characters/explorer.png",
+      "assets/characters/ninja.png",
+      "assets/characters/tank.png"
+  };
+  Texture2D charTex = EntityFactory::getTexture(texPaths[selectedIndex]);
+  if (charTex.id != 0) {
+      // Idle frame is row 0, col 0, width 80, height 80
+      Rectangle src = {0, 0, 80, 80};
+      // Draw at x=320, aligned vertically with text, scale 1x (80x80)
+      Rectangle dest = {320, 275.0f + (selectedIndex * 70.0f), 80, 80};
+      DrawTexturePro(charTex, src, dest, {0, 0}, 0.0f, WHITE);
+  }
+
+  drawLeftText("ENTER: Start", 50.0f, 650.0f, 20.0f, GRAY);
+  drawLeftText("ESC: Back", 50.0f, 680.0f, 20.0f, GRAY);
 }
 
 /*
@@ -1513,18 +1551,24 @@ void LevelEditorMenuState::update(float dt) {}
 void LevelEditorMenuState::render() {
   ClearBackground(BLACK);
 
-  drawCenteredText("LEVEL EDITOR MENU", 150.0f, 60.0f, RAYWHITE);
+  MenuBackground::render();
 
-  Color playColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
-  Color editColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
-  Color backColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
+  // Draw semi-transparent left panel
+  DrawRectangle(0, 0, 600, 720, {0, 0, 0, 200});
 
-  drawCenteredText("PLAY CUSTOM LEVEL", 300.0f, 40.0f, playColor);
-  drawCenteredText("EDITOR", 370.0f, 40.0f, editColor);
-  drawCenteredText("BACK", 440.0f, 40.0f, backColor);
+  drawLeftText("LEVEL", 50.0f, 60.0f, 50.0f, RAYWHITE);
+  drawLeftText("EDITOR", 50.0f, 110.0f, 50.0f, RAYWHITE);
 
-  drawCenteredText("Use UP/DOWN to navigate, ENTER to select", 650.0f, 20.0f,
-                   GRAY);
+  Color playColor = (selectedOption == 0) ? YELLOW : LIGHTGRAY;
+  Color editColor = (selectedOption == 1) ? YELLOW : LIGHTGRAY;
+  Color backColor = (selectedOption == 2) ? YELLOW : LIGHTGRAY;
+
+  drawLeftText("PLAY CUSTOM LEVEL", 50.0f, 300.0f, 30.0f, playColor);
+  drawLeftText("EDITOR", 50.0f, 370.0f, 30.0f, editColor);
+  drawLeftText("BACK", 50.0f, 440.0f, 30.0f, backColor);
+
+  drawLeftText("ENTER: Select", 50.0f, 650.0f, 20.0f, GRAY);
+  drawLeftText("ESC: Back", 50.0f, 680.0f, 20.0f, GRAY);
 }
 
 void EditorFileMenuState::enter() { selectedOption = 0; }
@@ -1588,18 +1632,24 @@ void EditorFileMenuState::update(float dt) {}
 void EditorFileMenuState::render() {
   ClearBackground(BLACK);
 
-  drawCenteredText("FILE MENU", 150.0f, 60.0f, RAYWHITE);
+  MenuBackground::render();
 
-  Color newColor = (selectedOption == 0) ? YELLOW : DARKGRAY;
-  Color openColor = (selectedOption == 1) ? YELLOW : DARKGRAY;
-  Color backColor = (selectedOption == 2) ? YELLOW : DARKGRAY;
+  // Draw semi-transparent left panel
+  DrawRectangle(0, 0, 600, 720, {0, 0, 0, 200});
 
-  drawCenteredText("NEW LEVEL", 300.0f, 40.0f, newColor);
-  drawCenteredText("OPEN LEVEL", 370.0f, 40.0f, openColor);
-  drawCenteredText("BACK", 440.0f, 40.0f, backColor);
+  drawLeftText("FILE", 50.0f, 60.0f, 50.0f, RAYWHITE);
+  drawLeftText("MENU", 50.0f, 110.0f, 50.0f, RAYWHITE);
 
-  drawCenteredText("Use UP/DOWN to navigate, ENTER to select", 650.0f, 20.0f,
-                   GRAY);
+  Color newColor = (selectedOption == 0) ? YELLOW : LIGHTGRAY;
+  Color loadColor = (selectedOption == 1) ? YELLOW : LIGHTGRAY;
+  Color backColor = (selectedOption == 2) ? YELLOW : LIGHTGRAY;
+
+  drawLeftText("NEW LEVEL", 50.0f, 300.0f, 30.0f, newColor);
+  drawLeftText("LOAD LEVEL", 50.0f, 370.0f, 30.0f, loadColor);
+  drawLeftText("BACK", 50.0f, 440.0f, 30.0f, backColor);
+
+  drawLeftText("ENTER: Select", 50.0f, 650.0f, 20.0f, GRAY);
+  drawLeftText("ESC: Back", 50.0f, 680.0f, 20.0f, GRAY);
 }
 
 /*
