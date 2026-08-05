@@ -495,7 +495,18 @@ void Player::render(float lightLevel) {
             }
 
             // Draw Player
-            DrawTexturePro(sprite, frameRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, tint);
+            float rotation = 0.0f;
+            Vector2 origin = {0.0f, 0.0f};
+            Rectangle renderRec = destRec;
+
+            if (currentAnim == AnimState::SWIM) {
+                rotation = isFacingRight ? 90.0f : -90.0f;
+                origin = {20.0f, 20.0f};
+                renderRec.x += 20.0f;
+                renderRec.y += 20.0f;
+            }
+
+            DrawTexturePro(sprite, frameRec, renderRec, origin, rotation, tint);
             
             // Draw Whip Lash-Forward (In front of Player)
             if (isWhipping && whipSprite.id != 0 && whipFrame == 1) {
