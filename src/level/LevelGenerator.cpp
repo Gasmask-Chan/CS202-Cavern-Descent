@@ -70,11 +70,11 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempExitPos     = Vector2{0, 0};
 
     // Reset entity limits (Spelunky-DS style)
-    snakesLeft    = 4;
-    batsLeft      = 4;
-    spidersLeft   = 4;
-    cavemenLeft   = 3;
-    skeletonsLeft = 3;
+    snakesLeft    = 5 + (floor - 1);
+    batsLeft      = 3 + (floor - 1);
+    spidersLeft   = 3 + (floor - 1);
+    cavemenLeft   = 3 + (floor - 1);
+    skeletonsLeft = 3 + (floor - 1);
     damselsLeft   = 1;
     spikesLeft    = 4;
     lastPlacement = 3;
