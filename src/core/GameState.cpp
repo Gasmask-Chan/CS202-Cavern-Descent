@@ -165,6 +165,12 @@ void PlayState::enter() {
       }
       in.close();
     }
+
+    // Load tilesets so tiles render properly when playing custom levels
+    tempLevel.tileMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
+    tempLevel.tileMap->setJungleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png"));
+    tempLevel.tileMap->setTempleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png"));
+    tempLevel.tileMap->setRopeTexture(EntityFactory::getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"));
   } else {
     int currentFloor = GameManager::getInstance()->getFloor();
     ZoneType currentZone = GameManager::getInstance()->getZone();
@@ -1568,7 +1574,7 @@ void EditorFileMenuState::handleInput() {
         std::ofstream out(filepath);
         if (out.is_open())
           out.close();
-        GameManager::getInstance()->setLoadIntoEditor(true);
+        GameManager::getInstance()->setLoadIntoEditor(false);
         game->changeState(GameStateType::EDITOR);
       }
       break;
@@ -1629,13 +1635,19 @@ EditorState::~EditorState() = default;
 
 void EditorState::enter() {
   EntityFactory::preloadTextures();
-  tileMap = std::make_unique<TileMap>(40, 32, 16);
+  tileMap = std::make_unique<TileMap>(40, 32, 32);
+
+  // Load tilesets so TileMap::render() can draw tiles properly
+  tileMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
+  tileMap->setJungleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png"));
+  tileMap->setTempleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png"));
+  tileMap->setRopeTexture(EntityFactory::getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"));
 
   camera = {0};
-  camera.target = Vector2{0.0f, 0.0f};
-  camera.offset = Vector2{0.0f, 0.0f};
+  camera.target = Vector2{(float)(40 * 32) / 2.0f, (float)(32 * 32) / 2.0f}; // Center on map
+  camera.offset = Vector2{(float)(GetScreenWidth() - 200) / 2.0f, (float)GetScreenHeight() / 2.0f};
   camera.rotation = 0.0f;
-  camera.zoom = 2.0f;
+  camera.zoom = 1.0f;
 
   Texture2D caveTex =
       EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png");
@@ -1659,11 +1671,11 @@ void EditorState::enter() {
       {TileType::ARROW_TRAP_LEFT, caveTex, {0, 80, 16, 16}, "Trap L"},
       {TileType::ARROW_TRAP_RIGHT, caveTex, {16, 80, 16, 16}, "Trap R"},
       {TileType::SPIKE_TRAP, spikeTex, {0, 0, 16, 16}, "Spikes"},
-      {TileType::ENTRANCE, caveTex, {0, 96, 16, 16}, "Enter"}, // col 0 row 6
+      {TileType::ENTRANCE, caveTex, {0, 96, 16, 16}, "Enter"},
       {TileType::EXIT,
        caveTex,
        {16, 96, 16, 16},
-       "Exit"}, // Using exit door col 1 row 6
+       "Exit"},
       {TileType::CHEST, spikeTex, {32, 0, 16, 16}, "Chest"},
       {TileType::ENEMY_SNAKE, batSnakeTex, {0, 16, 16, 16}, "Snake"},
       {TileType::ENEMY_BAT, batSnakeTex, {0, 0, 16, 16}, "Bat"},
@@ -1674,6 +1686,8 @@ void EditorState::enter() {
   statusMsg = "";
   statusTimer = 0.0f;
   isDragging = false;
+  undoStack.clear();
+  redoStack.clear();
 
   if (GameManager::getInstance()->getLoadIntoEditor()) {
     loadLevel(GameManager::getInstance()->getCustomLevelPath());
@@ -1683,7 +1697,38 @@ void EditorState::enter() {
 
 void EditorState::exit() {}
 
+void EditorState::placeTile(int tx, int ty, TileType newType) {
+  TileType oldType = tileMap->getTile(tx, ty);
+  if (oldType == newType) return; // No change
+  tileMap->setTile(tx, ty, newType);
+  undoStack.push_back({tx, ty, oldType, newType});
+  redoStack.clear(); // New action invalidates redo history
+}
+
+void EditorState::undo() {
+  if (undoStack.empty()) return;
+  TileChange change = undoStack.back();
+  undoStack.pop_back();
+  tileMap->setTile(change.x, change.y, change.oldType);
+  redoStack.push_back(change);
+  statusMsg = "Undo";
+  statusTimer = 1.0f;
+}
+
+void EditorState::redo() {
+  if (redoStack.empty()) return;
+  TileChange change = redoStack.back();
+  redoStack.pop_back();
+  tileMap->setTile(change.x, change.y, change.newType);
+  undoStack.push_back(change);
+  statusMsg = "Redo";
+  statusTimer = 1.0f;
+}
+
 void EditorState::handleInput() {
+  int ts = tileMap->getTileSize();
+  int sidebarX = GetScreenWidth() - 200;
+
   // Zoom
   float wheelMove = GetMouseWheelMove();
   if (wheelMove != 0.0f) {
@@ -1692,8 +1737,8 @@ void EditorState::handleInput() {
     camera.offset = GetMousePosition();
     camera.target = mouseWorldPos;
     camera.zoom += wheelMove * 0.25f;
-    if (camera.zoom < 0.5f)
-      camera.zoom = 0.5f;
+    if (camera.zoom < 0.25f)
+      camera.zoom = 0.25f;
     if (camera.zoom > 5.0f)
       camera.zoom = 5.0f;
   }
@@ -1718,13 +1763,13 @@ void EditorState::handleInput() {
   Vector2 mousePos = GetMousePosition();
 
   // Palette UI interaction
-  if (mousePos.x > 1080) {
+  if (mousePos.x > sidebarX) {
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
       // Check palette clicks (Grid: 2 cols)
       for (int i = 0; i < (int)paletteItems.size(); i++) {
         int col = i % 2;
         int row = i / 2;
-        float px = 1080.0f + 10.0f + col * 95.0f;
+        float px = sidebarX + 10.0f + col * 95.0f;
         float py = 60.0f + row * 45.0f;
         Rectangle itemRect = {px - 5.0f, py - 5.0f, 90.0f, 40.0f};
 
@@ -1736,25 +1781,49 @@ void EditorState::handleInput() {
   } else {
     // Mouse coordinates for editor
     Vector2 mouseWorld = GetScreenToWorld2D(mousePos, camera);
-    int tx = (int)floorf(mouseWorld.x / 16.0f);
-    int ty = (int)floorf(mouseWorld.y / 16.0f);
+    int tx = (int)floorf(mouseWorld.x / (float)ts);
+    int ty = (int)floorf(mouseWorld.y / (float)ts);
     mouseGridPos = {(float)tx, (float)ty};
 
     if (tx >= 0 && tx < 40 && ty >= 0 && ty < 32) {
-      // Placement
+      // Placement (with undo support)
       if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-        tileMap->setTile(tx, ty, paletteItems[selectedTileIdx].type);
+        placeTile(tx, ty, paletteItems[selectedTileIdx].type);
       }
-      // Erase
+      // Erase (with undo support)
       if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
-        tileMap->setTile(tx, ty, TileType::NOTHING);
+        placeTile(tx, ty, TileType::NOTHING);
       }
     }
   }
 
-  // Hotkeys (CTRL+S, CTRL+SHIFT+S, CTRL+O)
+  // Palette cycling with bracket keys
+  if (IsKeyPressed(KEY_LEFT_BRACKET)) {
+    selectedTileIdx--;
+    if (selectedTileIdx < 0)
+      selectedTileIdx = (int)paletteItems.size() - 1;
+  }
+  if (IsKeyPressed(KEY_RIGHT_BRACKET)) {
+    selectedTileIdx++;
+    if (selectedTileIdx >= (int)paletteItems.size())
+      selectedTileIdx = 0;
+  }
+
+  // Hotkeys (CTRL+S, CTRL+SHIFT+S, CTRL+O, CTRL+Z, CTRL+Y)
   bool ctrlDown = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
   bool shiftDown = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
+  // Undo / Redo
+  if (ctrlDown && IsKeyPressed(KEY_Z)) {
+    if (shiftDown) {
+      redo();
+    } else {
+      undo();
+    }
+  }
+  if (ctrlDown && IsKeyPressed(KEY_Y)) {
+    redo();
+  }
 
   if (ctrlDown && IsKeyPressed(KEY_S)) {
     if (shiftDown) {
@@ -1767,8 +1836,20 @@ void EditorState::handleInput() {
         saveLevel(filepath);
       }
     } else {
-      // Normal Save
-      saveLevel(GameManager::getInstance()->getCustomLevelPath());
+      // Normal Save (with empty path guard)
+      std::string currentPath = GameManager::getInstance()->getCustomLevelPath();
+      if (currentPath.empty()) {
+        // Fallthrough to Save As
+        const char *filterPatterns[1] = {"*.lvl"};
+        const char *filepath = tinyfd_saveFileDialog(
+            "Save As", "levels/custom_level.lvl", 1, filterPatterns, "Level Files");
+        if (filepath) {
+          GameManager::getInstance()->setCustomLevelPath(filepath);
+          saveLevel(filepath);
+        }
+      } else {
+        saveLevel(currentPath);
+      }
     }
   }
   if (ctrlDown && !shiftDown && IsKeyPressed(KEY_O)) {
@@ -1795,21 +1876,26 @@ void EditorState::update(float dt) {
 void EditorState::render() {
   ClearBackground(DARKGRAY);
 
+  int ts = tileMap->getTileSize();
+  int sidebarX = GetScreenWidth() - 200;
+
   // Render Editor
   BeginMode2D(camera);
   std::vector<std::vector<Vector3>> dummyLight(32, std::vector<Vector3>(40, {1.0f, 1.0f, 1.0f}));
   tileMap->render(camera, dummyLight, false);
   tileMap->render(camera, dummyLight, true);
 
-  // Overlay custom items missing from standard TileMap renderer
+  // Overlay special entity tiles that TileMap::render() skips
   for (int y = 0; y < tileMap->getHeight(); y++) {
     for (int x = 0; x < tileMap->getWidth(); x++) {
       TileType t = tileMap->getTile(x, y);
-      if (static_cast<int>(t) > 42) {
+      if (t == TileType::SPIKE_TRAP || t == TileType::CHEST ||
+          t == TileType::ENEMY_SNAKE || t == TileType::ENEMY_BAT ||
+          t == TileType::ENEMY_SPIDER || t == TileType::LAVA || t == TileType::WATER) {
         // Find texture inside paletteItems
         for (const auto &item : paletteItems) {
           if (item.type == t) {
-            Rectangle dest = {x * 16.0f, y * 16.0f, 16.0f, 16.0f};
+            Rectangle dest = {(float)(x * ts), (float)(y * ts), (float)ts, (float)ts};
             DrawTexturePro(item.tex, item.src, dest, {0, 0}, 0.0f, WHITE);
             break;
           }
@@ -1818,28 +1904,37 @@ void EditorState::render() {
     }
   }
 
+  // Grid lines
   for (int i = 0; i <= 40; i++) {
-    DrawLine(i * 16, 0, i * 16, 32 * 16, ColorAlpha(WHITE, 0.2f));
+    DrawLine(i * ts, 0, i * ts, 32 * ts, ColorAlpha(WHITE, 0.15f));
   }
   for (int j = 0; j <= 32; j++) {
-    DrawLine(0, j * 16, 40 * 16, j * 16, ColorAlpha(WHITE, 0.2f));
+    DrawLine(0, j * ts, 40 * ts, j * ts, ColorAlpha(WHITE, 0.15f));
   }
 
-  if (GetMousePosition().x <= 1080) {
-    DrawRectangle(mouseGridPos.x * 16, mouseGridPos.y * 16, 16, 16,
-                  ColorAlpha(YELLOW, 0.5f));
+  // Cursor highlight with tile preview
+  if (GetMousePosition().x <= sidebarX) {
+    float cx = mouseGridPos.x * ts;
+    float cy = mouseGridPos.y * ts;
+    // Draw selected tile preview at 50% opacity
+    DrawTexturePro(paletteItems[selectedTileIdx].tex,
+                   paletteItems[selectedTileIdx].src,
+                   {cx, cy, (float)ts, (float)ts},
+                   {0, 0}, 0.0f, ColorAlpha(WHITE, 0.5f));
+    // Draw outline
+    DrawRectangleLines((int)cx, (int)cy, ts, ts, YELLOW);
   }
   EndMode2D();
 
   // Render Sidebar Palette
-  DrawRectangle(1080, 0, 200, 720, ColorAlpha(BLACK, 0.9f));
-  DrawText("PALETTE", 1090, 10, 20, WHITE);
-  DrawLine(1080, 40, 1280, 40, GRAY);
+  DrawRectangle(sidebarX, 0, 200, GetScreenHeight(), ColorAlpha(BLACK, 0.9f));
+  DrawText("PALETTE", sidebarX + 10, 10, 20, WHITE);
+  DrawLine(sidebarX, 40, sidebarX + 200, 40, GRAY);
 
   for (int i = 0; i < (int)paletteItems.size(); i++) {
     int col = i % 2;
     int row = i / 2;
-    float px = 1080.0f + 10.0f + col * 95.0f;
+    float px = sidebarX + 10.0f + col * 95.0f;
     float py = 60.0f + row * 45.0f;
 
     Color bgColor = (i == selectedTileIdx) ? ColorAlpha(YELLOW, 0.3f) : BLANK;
@@ -1853,17 +1948,19 @@ void EditorState::render() {
     DrawText(paletteItems[i].name.c_str(), px + 28, py + 6, 10, WHITE);
   }
 
-  DrawLine(1080, 520, 1280, 520, GRAY);
-  DrawText("L-Click: Place", 1090, 545, 10, LIGHTGRAY);
-  DrawText("R-Click: Erase", 1090, 560, 10, LIGHTGRAY);
-  DrawText("Scroll: Zoom", 1090, 575, 10, LIGHTGRAY);
-  DrawText("M-Drag: Pan Camera", 1090, 590, 10, LIGHTGRAY);
-  DrawText("CTRL+S: Save", 1090, 605, 10, LIGHTGRAY);
-  DrawText("CTRL+SHIFT+S: Save As", 1090, 620, 10, LIGHTGRAY);
-  DrawText("CTRL+O: Open Level", 1090, 635, 10, LIGHTGRAY);
+  DrawLine(sidebarX, 520, sidebarX + 200, 520, GRAY);
+  DrawText("L-Click: Place", sidebarX + 10, 530, 10, LIGHTGRAY);
+  DrawText("R-Click: Erase", sidebarX + 10, 545, 10, LIGHTGRAY);
+  DrawText("Scroll: Zoom", sidebarX + 10, 560, 10, LIGHTGRAY);
+  DrawText("M-Drag: Pan Camera", sidebarX + 10, 575, 10, LIGHTGRAY);
+  DrawText("[ / ]: Cycle Tiles", sidebarX + 10, 590, 10, LIGHTGRAY);
+  DrawText("CTRL+Z/Y: Undo/Redo", sidebarX + 10, 605, 10, LIGHTGRAY);
+  DrawText("CTRL+S: Save", sidebarX + 10, 620, 10, LIGHTGRAY);
+  DrawText("CTRL+SHIFT+S: Save As", sidebarX + 10, 635, 10, LIGHTGRAY);
+  DrawText("CTRL+O: Open Level", sidebarX + 10, 650, 10, LIGHTGRAY);
 
   if (statusTimer > 0.0f) {
-    DrawText(statusMsg.c_str(), 1090, 680, 15, GREEN);
+    DrawText(statusMsg.c_str(), sidebarX + 10, 680, 15, GREEN);
   }
 }
 
@@ -1897,6 +1994,8 @@ void EditorState::loadLevel(const std::string &path) {
       }
     }
     in.close();
+    undoStack.clear();
+    redoStack.clear();
     statusMsg = "Loaded!";
     statusTimer = 2.0f;
   } else {
