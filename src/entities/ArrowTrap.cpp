@@ -5,6 +5,7 @@
 #include "enemies/Spike.h"
 #include "enemies/Flame.h"
 #include "Bomb.h"
+#include "../audio/AudioManager.h"
 
 namespace Platformer {
 
@@ -101,7 +102,7 @@ void ArrowTrap::updateTrap(float dt, Player* player, const std::vector<std::uniq
         data.vy = 0.0f;
         
         EventBus::getInstance()->publish(EventType::EVENT_SPAWN_ARROW, data);
-        AudioManager::getInstance()->playSFX("hit"); // Fallback sound, you can change to arrow_trap later
+        AudioManager::getInstance()->playSFX("xarrowtrap");
     }
 }
 

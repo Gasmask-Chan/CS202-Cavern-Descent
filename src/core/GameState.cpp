@@ -57,24 +57,24 @@ void GameState::drawCenteredAt(const char *text, float centerX, float y,
 
 void MenuState::enter() {
   selectedOption = 0;
-  // Placeholder: load background texture here
-  // Placeholder: start menu BGM here
-  // Platformer::AudioManager::getInstance()->playBGM("assets/music/placeholder_menu.ogg");
+  AudioManager::getInstance()->playBGM("mTitle");
 }
 
 void MenuState::exit() {
-  // Placeholder: stop BGM if needed
-  // Platformer::AudioManager::getInstance()->stopBGM();
+  AudioManager::getInstance()->stopBGM();
 }
 
 void MenuState::handleInput() {
   if (IsKeyPressed(KEY_UP)) {
+    AudioManager::getInstance()->playSFX("xclick");
     selectedOption = (selectedOption + 2) % 3;
   }
   if (IsKeyPressed(KEY_DOWN)) {
+    AudioManager::getInstance()->playSFX("xclick");
     selectedOption = (selectedOption + 1) % 3;
   }
   if (IsKeyPressed(KEY_ENTER)) {
+    AudioManager::getInstance()->playSFX("xclick");
     switch (selectedOption) {
     case 0:
       game->changeState(GameStateType::CHAR_SELECT);
@@ -172,8 +172,12 @@ void PlayState::enter() {
 
     if (currentZone == ZoneType::JUNGLE) {
         zoneTint = Color{180, 255, 180, 255};
+        AudioManager::getInstance()->playBGM("mLush");
     } else if (currentZone == ZoneType::TEMPLE) {
         zoneTint = Color{255, 200, 150, 255};
+        AudioManager::getInstance()->playBGM("mTemple");
+    } else {
+        AudioManager::getInstance()->playBGM("mCave");
     }
 
     tempLevel = tempGenerator->generate(currentFloor, currentZone);
@@ -518,6 +522,7 @@ void PlayState::enter() {
   EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_FLAME);
   EventBus::getInstance()->subscribe(
       EventType::EVENT_SPAWN_FLAME, [this](EventData data) {
+        AudioManager::getInstance()->playSFX("xignite");
         auto flame = EntityFactory::createEnemy('F', data.worldX, data.worldY);
         if (flame) {
           if (data.vy != 0.0f) {
@@ -587,7 +592,7 @@ void PlayState::enter() {
   EventBus::getInstance()->clearListeners(EventType::EVENT_BOMB_EXPLODE);
   EventBus::getInstance()->subscribe(
       EventType::EVENT_BOMB_EXPLODE, [this](EventData data) {
-        AudioManager::getInstance()->playSFX("explosion");
+        AudioManager::getInstance()->playSFX("xexplosion");
         float explosionRadius = 80.0f; // roughly 2.5 tiles (32 * 2.5 = 80)
 
         // 1. Destroy Terrain
@@ -658,6 +663,9 @@ void PlayState::enter() {
       enemy->setLiquidSim(liquids.get());
     }
   }
+
+  // 5. Play level start sound
+  AudioManager::getInstance()->playSFX("xletsexplore");
 }
 
 void PlayState::exit() {
@@ -687,7 +695,8 @@ void PlayState::update(float dt) {
       auto ghost = EntityFactory::createGhost(player->getX() - 600.0f,
                                               player->getY() - 600.0f);
       pendingEntities.push_back(std::move(ghost));
-      AudioManager::getInstance()->playSFX("ghost_spawn");
+      AudioManager::getInstance()->playSFX("xghost");
+      AudioManager::getInstance()->playBGM("mBoss");
     }
   }
 
@@ -765,7 +774,7 @@ void PlayState::update(float dt) {
           if (whipActive &&
               physics->checkAABBOverlap(whipBox, enemy->getAABB())) {
             enemy->takeDamage(1); // Whip does 1 damage
-            AudioManager::getInstance()->playSFX("hit");
+            AudioManager::getInstance()->playSFX("xwhip");
             continue; // Skip collision damage this frame
           }
 
@@ -1284,7 +1293,9 @@ void PlayState::render() {
 =======================================================
 */
 
-void PauseState::enter() {}
+void PauseState::enter() {
+  AudioManager::getInstance()->playSFX("xpause");
+}
 
 void PauseState::exit() {}
 

@@ -1,6 +1,7 @@
 #include "Bomb.h"
 #include "../core/EventBus.h"
 #include "EntityFactory.h"
+#include "../audio/AudioManager.h"
 #include <cmath>
 
 namespace Platformer {
@@ -14,6 +15,7 @@ Bomb::Bomb(float x, float y, float vx, float vy)
     sprite = EntityFactory::getTexture("assets/sprites/8x8/gfx_bomb.png");
     
     srcRect = {0.0f, 0.0f, 8.0f, 8.0f};
+    AudioManager::getInstance()->playSFX("xbombready");
 }
 
 Bomb::~Bomb() {

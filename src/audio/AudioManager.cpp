@@ -4,7 +4,7 @@
 
 namespace Platformer {
 
-AudioManager::AudioManager() : sfxVolume(1.0f), bgmVolume(1.0f) {
+AudioManager::AudioManager() : sfxVolume(1.0f), bgmVolume(0.4f) {
     InitAudioDevice(); // Required by Raylib before any audio loading/playing
     currentBGM.stream.buffer = nullptr;
 }

@@ -62,6 +62,11 @@ LootPickup::LootPickup(float x, float y, float w, float h, int val)
     : Item(x, y, w, h, ItemType::LOOT_PICKUP), value(val) {}
 
 void LootPickup::activate(Player* player) {
+    if (value > 100) {
+        AudioManager::getInstance()->playSFX("xgem");
+    } else {
+        AudioManager::getInstance()->playSFX("xcoin");
+    }
     player->collectGold(value);
     collect();
 }
@@ -79,7 +84,7 @@ void Chest::update(float dt, Player* player) {
         if (dist < 32.0f && (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y) && !isShopItem) {
             // Open Chest
             isOpened = true;
-            AudioManager::getInstance()->playSFX("open_chest");
+            AudioManager::getInstance()->playSFX("xchestopen");
             
             // Change sprite to open chest (Row 0, Col 3 -> {48, 0, 16, 16})
             srcRect.x = 48.0f;
@@ -120,6 +125,7 @@ BombPickup::BombPickup(float x, float y, float w, float h, int amount)
     : Item(x, y, w, h, ItemType::BOMB_PICKUP), amount(amount) {}
 
 void BombPickup::activate(Player* player) {
+    AudioManager::getInstance()->playSFX("xpickup");
     player->addBomb(amount);
     collect();
 }
@@ -129,6 +135,7 @@ RopePickup::RopePickup(float x, float y, float w, float h, int amount)
     : Item(x, y, w, h, ItemType::ROPE_PICKUP), amount(amount) {}
 
 void RopePickup::activate(Player* player) {
+    AudioManager::getInstance()->playSFX("xpickup");
     player->addRope(amount);
     collect();
 }

@@ -2,6 +2,7 @@
 #include "../../player/Player.h"
 #include <cmath>
 #include <algorithm>
+#include "../../audio/AudioManager.h"
 
 namespace Platformer {
 
@@ -39,6 +40,7 @@ void Bat::handleIdle(float dt, Player* player) {
     float triggerDist = 7.0f * 32.0f;
 
     if (dist < triggerDist) {
+        AudioManager::getInstance()->playSFX("xbat");
         changeState(Enemy::chaseState);
     }
 }

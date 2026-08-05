@@ -1,5 +1,6 @@
 #include "Player.h"
 #include "../entities/Item.h"
+#include "../audio/AudioManager.h"
 #include "../core/EventBus.h"
 #include "../core/GameManager.h"
 #include <algorithm>
@@ -13,10 +14,12 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     gold = GameManager::getInstance()->getPlayerGold();
     invincibilityTimer = 0.0f;
     isSubmerged = false;
+    wasSubmerged = false;
     isSwimming = false;
     isDiving = false;
     isWhipping = false;
     whipTimer = 0.0f;
+    climbTimer = 0.0f;
     whipHitThisFrame = false;
     isGodMode = false;
     cheatSequence = 0;
@@ -191,7 +194,13 @@ void Player::handleInput() {
 void Player::update(float dt, Player* player) {
     if (!moveStrategy) return;
     if (liquidSim) {
+        wasSubmerged = isSubmerged;
         isSubmerged = liquidSim->isWaterAt(getAABB());
+        
+        if (!wasSubmerged && isSubmerged && vy > 50.0f) {
+            AudioManager::getInstance()->playSFX("xsplash");
+        }
+        
         isSwimming = isSubmerged;
         isDiving = isSubmerged && vy > 0;
         
@@ -275,6 +284,19 @@ void Player::update(float dt, Player* player) {
     
     if (invincibilityTimer > 0) {
         invincibilityTimer -= dt;
+    }
+    
+    // SFX: Climbing
+    if (isClimbing && std::abs(vy) > 10.0f) {
+        climbTimer += dt;
+        if (climbTimer >= 0.35f) {
+            static bool toggleClimb = false;
+            AudioManager::getInstance()->playSFX(toggleClimb ? "xclimb1" : "xclimb2");
+            toggleClimb = !toggleClimb;
+            climbTimer = 0.0f;
+        }
+    } else {
+        climbTimer = 0.0f;
     }
     
     whipHitThisFrame = false;
@@ -513,6 +535,12 @@ void Player::takeDamage(int dmg) {
     
     health -= dmg;
     if (health < 0) health = 0;
+    
+    if (health == 0) {
+        AudioManager::getInstance()->playSFX("xdie");
+    } else {
+        AudioManager::getInstance()->playSFX("xhurt");
+    }
     
     invincibilityTimer = 1.5f;
     vy = -300.0f;
