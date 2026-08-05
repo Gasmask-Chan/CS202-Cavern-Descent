@@ -1269,7 +1269,7 @@ void PlayState::render() {
     } else if (tempLevel.shopArea.width > 0 && player && player->getHealth() > 0 &&
                CheckCollisionRecs(player->getAABB(), tempLevel.shopArea)) {
       const char *text = "PRESS 'Y' TO OPEN OR CLOSE SHOP";
-      float fontSize = 30.0f;
+      float fontSize = 25.0f;
       Vector2 textSize = MeasureTextEx(game->getFont(), text, fontSize, 2.0f);
       DrawTextEx(game->getFont(), text,
                  {(1280.0f - textSize.x) / 2.0f, 720.0f - 100.0f}, fontSize,
