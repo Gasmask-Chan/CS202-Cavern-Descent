@@ -171,6 +171,8 @@ void Game::applyPendingStateChanges() {
             case GameStateType::TRANSITION:
                 newState = new TransitionState();
                 break;
+            case GameStateType::NONE:
+                break;
         }
 
         if (newState) {

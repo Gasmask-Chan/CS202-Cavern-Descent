@@ -35,6 +35,7 @@ struct EventData {
     char entityCode = ' ';
     float vx = 0.0f;
     float vy = 0.0f;
+    int tileType = 0;
 };
 
 using EventCallback = std::function<void(EventData)>;
