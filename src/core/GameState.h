@@ -273,6 +273,12 @@ struct PaletteItem {
     std::string name;
 };
 
+struct TileChange {
+    int x, y;
+    TileType oldType;
+    TileType newType;
+};
+
 class EditorState : public GameState {
 private:
     std::unique_ptr<class TileMap> tileMap;
@@ -284,6 +290,13 @@ private:
     float statusTimer = 0.0f;
     Vector2 panDragStart = {0, 0};
     bool isDragging = false;
+    
+    // Undo/Redo
+    std::vector<TileChange> undoStack;
+    std::vector<TileChange> redoStack;
+    void placeTile(int tx, int ty, TileType newType);
+    void undo();
+    void redo();
     
     void saveLevel(const std::string& path);
     void loadLevel(const std::string& path);

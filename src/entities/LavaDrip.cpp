@@ -1,6 +1,7 @@
 #include "LavaDrip.h"
 #include <iostream>
 #include "EntityFactory.h"
+#include "../audio/AudioManager.h"
 
 namespace Platformer {
 
@@ -27,6 +28,7 @@ void LavaDrip::update(float dt, Player* player) {
     }
 
     if (isGrounded) {
+        AudioManager::getInstance()->playSFX("xsmallexplode");
         destroy();
         return;
     }

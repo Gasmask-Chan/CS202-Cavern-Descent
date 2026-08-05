@@ -34,7 +34,50 @@ void Game::init() {
     SetTargetFPS(60);
 
     // Initialize audio device early
-    AudioManager::getInstance();
+    AudioManager* audio = AudioManager::getInstance();
+    
+    // Load BGMs
+    audio->loadBGM("mTitle", "assets/audio/bgm/mTitle.ogg");
+    audio->loadBGM("mCave", "assets/audio/bgm/mCave.ogg");
+    audio->loadBGM("mLush", "assets/audio/bgm/mLush.ogg");
+    audio->loadBGM("mIce", "assets/audio/bgm/mIce.ogg");
+    audio->loadBGM("mTemple", "assets/audio/bgm/mTemple.ogg");
+    audio->loadBGM("mBoss", "assets/audio/bgm/mBoss.ogg");
+    audio->loadBGM("mVictory", "assets/audio/bgm/mVictory.ogg");
+    audio->loadBGM("mCredits", "assets/audio/bgm/mCredits.ogg");
+
+    // Load SFXs
+    audio->loadSFX("xjump", "assets/audio/sfx/xjump.wav");
+    audio->loadSFX("xland", "assets/audio/sfx/xland.wav");
+    audio->loadSFX("xsteps", "assets/audio/sfx/xsteps.wav");
+    audio->loadSFX("xclimb1", "assets/audio/sfx/xclimb1.wav");
+    audio->loadSFX("xclimb2", "assets/audio/sfx/xclimb2.wav");
+    audio->loadSFX("xpush", "assets/audio/sfx/xpush.wav");
+    audio->loadSFX("xhurt", "assets/audio/sfx/xhurt.wav");
+    audio->loadSFX("xdie", "assets/audio/sfx/xdie.wav");
+    audio->loadSFX("xkiss", "assets/audio/sfx/xkiss.wav");
+    audio->loadSFX("xletsexplore", "assets/audio/sfx/xletsexplore.wav");
+    audio->loadSFX("xbat", "assets/audio/sfx/xbat.wav");
+    audio->loadSFX("xspiderjump", "assets/audio/sfx/xspiderjump.wav");
+    audio->loadSFX("xghost", "assets/audio/sfx/xghost.wav");
+    audio->loadSFX("xwhip", "assets/audio/sfx/xwhip.wav");
+    audio->loadSFX("xpickup", "assets/audio/sfx/xpickup.wav");
+    audio->loadSFX("xgem", "assets/audio/sfx/xgem.wav");
+    audio->loadSFX("xcoin", "assets/audio/sfx/xcoin.wav");
+    audio->loadSFX("xchestopen", "assets/audio/sfx/xchestopen.wav");
+    audio->loadSFX("xthrow", "assets/audio/sfx/xthrow.wav");
+    audio->loadSFX("xarrowtrap", "assets/audio/sfx/xarrowtrap.wav");
+    audio->loadSFX("xbombready", "assets/audio/sfx/xbombready.wav");
+    audio->loadSFX("xexplosion", "assets/audio/sfx/xexplosion.wav");
+    audio->loadSFX("xsmallexplode", "assets/audio/sfx/xsmallexplode.wav");
+    audio->loadSFX("xignite", "assets/audio/sfx/xignite.wav");
+    audio->loadSFX("xflame", "assets/audio/sfx/xflame.wav");
+    audio->loadSFX("xtfall", "assets/audio/sfx/xtfall.wav");
+    audio->loadSFX("xsplash", "assets/audio/sfx/xsplash.wav");
+    audio->loadSFX("xblink1", "assets/audio/sfx/xblink1.wav");
+    audio->loadSFX("xblink2", "assets/audio/sfx/xblink2.wav");
+    audio->loadSFX("xclick", "assets/audio/sfx/xclick.wav");
+    audio->loadSFX("xpause", "assets/audio/sfx/xpause.wav");
     Image fontImg = LoadImage("assets/fonts/font.png");
     ImageFormat(&fontImg, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
     ImageColorReplace(&fontImg, BLACK, BLANK);
@@ -85,6 +128,7 @@ void Game::handleInput() {
 }
 
 void Game::update(float dt) {
+    AudioManager::getInstance()->updateBGM();
     if (!stateStack.empty()) {
         stateStack.back()->update(dt);
     }

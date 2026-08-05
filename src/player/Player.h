@@ -21,8 +21,11 @@ private:
     bool isSubmerged;
     bool isSwimming;
     bool isDiving;
+    bool wasSubmerged;
     bool isWhipping;
     float whipTimer;
+    float stepTimer;
+    float climbTimer;
     bool whipHitThisFrame;
     bool isClimbing;
     bool isGodMode;

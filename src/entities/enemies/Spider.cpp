@@ -1,7 +1,7 @@
 #include "Spider.h"
 #include "../../player/Player.h"
-#include <raylib.h>
 #include <cmath>
+#include "../../audio/AudioManager.h"
 
 namespace Platformer {
 
@@ -53,6 +53,7 @@ void Spider::handleChase(float dt, Player* player) {
             // Jump towards player with random force
             jumpTimer = GetRandomValue(100, 250) / 100.0f; // 1.0 to 2.5 seconds between jumps
             
+            AudioManager::getInstance()->playSFX("xspiderjump");
             float jumpVy = -(GetRandomValue(300, 600)); // Random height
             float jumpVx = (dx > 0) ? GetRandomValue(100, 300) : -GetRandomValue(100, 300); // Random distance towards player
             
