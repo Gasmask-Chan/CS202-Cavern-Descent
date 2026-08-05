@@ -1154,7 +1154,7 @@ void PlayState::render() {
   };
 
   for (auto &item : tempLevel.items) {
-    if (item && item->isAlive() && !item->isPickedUp() && item->isEmbedded) {
+    if (item && item->isAlive() && !item->isPickedUp()) {
       item->render(getEntityLight(item->getX(), item->getY(),
                                   item->getAABB().width,
                                   item->getAABB().height));
@@ -1198,14 +1198,6 @@ void PlayState::render() {
                               true); // Foreground pass (Solid blocks)
   }
 
-  // Render non-embedded items ON TOP of foreground tiles (so they are visible in tall grass)
-  for (auto &item : tempLevel.items) {
-    if (item && item->isAlive() && !item->isPickedUp() && !item->isEmbedded) {
-      item->render(getEntityLight(item->getX(), item->getY(),
-                                  item->getAABB().width,
-                                  item->getAABB().height));
-    }
-  }
 
   // Render Ghost OVER foreground tiles as a transparent shadow
   for (auto &enemy : tempLevel.dynamicEntities) {
