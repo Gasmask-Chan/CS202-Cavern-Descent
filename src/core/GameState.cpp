@@ -1917,6 +1917,7 @@ void TransitionState::enter() {
   }
   tunnelMap->setTile(16, 11, TileType::ENTRANCE);
   tunnelMap->setTile(24, 11, TileType::EXIT);
+  tunnelMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
   physics = std::make_unique<PhysicsSystem>(tunnelMap.get());
   player = std::make_unique<Player>(
       16 * 32.0f, 11 * 32.0f,
