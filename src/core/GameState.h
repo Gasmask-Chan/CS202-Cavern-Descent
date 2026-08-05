@@ -123,6 +123,7 @@ private:
     
     float ghostTimer;
     bool ghostSpawned;
+    float deathTimer;
     
     Texture2D hudIcons;
     Texture2D shopkeeperTex;

@@ -88,6 +88,7 @@ private:
     int tileSize;
 
     Texture2D dsTileset;
+    Texture2D ropeTex;
     Texture2D dsTilesetJungle;
     Texture2D dsTilesetTemple;
     Color zoneTint = WHITE;
@@ -97,6 +98,10 @@ public:
     TileMap(int w, int h, int size);
     ~TileMap();
 
+    void setTileset(Texture2D tex);
+    void setRopeTexture(Texture2D tex);
+    void setJungleTileset(Texture2D tex);
+    void setTempleTileset(Texture2D tex);
     void setZone(ZoneType zone) { currentZone = zone; }
     ZoneType getZone() const { return currentZone; }
 

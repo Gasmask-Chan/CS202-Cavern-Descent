@@ -723,6 +723,18 @@ classDiagram
 
 
 
+    class RopeProjectile {
+        -float startY
+        -bool isUnfurling
+        -float unfurlTimer
+        -int currentLength
+        -int maxLength
+        -TileMap* tileMap
+        +RopeProjectile(float x, float y, float vy, TileMap* map)
+        +update(float dt, Player* player) void
+        +render(float lightLevel) void
+    }
+
     Entity <|-- DynamicEntity
     Entity <|-- Trap
     Entity <|-- Item
@@ -731,6 +743,7 @@ classDiagram
     DynamicEntity <|-- Bomb
     DynamicEntity <|-- Explosion
     DynamicEntity <|-- Particle
+    DynamicEntity <|-- RopeProjectile
     Enemy <|-- Bat
     Enemy <|-- Snake
     Enemy <|-- Spider

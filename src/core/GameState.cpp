@@ -12,6 +12,7 @@
 #include "../entities/enemies/Spike.h"
 #include "../entities/Explosion.h"
 #include "../entities/Particle.h"
+#include "../entities/RopeProjectile.h"
 #include "../liquid/LiquidSimulator.h"
 #include "../level/LevelGenerator.h"
 #include "../player/Player.h"
@@ -121,6 +122,7 @@ PlayState::PlayState() = default;
 PlayState::~PlayState() = default;
 
 void PlayState::enter() {
+  deathTimer = -1.0f;
   EntityFactory::preloadTextures();
 
   Image hudImg = LoadImage("assets/sprites/16x16/gfx_hud.png");
@@ -177,6 +179,10 @@ void PlayState::enter() {
     tempLevel = tempGenerator->generate(currentFloor, currentZone);
     if (tempLevel.tileMap) {
         tempLevel.tileMap->setZoneTint(zoneTint);
+        tempLevel.tileMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
+        tempLevel.tileMap->setJungleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png"));
+        tempLevel.tileMap->setTempleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png"));
+        tempLevel.tileMap->setRopeTexture(EntityFactory::getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"));
     }
   }
 
@@ -493,6 +499,14 @@ void PlayState::enter() {
         this->pendingEntities.push_back(std::move(bomb));
       });
 
+  EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ROPE);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_SPAWN_ROPE, [this](EventData data) {
+        auto ropeProj =
+            std::make_unique<RopeProjectile>(data.worldX, data.worldY, data.vy, this->tempLevel.tileMap.get());
+        this->pendingEntities.push_back(std::move(ropeProj));
+      });
+
   EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_ARROW);
   EventBus::getInstance()->subscribe(
       EventType::EVENT_SPAWN_ARROW, [this](EventData data) {
@@ -654,6 +668,8 @@ void PlayState::exit() {
 }
 
 void PlayState::handleInput() {
+  if (deathTimer >= 0.0f) return;
+  
   if (IsKeyPressed(KEY_ESCAPE)) {
     game->pushState(GameStateType::PAUSE);
     return;
@@ -877,11 +893,13 @@ void PlayState::update(float dt) {
     pickupBox.width += 8.0f;
     pickupBox.height += 8.0f;
 
-    for (auto &item : tempLevel.items) {
-      if (item && !item->isPickedUp() && !item->isShopItem &&
-          item->getType() != ItemType::CHEST) {
-        if (physics->checkAABBOverlap(pickupBox, item->getAABB())) {
-          item->activate(player.get());
+    if (player->getHealth() > 0) {
+      for (auto &item : tempLevel.items) {
+        if (item && !item->isPickedUp() && !item->isShopItem &&
+            item->getType() != ItemType::CHEST) {
+          if (physics->checkAABBOverlap(pickupBox, item->getAABB())) {
+            item->activate(player.get());
+          }
         }
       }
     }
@@ -917,7 +935,9 @@ void PlayState::update(float dt) {
     if (desiredTarget.y > mapHeight + borderPixelsY - halfScreenHeight)
       desiredTarget.y = mapHeight + borderPixelsY - halfScreenHeight;
 
-    camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
+    if (deathTimer < 0.0f) {
+      camera.target = Vector2Lerp(camera.target, desiredTarget, 5.0f * dt);
+    }
 
     if (cameraShakeTimer > 0.0f) {
       cameraShakeTimer -= dt;
@@ -935,7 +955,7 @@ void PlayState::update(float dt) {
       liquids->updateSpurts(dt, player->getX(), player->getY());
     }
 
-    if (minimap) {
+    if (minimap && player->getHealth() > 0) {
       minimap->update(player->getX(), player->getY());
     }
 
@@ -1028,7 +1048,7 @@ void PlayState::update(float dt) {
     }
 
     // Handle Shop UI Interaction
-    if (shop && tempLevel.shopArea.width > 0) {
+    if (shop && tempLevel.shopArea.width > 0 && player->getHealth() > 0) {
       Rectangle pRect = player->getAABB();
       if (CheckCollisionRecs(pRect, tempLevel.shopArea)) {
         if (IsKeyPressed(KEY_Y) && !IsKeyDown(KEY_UP) && !IsKeyDown(KEY_W)) {
@@ -1051,8 +1071,21 @@ void PlayState::update(float dt) {
 
     // Death check
     if (player->getHealth() <= 0) {
-      game->changeState(GameStateType::GAME_OVER);
-      return;
+      if (deathTimer < 0.0f) {
+        // Just died, start the sequence
+        deathTimer = 2.5f;
+        player->setPassesThroughWalls(true);
+        player->setVelocity(0.0f, -400.0f); // Classic death hop
+      }
+    }
+    
+    // Process death sequence timer
+    if (deathTimer >= 0.0f) {
+      deathTimer -= dt;
+      if (deathTimer <= 0.0f) {
+        game->changeState(GameStateType::GAME_OVER);
+        return;
+      }
     }
 
     // Exit check (requires manual UP+Y input)
@@ -1233,7 +1266,7 @@ void PlayState::render() {
   if (shop) {
     if (shop->isPlayerInShop()) {
       shop->render(game->getFont());
-    } else if (tempLevel.shopArea.width > 0 && player &&
+    } else if (tempLevel.shopArea.width > 0 && player && player->getHealth() > 0 &&
                CheckCollisionRecs(player->getAABB(), tempLevel.shopArea)) {
       const char *text = "PRESS 'Y' TO OPEN OR CLOSE SHOP";
       float fontSize = 30.0f;

@@ -8,15 +8,30 @@ namespace Platformer {
 
 TileMap::TileMap(int w, int h, int size) : width(w), height(h), tileSize(size) {
   tiles.assign(height, std::vector<TileType>(width, TileType::NOTHING));
-  dsTileset = LoadTexture("assets/tilemaps/gfx_cavebg.png");
-  dsTilesetJungle = LoadTexture("assets/tilemaps/gfx_junglebg.png");
-  dsTilesetTemple = LoadTexture("assets/tilemaps/gfx_templebg.png");
+  dsTileset.id = 0;
+  ropeTex.id = 0;
+  dsTilesetJungle.id = 0;
+  dsTilesetTemple.id = 0;
 }
 
 TileMap::~TileMap() { 
-  UnloadTexture(dsTileset); 
-  UnloadTexture(dsTilesetJungle);
-  UnloadTexture(dsTilesetTemple);
+  // Textures are now managed externally by the EntityFactory cache
+}
+
+void TileMap::setTileset(Texture2D tex) {
+    dsTileset = tex;
+}
+
+void TileMap::setRopeTexture(Texture2D tex) {
+    ropeTex = tex;
+}
+
+void TileMap::setJungleTileset(Texture2D tex) {
+    dsTilesetJungle = tex;
+}
+
+void TileMap::setTempleTileset(Texture2D tex) {
+    dsTilesetTemple = tex;
 }
 
 TileType TileMap::getTile(int x, int y) const {
@@ -106,7 +121,7 @@ bool TileMap::isCracked(int x, int y) const {
 
 bool TileMap::isLadder(int x, int y) const {
   TileType type = getTile(x, y);
-  return type == TileType::LADDER || type == TileType::LADDER_DECK ||
+  return type == TileType::LADDER || type == TileType::LADDER_DECK || type == TileType::ROPE_NODE ||
          (type >= TileType::VINE && type <= TileType::VINE_SOURCE);
 }
 
@@ -155,9 +170,27 @@ void TileMap::render(Camera2D &cam, const std::vector<std::vector<Vector3>>& lig
 
       Rectangle dest = { (float)x * tileSize, (float)y * tileSize, (float)tileSize, (float)tileSize };
 
-      if (dsTileset.id != 0) {
+      if (type == TileType::ROPE_NODE) {
+          if (!foregroundPass) { // Ropes are background elements
+              // If the tile above is not a rope, this is the anchor (top) of the rope
+              bool isTop = (getTile(x, y - 1) != TileType::ROPE_NODE);
+              
+              Rectangle srcLine = { 64.0f, 0.0f, 8.0f, 8.0f }; // Col 8 (straight line)
+              Rectangle destTop = { dest.x + 8.0f, dest.y, 16.0f, 16.0f };
+              Rectangle destBot = { dest.x + 8.0f, dest.y + 16.0f, 16.0f, 16.0f };
+
+              if (isTop) {
+                  Rectangle srcAnchor = { 80.0f, 0.0f, 8.0f, 8.0f }; // Col 10 (anchor)
+                  DrawTexturePro(ropeTex, srcAnchor, destTop, {0, 0}, 0.0f, cTL);
+                  DrawTexturePro(ropeTex, srcLine, destBot, {0, 0}, 0.0f, cTL);
+              } else {
+                  DrawTexturePro(ropeTex, srcLine, destTop, {0, 0}, 0.0f, cTL);
+                  DrawTexturePro(ropeTex, srcLine, destBot, {0, 0}, 0.0f, cTL);
+              }
+          }
+      } else if (dsTileset.id != 0) {
         // Skip rendering foreground for invisible/special tiles (Entrance and Exit ARE in gfx_cavebg.png so we render them)
-        if (type == TileType::NOTHING || type == TileType::ROPE_NODE || type == TileType::SPIKE_TRAP) {
+        if (type == TileType::NOTHING || type == TileType::SPIKE_TRAP) {
             continue; 
         }
 

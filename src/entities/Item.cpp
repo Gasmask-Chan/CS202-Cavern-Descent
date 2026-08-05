@@ -87,9 +87,18 @@ void Chest::update(float dt, Player* player) {
             // Spawn 4 rubies bursting out
             for (int i = 0; i < 4; i++) {
                 EventData data;
-                data.worldX = this->x + (this->width / 2.0f);
-                data.worldY = this->y + (this->height / 2.0f);
-                data.amount = (GetRandomValue(0, 1) == 0) ? 'R' : 'G'; // R=Ruby Big, G=Ruby Small
+                char lootType = (GetRandomValue(0, 1) == 0) ? 'R' : 'G'; // R=Ruby Big, G=Ruby Small
+                data.amount = lootType;
+                
+                if (lootType == 'G') {
+                    // Gold is 32x32, same as chest, so spawn exactly at chest bounds to prevent clipping
+                    data.worldX = this->x;
+                    data.worldY = this->y;
+                } else {
+                    // Rubies are 16x16, center them inside the 32x32 chest
+                    data.worldX = this->x + 8.0f;
+                    data.worldY = this->y + 8.0f;
+                }
                 
                 // Set burst velocity with high variance to pop out of the chest significantly
                 data.vy = -3.5f * 150.0f + (float)GetRandomValue(-50, 50); 
