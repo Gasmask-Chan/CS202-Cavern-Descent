@@ -148,6 +148,8 @@ void PlayState::enter() {
 
   tempGenerator = std::make_unique<LevelGenerator>();
 
+  Color zoneTint = WHITE;
+
   if (GameManager::getInstance()->getIsCustomLevel()) {
     tempLevel.tileMap = std::make_unique<TileMap>(40, 32, 32);
     tempLevel.playerSpawn = {32.0f, 32.0f}; // default fallback
@@ -174,11 +176,59 @@ void PlayState::enter() {
         }
       }
       in.close();
+
+      // Spawn Custom Entities pass
+      for (int y = 0; y < 32; y++) {
+        for (int x = 0; x < 40; x++) {
+          TileType type = tempLevel.tileMap->getTile(x, y);
+          float px = x * 32.0f;
+          float py = y * 32.0f;
+
+          if (type == TileType::CAVE_SOME_GOLD || type == TileType::CAVE_MUCH_GOLD) {
+            tempLevel.tileMap->setTile(x, y, TileType::CAVE_ROCK);
+            auto gold = EntityFactory::createItem('G', px, py);
+            if (gold) tempLevel.items.push_back(std::move(gold));
+          } else if (type == TileType::CHEST) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto chest = EntityFactory::createItem('C', px, py);
+            if (chest) tempLevel.items.push_back(std::move(chest));
+          } else if (type == TileType::ENEMY_SNAKE) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto enemy = EntityFactory::createEnemy('S', px, py);
+            if (enemy) tempLevel.dynamicEntities.push_back(std::move(enemy));
+          } else if (type == TileType::ENEMY_BAT) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto enemy = EntityFactory::createEnemy('B', px, py);
+            if (enemy) tempLevel.dynamicEntities.push_back(std::move(enemy));
+          } else if (type == TileType::ENEMY_SPIDER) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto enemy = EntityFactory::createEnemy('P', px, py);
+            if (enemy) tempLevel.dynamicEntities.push_back(std::move(enemy));
+          } else if (type == TileType::SPIKE_TRAP) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto enemy = EntityFactory::createEnemy('^', px, py + 8.0f); // Spikes act like enemies
+            if (enemy) tempLevel.dynamicEntities.push_back(std::move(enemy));
+          } else if (type == TileType::ARROW_TRAP_LEFT) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto trap = EntityFactory::createTrap('<', px, py);
+            if (trap) tempLevel.traps.push_back(std::move(trap));
+          } else if (type == TileType::ARROW_TRAP_RIGHT) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            auto trap = EntityFactory::createTrap('>', px, py);
+            if (trap) tempLevel.traps.push_back(std::move(trap));
+          } else if (type == TileType::LAVA) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            tempLevel.initialLiquids.push_back({x, y, LiquidType::LAVA});
+          } else if (type == TileType::WATER) {
+            tempLevel.tileMap->setTile(x, y, TileType::NOTHING);
+            tempLevel.initialLiquids.push_back({x, y, LiquidType::WATER});
+          }
+        }
+      }
     }
   } else {
     int currentFloor = GameManager::getInstance()->getFloor();
     ZoneType currentZone = GameManager::getInstance()->getZone();
-    Color zoneTint = WHITE;
 
     if (currentZone == ZoneType::JUNGLE) {
         zoneTint = Color{180, 255, 180, 255};
@@ -187,13 +237,15 @@ void PlayState::enter() {
     }
 
     tempLevel = tempGenerator->generate(currentFloor, currentZone);
-    if (tempLevel.tileMap) {
-        tempLevel.tileMap->setZoneTint(zoneTint);
-        tempLevel.tileMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
-        tempLevel.tileMap->setJungleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png"));
-        tempLevel.tileMap->setTempleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png"));
-        tempLevel.tileMap->setRopeTexture(EntityFactory::getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"));
-    }
+  }
+
+  // Apply tilesets to the loaded or generated map
+  if (tempLevel.tileMap) {
+      tempLevel.tileMap->setZoneTint(zoneTint);
+      tempLevel.tileMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
+      tempLevel.tileMap->setJungleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png"));
+      tempLevel.tileMap->setTempleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png"));
+      tempLevel.tileMap->setRopeTexture(EntityFactory::getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"));
   }
 
   // Auto-Beautify CAVE_ROCK (Turn into Cave Up, Down, Gold, etc)
@@ -1670,6 +1722,14 @@ void EditorState::enter() {
 
   Texture2D caveTex =
       EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png");
+  Texture2D jungleTex = 
+      EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png");
+  Texture2D templeTex = 
+      EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png");
+
+  tileMap->setTileset(caveTex);
+  tileMap->setJungleTileset(jungleTex);
+  tileMap->setTempleTileset(templeTex);
   Texture2D spikeTex = EntityFactory::getTexture(
       "assets/sprites/16x16/gfx_spike_collectibles_flame.png");
 
