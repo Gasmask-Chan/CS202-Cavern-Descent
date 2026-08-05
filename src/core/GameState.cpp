@@ -601,7 +601,7 @@ void PlayState::enter() {
         AudioManager::getInstance()->playSFX("xexplosion");
         float explosionRadius = 80.0f; // roughly 2.5 tiles (32 * 2.5 = 80)
 
-        // 1. Destroy Terrain
+        // 1. Destroy Terrain and Evaporate Liquids
         int tx = (int)(data.worldX / 32.0f);
         int ty = (int)(data.worldY / 32.0f);
         for (int y = ty - 2; y <= ty + 2; y++) {
@@ -611,6 +611,8 @@ void PlayState::enter() {
               if (tempLevel.tileMap->isSolid(x, y)) {
                 tempLevel.tileMap->destroyBlock(x, y);
               }
+              // Evaporate liquid inside the blast radius
+              liquids->removeLiquid(x, y);
             }
           }
         }

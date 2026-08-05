@@ -138,8 +138,12 @@ void LiquidSimulator::addLiquid(int gx, int gy, uint8_t amount,
 void LiquidSimulator::removeLiquid(int gx, int gy) {
   if (!tileMap->isInBounds(gx, gy))
     return;
-  hasLiquid[gy][gx] = false;
-  typeGrid[gy][gx] = LiquidType::NONE;
+  if (hasLiquid[gy][gx]) {
+      hasLiquid[gy][gx] = false;
+      typeGrid[gy][gx] = LiquidType::NONE;
+      isWaterDirty = true;
+      checkLiquid = true;
+  }
 }
 
 bool LiquidSimulator::hasLiquidAt(int gx, int gy) const {
