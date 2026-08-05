@@ -1901,6 +1901,12 @@ void EditorState::render() {
         for (const auto &item : paletteItems) {
           if (item.type == t) {
             Rectangle dest = {x * 16.0f, y * 16.0f, 16.0f, 16.0f};
+            
+            // Adjust visual offset for sprites that are "flying" in the original spritesheet
+            if (t == TileType::CHEST) {
+                dest.y += 8.0f; 
+            }
+
             DrawTexturePro(item.tex, item.src, dest, {0, 0}, 0.0f, WHITE);
             break;
           }
@@ -1937,6 +1943,9 @@ void EditorState::render() {
     DrawRectangle(px - 5, py - 5, 90, 40, bgColor);
 
     Rectangle dest = {px, py, 24.0f, 24.0f};
+    if (paletteItems[i].type == TileType::CHEST) {
+        dest.y += 8.0f; // Visually center the chest in the palette button
+    }
     DrawTexturePro(paletteItems[i].tex, paletteItems[i].src, dest, {0, 0}, 0.0f,
                    WHITE);
 
