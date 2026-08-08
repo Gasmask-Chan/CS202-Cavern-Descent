@@ -582,7 +582,7 @@ classDiagram
         +virtual update(float dt) void
         +virtual render(float lightLevel) void
         +getAABB() Rectangle
-        +isAlive() bool
+        +virtual isAlive() bool
         +destroy() void
         +getX() float
         +getY() float
@@ -644,6 +644,7 @@ classDiagram
         +addRope(int amount) void
         +getIsWhipHitThisFrame() bool
         +getWhipHitbox() Rectangle
+        +isAlive() bool
     }
 
     class Enemy {
@@ -761,7 +762,7 @@ classDiagram
 | `update(float dt)` | Virtual. Base implementation is empty. Subclasses override to add per-frame logic (movement, AI, animation). |
 | `render(float lightLevel)` | Virtual. Draws `sprite` texture at `(x, y)` tinted by `lightLevel` (0.0=black, 1.0=full brightness) using Raylib `DrawTextureEx` with `ColorTint`. |
 | `getAABB()` | Returns a Raylib `Rectangle{x, y, width, height}` representing the axis-aligned bounding box. Used by `PhysicsSystem` for all collision checks. |
-| `isAlive()` | Returns `isActive`. Entities with `isActive == false` are removed during the cleanup step (step 20 in game loop). |
+| `isAlive()` | Virtual. Returns `isActive` by default. Entities with `isActive == false` are removed during the cleanup step (step 20 in game loop). |
 | `destroy()` | Sets `isActive = false`. The entity remains in its vector until `PlayState/GameState::removeDeadEntities()` erases it. |
 
 **DynamicEntity**
@@ -783,6 +784,7 @@ classDiagram
 | `useBomb()` | If `bombs > 0`: decrements `bombs`, creates a `Bomb` projectile entity at player position with a 3-second fuse timer, adds it to `dynamicEntities`. Returns `true`. Else returns `false`. |
 | `useRope()` | If `ropes > 0`: decrements `ropes`, creates a vertical `Rope` entity above the player (extends upward until hitting a solid tile). Player can grab and climb it. Returns `true`. Else returns `false`. |
 | `collectGold(int amount)` | Adds `amount` to `gold`. Publishes `EVENT_GOLD_COLLECTED` to `EventBus`. `AudioManager` plays coin SFX via observer subscription. |
+| `isAlive()` | Overrides `Entity::isAlive()`. Returns `health > 0`. Ensures that the player can safely play out a death animation without triggering further damage collisions from hazards like lava. |
 
 **Enemy**
 
