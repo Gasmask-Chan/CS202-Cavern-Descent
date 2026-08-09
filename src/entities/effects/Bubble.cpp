@@ -1,5 +1,5 @@
 #include "Bubble.h"
-#include "EntityFactory.h"
+#include "../EntityFactory.h"
 
 namespace Platformer {
 

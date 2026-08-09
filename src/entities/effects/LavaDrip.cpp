@@ -1,7 +1,7 @@
 #include "LavaDrip.h"
 #include <iostream>
-#include "EntityFactory.h"
-#include "../audio/AudioManager.h"
+#include "../EntityFactory.h"
+#include "../../audio/AudioManager.h"
 
 namespace Platformer {
 

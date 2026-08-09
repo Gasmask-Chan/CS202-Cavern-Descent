@@ -1,7 +1,7 @@
 #include "Bomb.h"
-#include "../core/EventBus.h"
-#include "EntityFactory.h"
-#include "../audio/AudioManager.h"
+#include "../../core/EventBus.h"
+#include "../EntityFactory.h"
+#include "../../audio/AudioManager.h"
 #include <cmath>
 
 namespace Platformer {

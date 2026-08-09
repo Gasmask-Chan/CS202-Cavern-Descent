@@ -3,8 +3,8 @@
 #include <memory>
 #include <string>
 #include "DynamicEntity.h"
-#include "Item.h"
-#include "Trap.h"
+#include "items/Item.h"
+#include "traps/Trap.h"
 
 namespace Platformer {
 

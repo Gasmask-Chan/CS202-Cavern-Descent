@@ -1,10 +1,10 @@
 #pragma once
 #include "Trap.h"
-#include "DynamicEntity.h"
-#include "Item.h"
-#include "../player/Player.h"
-#include "../core/EventBus.h"
-#include "../audio/AudioManager.h"
+#include "../DynamicEntity.h"
+#include "../items/Item.h"
+#include "../../player/Player.h"
+#include "../../core/EventBus.h"
+#include "../../audio/AudioManager.h"
 #include <cmath>
 
 namespace Platformer {
