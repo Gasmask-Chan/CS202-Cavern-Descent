@@ -47,12 +47,14 @@ Unleash your creativity with a fully-featured, native in-game level editor. Desi
 
 | Action | Keybinding |
 | :--- | :--- |
-| **Move** | `W`, `A`, `S`, `D` or `Arrow Keys` |
-| **Jump** | `Space` (Hold for variable height) |
+| **Move** | `W`, `A`, `S`, `D`|
+| **Jump** | `Space` |
 | **Climb** | `W` / `S` |
-| **Attack (Whip)** | `Z` |
-| **Throw Bomb** | `X` |
-| **Throw Rope** | `C` |
+| **Attack (Whip)** | `J` |
+| **Throw Bomb** | `K` |
+| **Throw Rope** | `L` |
+| **Interact (Shop)** | `Y` |
+| **Open Door/Chest** | `W` + `Y` |
 | **Pause** | `Esc` |
 
 ---
