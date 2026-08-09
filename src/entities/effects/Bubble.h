@@ -1,7 +1,7 @@
 #pragma once
 
-#include "DynamicEntity.h"
-#include "../liquid/LiquidSimulator.h"
+#include "../DynamicEntity.h"
+#include "../../liquid/LiquidSimulator.h"
 
 namespace Platformer {
 

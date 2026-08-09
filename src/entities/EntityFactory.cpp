@@ -1,17 +1,17 @@
 #include "EntityFactory.h"
 #include <map>
 #include <string>
-#include "Trap.h"
-#include "ArrowTrap.h"
-#include "Arrow.h"
+#include "traps/Trap.h"
+#include "traps/ArrowTrap.h"
+#include "projectiles/Arrow.h"
 #include "enemies/Snake.h"
 #include "enemies/Bat.h"
 #include "enemies/Spider.h"
 #include "enemies/NemesisGhost.h"
 #include "enemies/Spike.h"
 #include "enemies/Flame.h"
-#include "Explosion.h"
-#include "Particle.h"
+#include "effects/Explosion.h"
+#include "effects/Particle.h"
 
 namespace Platformer {
 

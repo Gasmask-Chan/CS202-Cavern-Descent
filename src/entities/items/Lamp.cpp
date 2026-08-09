@@ -1,5 +1,5 @@
 #include "Lamp.h"
-#include "EntityFactory.h"
+#include "../EntityFactory.h"
 #include <cmath>
 
 namespace Platformer {

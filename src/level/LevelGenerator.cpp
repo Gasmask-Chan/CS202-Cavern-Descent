@@ -8,7 +8,7 @@
 #include "../entities/EntityFactory.h"
 #include "../entities/enemies/Enemy.h"
 #include "../entities/enemies/NemesisGhost.h"
-#include "../entities/Lamp.h"
+#include "../entities/items/Lamp.h"
 #include "../ui/ComboSystem.h"
 #include <algorithm>
 #include <chrono>

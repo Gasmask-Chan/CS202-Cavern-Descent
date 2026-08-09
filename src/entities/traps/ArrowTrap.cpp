@@ -1,11 +1,11 @@
 #include "ArrowTrap.h"
-#include "../level/TileMap.h"
-#include "enemies/Enemy.h"
-#include "enemies/NemesisGhost.h"
-#include "enemies/Spike.h"
-#include "enemies/Flame.h"
-#include "Bomb.h"
-#include "../audio/AudioManager.h"
+#include "../../level/TileMap.h"
+#include "../enemies/Enemy.h"
+#include "../enemies/NemesisGhost.h"
+#include "../enemies/Spike.h"
+#include "../enemies/Flame.h"
+#include "../items/Bomb.h"
+#include "../../audio/AudioManager.h"
 
 namespace Platformer {
 

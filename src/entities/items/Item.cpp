@@ -1,7 +1,7 @@
 #include "Item.h"
-#include "../player/Player.h"
-#include "../core/EventBus.h"
-#include "../audio/AudioManager.h"
+#include "../../player/Player.h"
+#include "../../core/EventBus.h"
+#include "../../audio/AudioManager.h"
 #include <cmath>
 
 namespace Platformer {
