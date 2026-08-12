@@ -1487,6 +1487,105 @@ void GameOverState::render() {
 
 /*
 =======================================================
+=========================VICTORY=======================
+=======================================================
+*/
+
+void VictoryState::enter() {
+  finalScore = GameManager::getInstance()->getScore();
+  finalFloor = GameManager::getInstance()->getFloor();
+  nameEntered = false;
+  letterCount = 0;
+  nameInput[0] = '\0';
+}
+
+void VictoryState::exit() {}
+
+void VictoryState::handleInput() {
+  if (!nameEntered) {
+    int key = GetCharPressed();
+    while (key > 0) {
+      if ((key >= 32) && (key <= 125) && (letterCount < 3)) {
+        nameInput[letterCount] = (char)key;
+        nameInput[letterCount + 1] = '\0';
+        letterCount++;
+      }
+      key = GetCharPressed();
+    }
+
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+      if (letterCount > 0) {
+        letterCount--;
+        nameInput[letterCount] = '\0';
+      }
+    }
+
+    if (IsKeyPressed(KEY_ENTER) && letterCount > 0) {
+      nameEntered = true;
+      GameManager::getInstance()->saveHighScore(std::string(nameInput));
+      leaderboard = GameManager::getInstance()->loadHighScores();
+    }
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+      nameEntered = true;
+      leaderboard = GameManager::getInstance()->loadHighScores();
+    }
+  } else {
+    if (IsKeyPressed(KEY_ENTER)) {
+      game->changeState(GameStateType::MENU);
+    }
+  }
+}
+
+void VictoryState::update(float dt) {}
+
+void VictoryState::render() {
+  ClearBackground(BLACK);
+  MenuBackground::render();
+
+  if (!nameEntered) {
+    // Split the big text so it doesn't overflow the screen width and center properly
+    drawCenteredText("VICTORY", GetScreenHeight() / 2 - 170, 90.0f, GOLD);
+    drawCenteredText("YOU ESCAPED!", GetScreenHeight() / 2 - 80, 50.0f, GRAY);
+    
+    drawCenteredText(TextFormat("FINAL SCORE: %d", finalScore),
+                     GetScreenHeight() / 2 - 20, 40.0f, WHITE);
+    drawCenteredText("ENTER INITIALS:", GetScreenHeight() / 2 + 50, 30.0f,
+                     WHITE);
+
+    std::string displayStr = nameInput;
+    if (((int)(GetTime() * 2)) % 2 == 0 && letterCount < 3) {
+      displayStr += "_";
+    }
+    drawCenteredText(displayStr.c_str(), GetScreenHeight() / 2 + 100, 50.0f,
+                     YELLOW);
+    drawCenteredText("PRESS ESC TO SKIP", GetScreenHeight() / 2 + 200, 20.0f,
+                     LIGHTGRAY);
+  } else {
+    drawCenteredText("HIGH SCORES", GetScreenHeight() / 2 - 250, 60.0f, GOLD);
+
+    int yOffset = GetScreenHeight() / 2 - 150;
+    int count = 0;
+    for (const auto &entry : leaderboard) {
+      if (count >= 5)
+        break;
+      std::string text =
+          TextFormat("%d. %s - %d pts (Floor %d)", count + 1,
+                     entry.name.c_str(), entry.score, entry.floorsReached);
+      drawCenteredText(text.c_str(), yOffset, 30.0f, WHITE);
+      yOffset += 60;
+      count++;
+    }
+
+    if (((int)(GetTime() * 2)) % 2 == 0) {
+      drawCenteredText("PRESS ENTER TO CONTINUE", GetScreenHeight() / 2 + 200,
+                       20.0f, LIGHTGRAY);
+    }
+  }
+}
+
+/*
+=======================================================
 =========================CHARSELECT====================
 =======================================================
 */
@@ -2202,8 +2301,12 @@ void TransitionState::update(float dt) {
           GameManager::getInstance()->syncPlayerStats(
               player->getHealth(), player->getBombs(), player->getRopes(),
               player->getGold());
-          GameManager::getInstance()->nextFloor();
-          game->changeState(GameStateType::PLAY);
+          if (GameManager::getInstance()->getFloor() >= 3) {
+              game->changeState(GameStateType::VICTORY);
+          } else {
+              GameManager::getInstance()->nextFloor();
+              game->changeState(GameStateType::PLAY);
+          }
           return;
         }
       }

@@ -22,9 +22,9 @@ GameManager *GameManager::getInstance() {
 int GameManager::getFloor() { return currentFloor; }
 
 ZoneType GameManager::getZone() {
-  if (currentFloor >= 7)
+  if (currentFloor >= 3)
     return ZoneType::TEMPLE;
-  if (currentFloor >= 4)
+  if (currentFloor >= 2)
     return ZoneType::JUNGLE;
   return ZoneType::CAVE;
 }
@@ -47,12 +47,12 @@ void GameManager::syncPlayerStats(int hp, int b, int r, int g) {
 
 void GameManager::nextFloor() {
   currentFloor++;
-  if (currentFloor >= 9) {
-    ghostTimer = 120.0f;
-  } else if (currentFloor >= 5) {
-    ghostTimer = 150.0f;
-  } else {
+  if (currentFloor >= 3) {
     ghostTimer = 180.0f;
+  } else if (currentFloor >= 2) {
+    ghostTimer = 240.0f;
+  } else {
+    ghostTimer = 300.0f;
   }
 }
 
@@ -64,7 +64,7 @@ void GameManager::resetRun() {
   playerRopes = 4;
   playerGold = 0;
   setSelectedCharacter(CharacterType::EXPLORER);
-  ghostTimer = 180.0f;
+  ghostTimer = 300.0f;
   isCustomLevel = false;
 }
 

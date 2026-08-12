@@ -113,7 +113,8 @@ void Game::init() {
     }
     UnloadImage(fontImg);
 
-    GameState* initialState = new MenuState;
+    // GameState* initialState = new MenuState;
+    GameState* initialState = new VictoryState;
     initialState->setGame(this);
     initialState->enter();
     stateStack.push_back(initialState);
@@ -199,6 +200,9 @@ void Game::applyPendingStateChanges() {
                 break;
             case GameStateType::GAME_OVER:   
                 newState = new GameOverState();
+                break;
+            case GameStateType::VICTORY:
+                newState = new VictoryState();
                 break;
             case GameStateType::CHAR_SELECT:
                 newState = new CharSelectState();
