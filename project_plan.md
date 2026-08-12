@@ -486,6 +486,15 @@ classDiagram
         +render() void
     }
 
+    class VictoryState {
+        -MenuBackground* background
+        +enter() void
+        +exit() void
+        +handleInput() void
+        +update(float dt) void
+        +render() void
+    }
+
     Game "1" *-- "many" GameState : stateStack
     GameState <|.. MenuState
     GameState <|.. PlayState
@@ -495,6 +504,7 @@ classDiagram
     GameState <|.. CharSelectState
     GameState <|.. EditorFileMenuState
     GameState <|.. EditorState
+    GameState <|.. VictoryState
     Game ..> GameManager : uses
     Game ..> AudioManager : uses
 ```
@@ -549,6 +559,7 @@ classDiagram
 | `PlayState::update(dt)` | Executes the 21-step update order from §6.1: input → player → ghost → enemies → gravity → collisions → items → bombs → liquids → lighting → events → combo → camera → cleanup → death check. |
 | `PauseState::handleInput()` | Escape key → return to `PlayState`. Up/Down select Resume/Quit. Enter triggers selected option. |
 | `GameOverState::enter()` | Captures final score and floors reached from `GameManager`. Prompts for name entry for high score save. |
+| `VictoryState::enter()` | Instantiates `MenuBackground` for tiled rendering. Plays victory fanfare. Captures final score. |
 | `EditorFileMenuState::enter()` | Presents native OS dialogs (via `tinyfiledialogs`) to select "Play Custom", "New Level", or "Open Level". Handles native file path selection. |
 | `EditorState::enter()` | Creates `LevelEditor` instance. Initializes empty tilemap or loads selected `.lvl`. Shows tile/entity palette UI. |
 
@@ -597,6 +608,7 @@ classDiagram
         +bool passesThroughWalls
         +DynamicEntity(float x, float y, float w, float h)
         +applyGravity(float dt) void
+        +onHitGround(float impactVelocity) void
         +move(float dx, float dy) void
         +setVelocity(float vx, float vy) void
         +getVelocityX() float
@@ -627,6 +639,7 @@ classDiagram
         +handleInput() void
         +update(float dt) void
         +render(float lightLevel) void
+        +onHitGround(float impactVelocity) void
         +takeDamage(int dmg) void
         +heal(int amount) void
         +collectGold(int amount) void
