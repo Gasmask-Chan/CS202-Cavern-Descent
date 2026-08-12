@@ -515,6 +515,18 @@ void PlayState::enter() {
 
   lighting = std::make_unique<LightingSystem>(tempLevel.tileMap->getWidth(),
                                               tempLevel.tileMap->getHeight());
+                                              
+  // Base light increased by 6% (+0.06f) from original. Decreases by 10% (0.10f) per floor.
+  int currentFloor = GameManager::getInstance()->getFloor();
+  float decrement = (currentFloor - 1) * 0.10f;
+  Vector3 baseLight = {0.21f - decrement, 0.21f - decrement, 0.31f - decrement};
+  
+  // Ensure it doesn't go completely pitch black
+  baseLight.x = std::max(0.05f, baseLight.x);
+  baseLight.y = std::max(0.05f, baseLight.y);
+  baseLight.z = std::max(0.05f, baseLight.z);
+  
+  lighting->setAmbientLight(baseLight);
 
   liquids = std::make_unique<LiquidSimulator>(tempLevel.tileMap.get());
   player->setLiquidSimulator(liquids.get());
