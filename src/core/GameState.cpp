@@ -67,7 +67,6 @@ void MenuState::enter() {
 }
 
 void MenuState::exit() {
-  AudioManager::getInstance()->stopBGM();
 }
 
 void MenuState::handleInput() {

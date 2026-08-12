@@ -9,8 +9,9 @@ namespace Platformer {
 class AudioManager {
 private:
     std::unordered_map<std::string, Sound> sfxCache;
-    std::unordered_map<std::string, std::string> bgmPaths;
-    Music currentBGM;
+    std::unordered_map<std::string, Music> bgmCache;
+    Music* currentBGM;
+    std::string currentBGMName;
     float sfxVolume;
     float bgmVolume;
 
