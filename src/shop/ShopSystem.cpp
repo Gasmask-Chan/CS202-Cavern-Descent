@@ -4,7 +4,7 @@
 #include "../core/GameManager.h"
 #include "../core/EventBus.h"
 
-#include "../entities/Item.h"
+#include "../entities/items/Item.h"
 
 namespace Platformer {
 

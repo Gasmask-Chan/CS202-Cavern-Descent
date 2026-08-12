@@ -6,8 +6,8 @@
 #include "TileMap.h"
 #include "RoomTemplate.h"
 #include "../entities/DynamicEntity.h"
-#include "../entities/Item.h"
-#include "../entities/Trap.h"
+#include "../entities/items/Item.h"
+#include "../entities/traps/Trap.h"
 #include "../liquid/LiquidSimulator.h"
 
 namespace Platformer {

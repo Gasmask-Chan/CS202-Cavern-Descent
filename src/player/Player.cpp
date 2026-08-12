@@ -1,5 +1,5 @@
 #include "Player.h"
-#include "../entities/Item.h"
+#include "../entities/items/Item.h"
 #include "../audio/AudioManager.h"
 #include "../core/EventBus.h"
 #include "../core/GameManager.h"

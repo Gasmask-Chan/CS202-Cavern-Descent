@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include "../entities/Item.h"
+#include "../entities/items/Item.h"
 
 namespace Platformer {
 

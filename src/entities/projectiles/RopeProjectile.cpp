@@ -1,6 +1,6 @@
 #include "RopeProjectile.h"
-#include "../level/TileMap.h"
-#include "../audio/AudioManager.h"
+#include "../../level/TileMap.h"
+#include "../../audio/AudioManager.h"
 #include <cmath>
 
 namespace Platformer {
