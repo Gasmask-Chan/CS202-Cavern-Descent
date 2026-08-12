@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
-
+#include "../player/MovementStrategy.h"
 
 namespace Platformer {
 
@@ -60,11 +60,10 @@ void GameManager::resetRun() {
   currentFloor = 1;
   score = 0;
   playerLives = 3;
-  playerHealth = 4;
   playerBombs = 4;
   playerRopes = 4;
   playerGold = 0;
-  selectedCharacter = CharacterType::EXPLORER;
+  setSelectedCharacter(CharacterType::EXPLORER);
   ghostTimer = 180.0f;
   isCustomLevel = false;
 }
@@ -73,6 +72,14 @@ CharacterType GameManager::getSelectedCharacter() { return selectedCharacter; }
 
 void GameManager::setSelectedCharacter(CharacterType type) {
   selectedCharacter = type;
+  
+  MovementStrategy* strategy = nullptr;
+  if (type == CharacterType::NINJA) strategy = new NinjaStrategy();
+  else if (type == CharacterType::TANK) strategy = new TankStrategy();
+  else strategy = new ExplorerStrategy();
+
+  playerHealth = strategy->getMaxHealth();
+  delete strategy;
 }
 
 float GameManager::getGhostTimer() { return ghostTimer; }
