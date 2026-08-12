@@ -686,7 +686,7 @@ void PlayState::enter() {
               player->getY() + player->getAABB().height / 2.0f - data.worldY;
           float dist = std::sqrt(dx * dx + dy * dy);
           if (dist < explosionRadius) {
-            player->takeDamage(10);
+            player->takeDamage(1);
             player->setVelocity(dx > 0 ? 300.0f : -300.0f, -200.0f);
           }
         }
@@ -855,7 +855,7 @@ void PlayState::update(float dt) {
         } else if (auto *arrow = dynamic_cast<Arrow *>(entity.get())) {
           if (arrow->isLethal() &&
               physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
-            player->takeDamage(2); // Take 2 hearts damage
+            player->takeDamage(1); // Take 1 heart damage
             player->setVelocity(arrow->getVelocityX() > 0 ? 300.0f : -300.0f,
                                 -200.0f);
             arrow->destroy();

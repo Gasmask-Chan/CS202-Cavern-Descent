@@ -30,6 +30,11 @@ public:
     void applyGravity(float dt);
 
     /**
+     * @brief Triggered when the physics system resolves a downward collision (hitting the floor).
+     */
+    virtual void onHitGround(float impactVelocity) {}
+
+    /**
      * @brief Adds `dx` to `x` and `dy` to `y`. Raw position change - no collision checking. Collision is handled separately by `PhysicsSystem::resolveEntityTileCollision()`.
      * 
      * @param dx 

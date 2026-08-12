@@ -85,7 +85,10 @@ void PhysicsSystem::resolveEntityTileCollision(DynamicEntity* e) {
                         if (minPen == penTop || (penTop < 2.0f && e->vy >= 0)) {
                             e->move(0, -penTop);
                             e->isGrounded = true;
-                            if (e->vy > 0) e->vy = 0;
+                            if (e->vy > 0) {
+                                e->onHitGround(e->vy); // Trigger floor impact logic before resetting velocity
+                                e->vy = 0;
+                            }
                         } else if (minPen == penBottom) {
                             e->move(0, penBottom);
                             if (e->vy < 0) e->vy = 0;

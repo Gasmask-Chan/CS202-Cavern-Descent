@@ -59,6 +59,8 @@ public:
     void addRope(int amount);
     bool useBomb();
     bool useRope();
+    
+    void onHitGround(float impactVelocity) override;
     bool isInvincible() const { return invincibilityTimer > 0.0f; }
     void whipAttack();
     void setMovementStrategy(MovementStrategy* s);
