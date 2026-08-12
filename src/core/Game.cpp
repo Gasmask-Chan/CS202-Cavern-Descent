@@ -200,6 +200,9 @@ void Game::applyPendingStateChanges() {
             case GameStateType::GAME_OVER:   
                 newState = new GameOverState();
                 break;
+            case GameStateType::VICTORY:
+                newState = new VictoryState();
+                break;
             case GameStateType::CHAR_SELECT:
                 newState = new CharSelectState();
                 break;

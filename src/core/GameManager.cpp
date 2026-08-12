@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
-
+#include "../player/MovementStrategy.h"
 
 namespace Platformer {
 
@@ -22,9 +22,9 @@ GameManager *GameManager::getInstance() {
 int GameManager::getFloor() { return currentFloor; }
 
 ZoneType GameManager::getZone() {
-  if (currentFloor >= 7)
+  if (currentFloor >= 3)
     return ZoneType::TEMPLE;
-  if (currentFloor >= 4)
+  if (currentFloor >= 2)
     return ZoneType::JUNGLE;
   return ZoneType::CAVE;
 }
@@ -47,12 +47,12 @@ void GameManager::syncPlayerStats(int hp, int b, int r, int g) {
 
 void GameManager::nextFloor() {
   currentFloor++;
-  if (currentFloor >= 9) {
-    ghostTimer = 120.0f;
-  } else if (currentFloor >= 5) {
-    ghostTimer = 150.0f;
-  } else {
+  if (currentFloor >= 3) {
     ghostTimer = 180.0f;
+  } else if (currentFloor >= 2) {
+    ghostTimer = 240.0f;
+  } else {
+    ghostTimer = 300.0f;
   }
 }
 
@@ -60,12 +60,11 @@ void GameManager::resetRun() {
   currentFloor = 1;
   score = 0;
   playerLives = 3;
-  playerHealth = 4;
   playerBombs = 4;
   playerRopes = 4;
   playerGold = 0;
-  selectedCharacter = CharacterType::EXPLORER;
-  ghostTimer = 180.0f;
+  setSelectedCharacter(CharacterType::EXPLORER);
+  ghostTimer = 300.0f;
   isCustomLevel = false;
 }
 
@@ -73,6 +72,14 @@ CharacterType GameManager::getSelectedCharacter() { return selectedCharacter; }
 
 void GameManager::setSelectedCharacter(CharacterType type) {
   selectedCharacter = type;
+  
+  MovementStrategy* strategy = nullptr;
+  if (type == CharacterType::NINJA) strategy = new NinjaStrategy();
+  else if (type == CharacterType::TANK) strategy = new TankStrategy();
+  else strategy = new ExplorerStrategy();
+
+  playerHealth = strategy->getMaxHealth();
+  delete strategy;
 }
 
 float GameManager::getGhostTimer() { return ghostTimer; }

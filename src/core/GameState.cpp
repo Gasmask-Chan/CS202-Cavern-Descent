@@ -67,7 +67,6 @@ void MenuState::enter() {
 }
 
 void MenuState::exit() {
-  AudioManager::getInstance()->stopBGM();
 }
 
 void MenuState::handleInput() {
@@ -516,6 +515,18 @@ void PlayState::enter() {
 
   lighting = std::make_unique<LightingSystem>(tempLevel.tileMap->getWidth(),
                                               tempLevel.tileMap->getHeight());
+                                              
+  // Base light increased by 6% (+0.06f) from original. Decreases by 10% (0.10f) per floor.
+  int currentFloor = GameManager::getInstance()->getFloor();
+  float decrement = (currentFloor - 1) * 0.10f;
+  Vector3 baseLight = {0.21f - decrement, 0.21f - decrement, 0.31f - decrement};
+  
+  // Ensure it doesn't go completely pitch black
+  baseLight.x = std::max(0.05f, baseLight.x);
+  baseLight.y = std::max(0.05f, baseLight.y);
+  baseLight.z = std::max(0.05f, baseLight.z);
+  
+  lighting->setAmbientLight(baseLight);
 
   liquids = std::make_unique<LiquidSimulator>(tempLevel.tileMap.get());
   player->setLiquidSimulator(liquids.get());
@@ -687,7 +698,7 @@ void PlayState::enter() {
               player->getY() + player->getAABB().height / 2.0f - data.worldY;
           float dist = std::sqrt(dx * dx + dy * dy);
           if (dist < explosionRadius) {
-            player->takeDamage(10);
+            player->takeDamage(1);
             player->setVelocity(dx > 0 ? 300.0f : -300.0f, -200.0f);
           }
         }
@@ -856,7 +867,7 @@ void PlayState::update(float dt) {
         } else if (auto *arrow = dynamic_cast<Arrow *>(entity.get())) {
           if (arrow->isLethal() &&
               physics->checkAABBOverlap(pAABB, arrow->getAABB())) {
-            player->takeDamage(2); // Take 2 hearts damage
+            player->takeDamage(1); // Take 1 heart damage
             player->setVelocity(arrow->getVelocityX() > 0 ? 300.0f : -300.0f,
                                 -200.0f);
             arrow->destroy();
@@ -1481,6 +1492,105 @@ void GameOverState::render() {
 
     if (((int)(GetTime() * 2)) % 2 == 0) {
       drawCenteredText("PRESS ENTER TO CONTINUE", GetScreenHeight() - 100.0f,
+                       20.0f, LIGHTGRAY);
+    }
+  }
+}
+
+/*
+=======================================================
+=========================VICTORY=======================
+=======================================================
+*/
+
+void VictoryState::enter() {
+  finalScore = GameManager::getInstance()->getScore();
+  finalFloor = GameManager::getInstance()->getFloor();
+  nameEntered = false;
+  letterCount = 0;
+  nameInput[0] = '\0';
+}
+
+void VictoryState::exit() {}
+
+void VictoryState::handleInput() {
+  if (!nameEntered) {
+    int key = GetCharPressed();
+    while (key > 0) {
+      if ((key >= 32) && (key <= 125) && (letterCount < 3)) {
+        nameInput[letterCount] = (char)key;
+        nameInput[letterCount + 1] = '\0';
+        letterCount++;
+      }
+      key = GetCharPressed();
+    }
+
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+      if (letterCount > 0) {
+        letterCount--;
+        nameInput[letterCount] = '\0';
+      }
+    }
+
+    if (IsKeyPressed(KEY_ENTER) && letterCount > 0) {
+      nameEntered = true;
+      GameManager::getInstance()->saveHighScore(std::string(nameInput));
+      leaderboard = GameManager::getInstance()->loadHighScores();
+    }
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+      nameEntered = true;
+      leaderboard = GameManager::getInstance()->loadHighScores();
+    }
+  } else {
+    if (IsKeyPressed(KEY_ENTER)) {
+      game->changeState(GameStateType::MENU);
+    }
+  }
+}
+
+void VictoryState::update(float dt) {}
+
+void VictoryState::render() {
+  ClearBackground(BLACK);
+  MenuBackground::render();
+
+  if (!nameEntered) {
+    // Split the big text so it doesn't overflow the screen width and center properly
+    drawCenteredText("VICTORY", GetScreenHeight() / 2 - 170, 90.0f, GOLD);
+    drawCenteredText("YOU ESCAPED!", GetScreenHeight() / 2 - 80, 50.0f, GRAY);
+    
+    drawCenteredText(TextFormat("FINAL SCORE: %d", finalScore),
+                     GetScreenHeight() / 2 - 20, 40.0f, WHITE);
+    drawCenteredText("ENTER INITIALS:", GetScreenHeight() / 2 + 50, 30.0f,
+                     WHITE);
+
+    std::string displayStr = nameInput;
+    if (((int)(GetTime() * 2)) % 2 == 0 && letterCount < 3) {
+      displayStr += "_";
+    }
+    drawCenteredText(displayStr.c_str(), GetScreenHeight() / 2 + 100, 50.0f,
+                     YELLOW);
+    drawCenteredText("PRESS ESC TO SKIP", GetScreenHeight() / 2 + 200, 20.0f,
+                     LIGHTGRAY);
+  } else {
+    drawCenteredText("HIGH SCORES", GetScreenHeight() / 2 - 250, 60.0f, GOLD);
+
+    int yOffset = GetScreenHeight() / 2 - 150;
+    int count = 0;
+    for (const auto &entry : leaderboard) {
+      if (count >= 5)
+        break;
+      std::string text =
+          TextFormat("%d. %s - %d pts (Floor %d)", count + 1,
+                     entry.name.c_str(), entry.score, entry.floorsReached);
+      drawCenteredText(text.c_str(), yOffset, 30.0f, WHITE);
+      yOffset += 60;
+      count++;
+    }
+
+    if (((int)(GetTime() * 2)) % 2 == 0) {
+      drawCenteredText("PRESS ENTER TO CONTINUE", GetScreenHeight() / 2 + 200,
                        20.0f, LIGHTGRAY);
     }
   }
@@ -2203,8 +2313,12 @@ void TransitionState::update(float dt) {
           GameManager::getInstance()->syncPlayerStats(
               player->getHealth(), player->getBombs(), player->getRopes(),
               player->getGold());
-          GameManager::getInstance()->nextFloor();
-          game->changeState(GameStateType::PLAY);
+          if (GameManager::getInstance()->getFloor() >= 3) {
+              game->changeState(GameStateType::VICTORY);
+          } else {
+              GameManager::getInstance()->nextFloor();
+              game->changeState(GameStateType::PLAY);
+          }
           return;
         }
       }

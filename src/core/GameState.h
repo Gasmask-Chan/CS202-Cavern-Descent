@@ -29,6 +29,7 @@ enum class GameStateType {
     PLAY,
     PAUSE,
     GAME_OVER,
+    VICTORY,
     CHAR_SELECT,
     EDITOR_MENU,
     EDITOR_FILE_MENU,
@@ -196,6 +197,22 @@ public:
 
     void update(float dt) override;
 
+    void render() override;
+};
+
+class VictoryState : public GameState {
+private:
+    int finalScore = 0;
+    int finalFloor = 0;
+    char nameInput[4] = "\0\0\0";
+    int letterCount = 0;
+    bool nameEntered = false;
+    std::vector<HighScoreEntry> leaderboard;
+public:
+    void enter() override;
+    void exit() override;
+    void handleInput() override;
+    void update(float dt) override;
     void render() override;
 };
 

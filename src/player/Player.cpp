@@ -646,4 +646,10 @@ Rectangle Player::getWhipHitbox() const {
     return { hitX, hitY, hitWidth, hitHeight };
 }
 
+void Player::onHitGround(float impactVelocity) {
+    if (impactVelocity > 650.0f) {
+        takeDamage(1);
+    }
+}
+
 }
