@@ -694,15 +694,19 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
             break;
           }
           case 9: { // ArrowTrap Left
-            map->setTile(tx, ty, TileType::ARROW_TRAP_LEFT);
-            auto trap = EntityFactory::createTrap('<', px, py);
-            if (trap) tempTraps.push_back(std::move(trap));
+            if (GetRandomValue(1, 100) <= 15) {
+                map->setTile(tx, ty, TileType::ARROW_TRAP_LEFT);
+                auto trap = EntityFactory::createTrap('<', px, py);
+                if (trap) tempTraps.push_back(std::move(trap));
+            }
             break;
           }
           case 10: { // ArrowTrap Right
-            map->setTile(tx, ty, TileType::ARROW_TRAP_RIGHT);
-            auto trap = EntityFactory::createTrap('>', px, py);
-            if (trap) tempTraps.push_back(std::move(trap));
+            if (GetRandomValue(1, 100) <= 15) {
+                map->setTile(tx, ty, TileType::ARROW_TRAP_RIGHT);
+                auto trap = EntityFactory::createTrap('>', px, py);
+                if (trap) tempTraps.push_back(std::move(trap));
+            }
             break;
           }
           case 13: { // Shop Item
