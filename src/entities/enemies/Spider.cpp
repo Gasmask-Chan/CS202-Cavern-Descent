@@ -30,8 +30,8 @@ void Spider::handleIdle(float dt, Player* player) {
     float dx = player->getX() - x;
     float dy = player->getY() - y;
     
-    // Check if player is directly below (within 2 tiles horizontally) or generally close
-    if (dy > 0 && std::abs(dx) < 64.0f) {
+    // Check if player is directly below (within 2 tiles horizontally) and within a reasonable vertical distance
+    if (dy > 0 && dy < 600.0f && std::abs(dx) < 64.0f) {
         changeState(Enemy::chaseState);
         gravity = 800.0f; // Enable gravity so it falls
     }
@@ -42,6 +42,8 @@ void Spider::handleChase(float dt, Player* player) {
     
     if (!player) return;
     float dx = player->getX() - x;
+    float dy = player->getY() - y;
+    float distanceToPlayer = std::sqrt(dx*dx + dy*dy);
     
     if (isGrounded) {
         if (jumpTimer > 0.0f) {
@@ -53,7 +55,11 @@ void Spider::handleChase(float dt, Player* player) {
             // Jump towards player with random force
             jumpTimer = GetRandomValue(100, 250) / 100.0f; // 1.0 to 2.5 seconds between jumps
             
-            AudioManager::getInstance()->playSFX("xspiderjump");
+            // Only play the sound if the spider is visibly on the screen
+            if (std::abs(dx) < 640.0f && std::abs(dy) < 360.0f) {
+                AudioManager::getInstance()->playSFX("xspiderjump");
+            }
+            
             float jumpVy = -(GetRandomValue(300, 600)); // Random height
             float jumpVx = (dx > 0) ? GetRandomValue(100, 300) : -GetRandomValue(100, 300); // Random distance towards player
             
