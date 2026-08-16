@@ -2109,11 +2109,11 @@ void EditorState::render() {
         // Find texture inside paletteItems
         for (const auto &item : paletteItems) {
           if (item.type == t) {
-            Rectangle dest = {x * 16.0f, y * 16.0f, 16.0f, 16.0f};
+            Rectangle dest = {(float)x * ts, (float)y * ts, (float)ts, (float)ts};
             
             // Adjust visual offset for sprites that are "flying" in the original spritesheet
             if (t == TileType::CHEST) {
-                dest.y += 8.0f; 
+                dest.y += (float)ts / 2.0f; // Shift down by half a tile
             }
 
             DrawTexturePro(item.tex, item.src, dest, {0, 0}, 0.0f, WHITE);
