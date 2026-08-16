@@ -652,7 +652,7 @@ Rectangle Player::getWhipHitbox() const {
 }
 
 void Player::onHitGround(float impactVelocity) {
-    if (impactVelocity > 650.0f) {
+    if (impactVelocity > 555.0f) { // ~6 tiles of freefall
         takeDamage(1);
     }
 }
