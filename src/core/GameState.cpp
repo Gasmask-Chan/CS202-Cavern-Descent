@@ -243,6 +243,9 @@ void PlayState::enter() {
         AudioManager::getInstance()->playBGM("mTemple");
     } else {
         AudioManager::getInstance()->playBGM("mCave");
+        if (currentFloor == 1) {
+            AudioManager::getInstance()->playSFX("xletsexplore");
+        }
     }
 
     tempLevel = tempGenerator->generate(currentFloor, currentZone);
@@ -744,12 +747,10 @@ void PlayState::enter() {
       enemy->setLiquidSim(liquids.get());
     }
   }
-
-  // 5. Play level start sound
-  AudioManager::getInstance()->playSFX("xletsexplore");
 }
 
 void PlayState::exit() {
+  AudioManager::getInstance()->stopSFX("xletsexplore");
   physics.reset();
   player.reset();
 
