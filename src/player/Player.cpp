@@ -120,6 +120,7 @@ void Player::handleInput() {
             isClimbing = false;
             vy = -moveStrategy->getJumpForce() * 0.8f; // slightly weaker jump off ladder
             isGrounded = false;
+            AudioManager::getInstance()->playSFX("xjump");
         } else if (IsKeyDown(KEY_A) || IsKeyDown(KEY_D)) {
             isClimbing = false;
             vy = 0.0f; // Detach without jumping
@@ -147,6 +148,7 @@ void Player::handleInput() {
         if (isGrounded) {
             vy = -moveStrategy->getJumpForce();
             isGrounded = false;
+            AudioManager::getInstance()->playSFX("xjump");
         }
     }
     
@@ -262,6 +264,7 @@ void Player::update(float dt, Player* player) {
             if (!liquidSim->isWaterAt(upperHalf)) {
                 // Surface leap
                 vy = -moveStrategy->getJumpForce();
+                AudioManager::getInstance()->playSFX("xjump");
             } else {
                 // Underwater stroke
                 vy = -200.0f;
@@ -334,7 +337,8 @@ void Player::update(float dt, Player* player) {
                     for (int tx = startTx; tx <= endTx; tx++) {
                         if (tileMap->isCracked(tx, ty)) {
                             // TODO: Replace with LevelManager->breakCrackedBlock() once Person B implements LevelManager.
-                            // This is currently bypassing the SFX, particle events, and potential item drops!
+                            // This is currently bypassing particle events, and potential item drops!
+                            AudioManager::getInstance()->playSFX("xbreak");
                             tileMap->destroyBlock(tx, ty);
                         }
                     }
@@ -611,6 +615,7 @@ void Player::whipAttack() {
     if (!isWhipping) {
         isWhipping = true;
         whipTimer = 0.0f;
+        AudioManager::getInstance()->playSFX("xwhip");
     }
 }
 

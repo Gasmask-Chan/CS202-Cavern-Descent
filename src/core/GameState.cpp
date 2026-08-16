@@ -856,7 +856,7 @@ void PlayState::update(float dt) {
           if (whipActive &&
               physics->checkAABBOverlap(whipBox, enemy->getAABB())) {
             enemy->takeDamage(1); // Whip does 1 damage
-            AudioManager::getInstance()->playSFX("xwhip");
+            AudioManager::getInstance()->playSFX("xhit");
             continue; // Skip collision damage this frame
           }
 
@@ -1505,6 +1505,7 @@ void GameOverState::render() {
 */
 
 void VictoryState::enter() {
+  AudioManager::getInstance()->playBGM("mVictory");
   finalScore = GameManager::getInstance()->getScore();
   finalFloor = GameManager::getInstance()->getFloor();
   nameEntered = false;
@@ -1512,7 +1513,9 @@ void VictoryState::enter() {
   nameInput[0] = '\0';
 }
 
-void VictoryState::exit() {}
+void VictoryState::exit() {
+    AudioManager::getInstance()->stopBGM();
+}
 
 void VictoryState::handleInput() {
   if (!nameEntered) {
