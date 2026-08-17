@@ -1503,14 +1503,19 @@ void GameOverState::render() {
 =========================VICTORY=======================
 =======================================================
 */
-
 VictoryState::VictoryState() = default;
 VictoryState::~VictoryState() = default;
 
 void VictoryState::enter() {
   AudioManager::getInstance()->playBGM("mVictory");
   finalScore = GameManager::getInstance()->getScore();
+  if (finalScore <= 0) {
+    finalScore = GetRandomValue(65000, 195000); // Random score for test
+  }
   finalFloor = GameManager::getInstance()->getFloor();
+  if (finalFloor <= 0) {
+    finalFloor = 16;
+  }
   nameEntered = false;
   letterCount = 0;
   nameInput[0] = '\0';
@@ -1572,15 +1577,14 @@ void VictoryState::enter() {
   lighting->setAmbientLight({0.35f, 0.35f, 0.45f});
 
   camera.target = {(10 * 32.0f + 16.0f), (10 * 32.0f)};
-  camera.offset = {(float)GetScreenWidth() / 2.0f,
-                   (float)GetScreenHeight() / 2.0f};
+  camera.offset = {(float)GetScreenWidth() / 2.0f, (float)GetScreenHeight() / 2.0f};
   camera.rotation = 0.0f;
   camera.zoom = 2.0f;
 
   for (int x = 0; x < 40; x++) {
-      for (int y = 0; y < 5; y++) {
-          sandGrid[x][y] = GetRandomValue(0, 1);
-      }
+    for (int y = 0; y < 10; y++) {
+      sandGrid[x][y] = GetRandomValue(0, 1);
+    }
   }
 
   CharacterType charType = GameManager::getInstance()->getSelectedCharacter();
@@ -1662,6 +1666,7 @@ void VictoryState::handleInput() {
 
 void VictoryState::update(float dt) {
   sceneTimer += dt;
+
   switch (currentScene) {
     case EndingScene::SCENE1_TUNNEL:
       updateScene1(dt);
@@ -1677,26 +1682,6 @@ void VictoryState::update(float dt) {
       break;
     case EndingScene::SCENE5_SUMMARY:
       updateScene5(dt);
-      break;
-  }
-}
-
-void VictoryState::render() {
-  switch (currentScene) {
-    case EndingScene::SCENE1_TUNNEL:
-      renderScene1();
-      break;
-    case EndingScene::SCENE2_DESERT_FALL:
-      renderScene2();
-      break;
-    case EndingScene::SCENE3_TALLY:
-      renderScene3();
-      break;
-    case EndingScene::SCENE4_BLACK_SCREEN:
-      renderScene4();
-      break;
-    case EndingScene::SCENE5_SUMMARY:
-      renderScene5();
       break;
   }
 }
@@ -1727,7 +1712,6 @@ void VictoryState::updateScene1(float dt) {
       double time = GetTime();
       float flicker = std::sin(time * 12.0) * 0.02f;
       flicker += std::sin(time * 23.0) * 0.015f;
-      flicker += std::sin(time * 5.0) * 0.01f;
       Vector3 torchColor = {0.95f + flicker, (0.95f + flicker) * 0.9f, (0.95f + flicker) * 0.6f};
       lighting->addLight(trueX, trueY, torchColor,
                          4.5f + (flicker * 1.5f));
@@ -1741,10 +1725,10 @@ void VictoryState::updateScene1(float dt) {
       sceneTimer = 0.0f;
       tallyStatus = 0;
       tallyTimer = 0.0f;
-      player.position = { 200.0f, -100.0f }; // Start offscreen top left-center
+      player.position = { 540.0f, -100.0f }; // Start falling in the horizontal center
       player.velocity = { 0.0f, 0.0f };
       player.isFacingRight = true;
-      chest.position = { 640.0f, -128.0f };
+      chest.position = { 660.0f, -128.0f };
       chest.velocity = { 0.0f, 0.0f };
     }
   }
@@ -1752,7 +1736,6 @@ void VictoryState::updateScene1(float dt) {
 
 void VictoryState::updateScene2(float dt) {
   if (tallyStatus == 0) {
-    // Player falling
     player.velocity.y += 1000.0f * dt;
     player.position.y += player.velocity.y * dt;
     if (player.position.y >= 520.0f) {
@@ -1764,33 +1747,29 @@ void VictoryState::updateScene2(float dt) {
     }
   }
   else if (tallyStatus == 1) {
-    // Player stunned for 2 seconds
     tallyTimer += dt;
     if (tallyTimer >= 2.0f) {
       tallyStatus = 2;
-      chest.position = { 640.0f, -128.0f };
+      chest.position = { 660.0f, -128.0f };
       chest.velocity = { 0.0f, 0.0f };
     }
   }
   else if (tallyStatus == 2) {
-    // Player standing, big treasure falling
     chest.velocity.y += 1000.0f * dt;
     chest.position.y += chest.velocity.y * dt;
     
-    // Lands on sand at y = 544. Size is 128 (scaled 4x). Bottom matches 544.
-    // So target chest y coordinate is 544 - 128 = 416.
-    if (chest.position.y >= 416.0f) {
-      chest.position.y = 416.0f;
+    // So target chest y coordinate is 520 - 128 = 392.
+    if (chest.position.y >= 392.0f) {
+      chest.position.y = 392.0f;
       chest.velocity.y = 0.0f;
       AudioManager::getInstance()->playSFX("xtfall"); // Heavy fall SFX
       
       // Make player bounce!
-      player.velocity.y = -350.0f;
+      player.velocity.y = -450.0f;
       tallyStatus = 3;
     }
   }
   else if (tallyStatus == 3) {
-    // Player bouncing (jumping up)
     player.velocity.y += 1000.0f * dt;
     player.position.y += player.velocity.y * dt;
     
@@ -1857,9 +1836,14 @@ void VictoryState::updateScene3(float dt) {
       tallyStatus = 3;
       tallyTimer = 0.0f;
     } else {
+      float prevScore = currentTallyScore;
       currentTallyScore += finalScore * dt * 0.5f; // takes 2 seconds to tally up
+      if ((int)(currentTallyScore / 2500) > (int)(prevScore / 2500)) {
+        AudioManager::getInstance()->playSFX("xcoin");
+      }
       if (currentTallyScore >= finalScore) {
         currentTallyScore = finalScore;
+        AudioManager::getInstance()->playSFX("xgem");
         tallyStatus = 3;
         tallyTimer = 0.0f;
       }
@@ -1902,7 +1886,26 @@ void VictoryState::updateScene4(float dt) {
 }
 
 void VictoryState::updateScene5(float dt) {
-  // Handled entirely by initials input state and exit transition inside handleInput()
+}
+
+void VictoryState::render() {
+  switch (currentScene) {
+    case EndingScene::SCENE1_TUNNEL:
+      renderScene1();
+      break;
+    case EndingScene::SCENE2_DESERT_FALL:
+      renderScene2();
+      break;
+    case EndingScene::SCENE3_TALLY:
+      renderScene3();
+      break;
+    case EndingScene::SCENE4_BLACK_SCREEN:
+      renderScene4();
+      break;
+    case EndingScene::SCENE5_SUMMARY:
+      renderScene5();
+      break;
+  }
 }
 
 void VictoryState::renderScene1() {
@@ -1928,63 +1931,77 @@ void VictoryState::renderScene1() {
 void VictoryState::renderScene2() {
   ClearBackground(BLACK);
   
-  // Sky: crop top portion of sEnd2BG.png (sky part y=0 to y=140)
-  DrawTexturePro(skyTex, { 0.0f, 0.0f, 640.0f, 140.0f }, { 0.0f, 0.0f, 1280.0f, 544.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  // 1. Sky: Vibrant blue sky gradient from top to mountain line (y=0 to y=520)
+  DrawRectangleGradientV(0, 0, 1280, 520, Color{ 50, 120, 210, 255 }, Color{ 140, 185, 230, 255 });
   
-  // Mountains
+  // Draw clean sky texture overlay from sEnd2BG.png (y=40..130) for authentic Spelunky clouds/sky
+  DrawTexturePro(skyTex, { 0.0f, 40.0f, 640.0f, 95.0f }, { 0.0f, 0.0f, 1280.0f, 520.0f }, { 0.0f, 0.0f }, 0.0f, Color{ 255, 255, 255, 220 });
+
+  // 2. Mountains (sBGEnd3.png)
   float mountW = 480.0f * 2.0f;
   float mountH = 112.0f * 2.0f;
-  float mountY = 544.0f - mountH;
+  float mountY = 520.0f - mountH + 8.0f; // Align mountain base with sand surface
   for (float mx = 0.0f; mx < 1280.0f; mx += mountW) {
     DrawTexturePro(mountainTex, { 0.0f, 0.0f, 480.0f, 112.0f }, { mx, mountY, mountW, mountH }, { 0.0f, 0.0f }, 0.0f, WHITE);
   }
   
-  // Sand Top decoration
-  for (int tx = 0; tx < 40; tx++) {
-    DrawTexturePro(sandTopTex, { 0.0f, 0.0f, 16.0f, 17.0f }, { (float)tx * 32.0f, 544.0f, 32.0f, 34.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
-  }
+  // 3. Solid Sand Base (no black gaps anywhere!)
+  DrawRectangle(0, 520, 1280, 200, Color{ 251, 213, 98, 255 });
   
-  // Sand grid
-  for (int ty = 18; ty < 23; ty++) {
+  // Sand Tiles Pattern
+  for (int ty = 0; ty < 7; ty++) {
     for (int tx = 0; tx < 40; tx++) {
-      Texture2D tex = (sandGrid[tx][ty - 18] == 0) ? sandTex : sand2Tex;
-      DrawTexturePro(tex, { 0.0f, 0.0f, 16.0f, 16.0f }, { (float)tx * 32.0f, (float)ty * 32.0f, 32.0f, 32.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+      Texture2D tex = (sandGrid[tx][ty % 5] == 0) ? sandTex : sand2Tex;
+      DrawTexturePro(tex, { 0.0f, 0.0f, 16.0f, 16.0f }, { (float)tx * 32.0f, 520.0f + (float)ty * 32.0f, 32.0f, 32.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
     }
   }
-  
-  // Palm Trees
-  DrawTexturePro(palmTreeTex, { 0.0f, 0.0f, 32.0f, 128.0f }, { 50.0f, 544.0f - 256.0f, 64.0f, 256.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
-  DrawTexturePro(palmTreeTex, { 0.0f, 0.0f, 32.0f, 128.0f }, { 1150.0f, 544.0f - 256.0f, 64.0f, 256.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
-  
-  // Shrubs
-  DrawTexturePro(shrubTex, { 0.0f, 0.0f, 16.0f, 16.0f }, { 120.0f, 544.0f - 32.0f, 32.0f, 32.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
-  DrawTexturePro(shrubTex, { 0.0f, 0.0f, 16.0f, 16.0f }, { 1100.0f, 544.0f - 32.0f, 32.0f, 32.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
-  
-  // Big Treasure
-  if (tallyStatus >= 2) {
-    DrawTexturePro(bigTreasureTex, { 0.0f, 0.0f, 32.0f, 32.0f }, { 576.0f, chest.position.y, 128.0f, 128.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+
+  // Sand Top Dune Waves (sDesertTop with source {0, 12, 16, 4} mapped directly on top of y=520)
+  for (int tx = 0; tx < 40; tx++) {
+    DrawTexturePro(sandTopTex, { 0.0f, 12.0f, 16.0f, 4.0f }, { (float)tx * 32.0f, 520.0f - 8.0f, 32.0f, 8.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
   }
   
-  // Player
+  // 4. Large Palm Trees (Scaled up)
+  DrawTexturePro(palmTreeTex, { 0.0f, 0.0f, 32.0f, 128.0f }, { 10.0f, 520.0f - 420.0f, 110.0f, 420.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  DrawTexturePro(palmTreeTex, { 0.0f, 0.0f, -32.0f, 128.0f }, { 1160.0f, 520.0f - 420.0f, 110.0f, 420.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  
+  // 5. Large Shrubs (Scaled up)
+  DrawTexturePro(shrubTex, { 0.0f, 0.0f, 16.0f, 16.0f }, { 110.0f, 520.0f - 60.0f, 60.0f, 60.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  DrawTexturePro(shrubTex, { 0.0f, 0.0f, -16.0f, 16.0f }, { 1110.0f, 520.0f - 60.0f, 60.0f, 60.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  
+  // 6. Big Treasure (Center-Right at x=660)
+  if (currentScene == EndingScene::SCENE3_TALLY || (currentScene == EndingScene::SCENE2_DESERT_FALL && tallyStatus >= 2)) {
+    float chestY = (currentScene == EndingScene::SCENE3_TALLY) ? 392.0f : chest.position.y;
+    DrawTexturePro(bigTreasureTex, { 0.0f, 0.0f, 32.0f, 32.0f }, { 660.0f, chestY, 128.0f, 128.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  }
+  
+  // 7. Player (Center-Left at x=540, scaled 2x to 80x80)
   if (playerSpriteSheet.id != 0) {
     int row = 0;
     int col = 0;
-    if (tallyStatus == 0) { // falling
-      row = 9;
-      col = 1;
-    } else if (tallyStatus == 1) { // stunned
-      row = 2;
-      col = 3;
-    } else if (tallyStatus == 3) { // jumping/bouncing
-      row = 9;
-      col = 0;
-    } else { // standing
+    float playerY = player.position.y;
+    if (currentScene == EndingScene::SCENE2_DESERT_FALL) {
+      if (tallyStatus == 0) { // falling
+        row = 9;
+        col = 1;
+      } else if (tallyStatus == 1) { // stunned
+        row = 2;
+        col = 3;
+      } else if (tallyStatus == 3) { // jumping/bouncing
+        row = 9;
+        col = 0;
+      } else { // standing
+        row = 0;
+        col = 0;
+      }
+    } else { // Scene 3 (Tally) and onwards: player stands firmly on the ground next to treasure
       row = 0;
       col = 0;
+      playerY = 520.0f;
     }
     float srcW = player.isFacingRight ? 80.0f : -80.0f;
     Rectangle src = { col * 80.0f, row * 80.0f, srcW, 80.0f };
-    Rectangle dest = { player.position.x - 12.0f, player.position.y - 12.0f, 40.0f, 40.0f };
+    Rectangle dest = { player.position.x - 40.0f, playerY - 70.0f, 80.0f, 80.0f };
     DrawTexturePro(playerSpriteSheet, src, dest, {0, 0}, 0.0f, WHITE);
   }
 }
@@ -2004,28 +2021,39 @@ void VictoryState::renderScene3() {
     }
   }
   
-  // Draw Tally UI texts
+  // Draw Tally Scoreboard Panel in upper center
+  float boardW = 620.0f;
+  float boardH = 240.0f;
+  float boardX = (GetScreenWidth() - boardW) / 2.0f;
+  float boardY = 45.0f;
+
+  // Background panel with rounded corners and border
+  DrawRectangleRounded({ boardX - 4, boardY - 4, boardW + 8, boardH + 8 }, 0.08f, 6, Color{ 30, 18, 10, 240 });
+  DrawRectangleRounded({ boardX, boardY, boardW, boardH }, 0.08f, 6, Color{ 15, 12, 10, 220 });
+  DrawRectangleRoundedLines({ boardX, boardY, boardW, boardH }, 0.08f, 6, Color{ 220, 175, 45, 255 });
+
+  // Draw Tally UI texts inside the board
   if (tallyStatus >= 0) {
-    drawCenteredText("YOU MADE IT!", GetScreenHeight() / 2 - 200, 50.0f, GOLD);
+    drawCenteredText("YOU MADE IT!", boardY + 20, 42.0f, GOLD);
   }
   if (tallyStatus >= 1) {
-    drawCenteredText("FINAL SCORE:", GetScreenHeight() / 2 - 120, 30.0f, WHITE);
+    drawCenteredText("FINAL SCORE:", boardY + 75, 24.0f, WHITE);
   }
   if (tallyStatus >= 2) {
-    drawCenteredText(TextFormat("%d", (int)currentTallyScore), GetScreenHeight() / 2 - 70, 45.0f, YELLOW);
+    drawCenteredText(TextFormat("%d", (int)currentTallyScore), boardY + 110, 36.0f, YELLOW);
   }
   if (tallyStatus >= 3) {
     srand(finalScore);
     int randomTimeTotal = 180 + (rand() % 240);
     int tallyMinutes = randomTimeTotal / 60;
     int tallySeconds = randomTimeTotal % 60;
-    drawCenteredText(TextFormat("TIME: %02d:%02d", tallyMinutes, tallySeconds), GetScreenHeight() / 2, 30.0f, WHITE);
+    drawCenteredText(TextFormat("TIME: %02d:%02d", tallyMinutes, tallySeconds), boardY + 160, 24.0f, WHITE);
   }
   if (tallyStatus >= 4) {
     srand(finalScore);
     rand();
     int tallyKills = 10 + (rand() % 35);
-    drawCenteredText(TextFormat("KILLS: %d", tallyKills), GetScreenHeight() / 2 + 50, 30.0f, WHITE);
+    drawCenteredText(TextFormat("KILLS: %d", tallyKills), boardY + 195, 24.0f, WHITE);
   }
   
   // Black fade overlay
@@ -2036,7 +2064,7 @@ void VictoryState::renderScene3() {
 
 void VictoryState::renderScene4() {
   ClearBackground(BLACK);
-  drawCenteredText("you shall be remembered as hero", GetScreenHeight() / 2 - 20, 40.0f, WHITE);
+  drawCenteredText("you shall be remembered as hero", GetScreenHeight() / 2 - 14, 28.0f, WHITE);
 }
 
 void VictoryState::renderScene5() {
