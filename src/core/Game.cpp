@@ -114,7 +114,7 @@ void Game::init() {
     }
     UnloadImage(fontImg);
 
-    GameState* initialState = new MenuState;
+    GameState* initialState = new VictoryState();
     initialState->setGame(this);
     initialState->enter();
     stateStack.push_back(initialState);
