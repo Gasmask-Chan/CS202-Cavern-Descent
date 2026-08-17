@@ -243,6 +243,9 @@ void PlayState::enter() {
         AudioManager::getInstance()->playBGM("mTemple");
     } else {
         AudioManager::getInstance()->playBGM("mCave");
+        if (currentFloor == 1) {
+            AudioManager::getInstance()->playSFX("xletsexplore");
+        }
     }
 
     tempLevel = tempGenerator->generate(currentFloor, currentZone);
@@ -744,12 +747,10 @@ void PlayState::enter() {
       enemy->setLiquidSim(liquids.get());
     }
   }
-
-  // 5. Play level start sound
-  AudioManager::getInstance()->playSFX("xletsexplore");
 }
 
 void PlayState::exit() {
+  AudioManager::getInstance()->stopSFX("xletsexplore");
   physics.reset();
   player.reset();
 
@@ -855,7 +856,7 @@ void PlayState::update(float dt) {
           if (whipActive &&
               physics->checkAABBOverlap(whipBox, enemy->getAABB())) {
             enemy->takeDamage(1); // Whip does 1 damage
-            AudioManager::getInstance()->playSFX("xwhip");
+            AudioManager::getInstance()->playSFX("xhit");
             continue; // Skip collision damage this frame
           }
 
@@ -1504,6 +1505,7 @@ void GameOverState::render() {
 */
 
 void VictoryState::enter() {
+  AudioManager::getInstance()->playBGM("mVictory");
   finalScore = GameManager::getInstance()->getScore();
   finalFloor = GameManager::getInstance()->getFloor();
   nameEntered = false;
@@ -1511,7 +1513,9 @@ void VictoryState::enter() {
   nameInput[0] = '\0';
 }
 
-void VictoryState::exit() {}
+void VictoryState::exit() {
+    AudioManager::getInstance()->stopBGM();
+}
 
 void VictoryState::handleInput() {
   if (!nameEntered) {
@@ -2109,11 +2113,11 @@ void EditorState::render() {
         // Find texture inside paletteItems
         for (const auto &item : paletteItems) {
           if (item.type == t) {
-            Rectangle dest = {x * 16.0f, y * 16.0f, 16.0f, 16.0f};
+            Rectangle dest = {(float)x * ts, (float)y * ts, (float)ts, (float)ts};
             
             // Adjust visual offset for sprites that are "flying" in the original spritesheet
             if (t == TileType::CHEST) {
-                dest.y += 8.0f; 
+                dest.y += (float)ts / 2.0f; // Shift down by half a tile
             }
 
             DrawTexturePro(item.tex, item.src, dest, {0, 0}, 0.0f, WHITE);

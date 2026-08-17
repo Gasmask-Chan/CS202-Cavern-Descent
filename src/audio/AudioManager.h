@@ -37,6 +37,11 @@ public:
     void playSFX(const std::string& name);
 
     /**
+     * @brief Stops a specific SFX if it is currently playing.
+     */
+    void stopSFX(const std::string& name);
+
+    /**
      * @brief Loads a BGM file path into the mapping so it can be played by name.
      */
     void loadBGM(const std::string& name, const std::string& filePath);

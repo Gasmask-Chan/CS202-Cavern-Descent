@@ -55,6 +55,15 @@ void AudioManager::playSFX(const std::string& name) {
     if (it != sfxCache.end()) {
         SetSoundVolume(it->second, sfxVolume); // Ensure current volume is applied
         PlaySound(it->second);
+    } else {
+        std::cerr << "Warning: SFX not found in cache: " << name << std::endl;
+    }
+}
+
+void AudioManager::stopSFX(const std::string& name) {
+    auto it = sfxCache.find(name);
+    if (it != sfxCache.end()) {
+        StopSound(it->second);
     }
 }
 

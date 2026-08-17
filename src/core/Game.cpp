@@ -65,6 +65,7 @@ void Game::init() {
     audio->loadSFX("xgem", "assets/audio/sfx/xgem.wav");
     audio->loadSFX("xcoin", "assets/audio/sfx/xcoin.wav");
     audio->loadSFX("xchestopen", "assets/audio/sfx/xchestopen.wav");
+    audio->loadSFX("xbreak", "assets/audio/sfx/xbreak.wav");
     audio->loadSFX("xthrow", "assets/audio/sfx/xthrow.wav");
     audio->loadSFX("xarrowtrap", "assets/audio/sfx/xarrowtrap.wav");
     audio->loadSFX("xbombready", "assets/audio/sfx/xbombready.wav");
