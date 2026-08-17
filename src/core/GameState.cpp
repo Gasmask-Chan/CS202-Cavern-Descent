@@ -513,6 +513,7 @@ void PlayState::enter() {
       tempLevel.playerSpawn.x, tempLevel.playerSpawn.y,
       GameManager::getInstance()->getSelectedCharacter());
   player->setTileMap(tempLevel.tileMap.get());
+  player->startDoorSpawnAnim();
 
   minimap = std::make_unique<Minimap>(tempLevel.exitPos);
 
@@ -1179,22 +1180,43 @@ void PlayState::update(float dt) {
       }
     }
 
-    // Exit check (requires manual UP+Y input)
-    if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
-      Rectangle pRect = player->getAABB();
-      int cx = pRect.x + pRect.width / 2;
-      int cy = pRect.y + pRect.height / 2;
-      int tx = cx / tempLevel.tileMap->getTileSize();
-      int ty = cy / tempLevel.tileMap->getTileSize();
+    // Exit door animation completion & check
+    if (player->isDoorAnimPlaying()) {
+      if (player->isDoorAnimFinished()) {
+        Rectangle pRect = player->getAABB();
+        int cx = pRect.x + pRect.width / 2;
+        int cy = pRect.y + pRect.height / 2;
+        int tx = cx / tempLevel.tileMap->getTileSize();
+        int ty = cy / tempLevel.tileMap->getTileSize();
 
-      if (tx >= 0 && tx < tempLevel.tileMap->getWidth() && ty >= 0 &&
-          ty < tempLevel.tileMap->getHeight()) {
-        if (tempLevel.tileMap->getTile(tx, ty) == TileType::EXIT) {
-          GameManager::getInstance()->syncPlayerStats(
-              player->getHealth(), player->getBombs(), player->getRopes(),
-              player->getGold());
-          game->changeState(GameStateType::TRANSITION);
-          return;
+        if (tx >= 0 && tx < tempLevel.tileMap->getWidth() && ty >= 0 &&
+            ty < tempLevel.tileMap->getHeight()) {
+          if (tempLevel.tileMap->getTile(tx, ty) == TileType::EXIT) {
+            GameManager::getInstance()->syncPlayerStats(
+                player->getHealth(), player->getBombs(), player->getRopes(),
+                player->getGold());
+            game->changeState(GameStateType::TRANSITION);
+            return;
+          }
+        }
+      }
+    } else {
+      // Exit check (requires manual UP+Y input)
+      if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
+        Rectangle pRect = player->getAABB();
+        int cx = pRect.x + pRect.width / 2;
+        int cy = pRect.y + pRect.height / 2;
+        int tx = cx / tempLevel.tileMap->getTileSize();
+        int ty = cy / tempLevel.tileMap->getTileSize();
+
+        if (tx >= 0 && tx < tempLevel.tileMap->getWidth() && ty >= 0 &&
+            ty < tempLevel.tileMap->getHeight()) {
+          if (tempLevel.tileMap->getTile(tx, ty) == TileType::EXIT) {
+            // Horizontally snap player to center of the exit door
+            float targetX = tx * 32.0f + 8.0f;
+            player->move(targetX - player->getX(), 0.0f);
+            player->startDoorEnterAnim();
+          }
         }
       }
     }
@@ -1570,8 +1592,10 @@ void VictoryState::enter() {
 
   physics = std::make_unique<PhysicsSystem>(tunnelMap.get());
   cutscenePlayer = std::make_unique<Player>(
-      10 * 32.0f, 11 * 32.0f,
+      10 * 32.0f + 8.0f, 11 * 32.0f + 8.0f,
       GameManager::getInstance()->getSelectedCharacter());
+  cutscenePlayer->setTileMap(tunnelMap.get());
+  cutscenePlayer->startDoorSpawnAnim();
 
   lighting = std::make_unique<LightingSystem>(60, 30);
   lighting->setAmbientLight({0.35f, 0.35f, 0.45f});
@@ -1688,12 +1712,16 @@ void VictoryState::update(float dt) {
 
 void VictoryState::updateScene1(float dt) {
   if (cutscenePlayer && physics && tunnelMap) {
-    // Automatically walk right at 175px/s
-    cutscenePlayer->setVelocity(175.0f, cutscenePlayer->getVelocityY());
-
-    cutscenePlayer->update(dt, cutscenePlayer.get());
-    cutscenePlayer->applyGravity(dt);
-    physics->resolveEntityTileCollision(cutscenePlayer.get());
+    if (cutscenePlayer->isDoorAnimPlaying()) {
+      cutscenePlayer->update(dt, cutscenePlayer.get());
+    } else {
+      // Automatically walk right at 175px/s
+      cutscenePlayer->setVelocity(175.0f, cutscenePlayer->getVelocityY());
+      cutscenePlayer->update(dt, cutscenePlayer.get());
+      cutscenePlayer->applyGravity(dt);
+      physics->resolveEntityTileCollision(cutscenePlayer.get());
+      stepAnimTimer += dt;
+    }
 
     // Update camera to follow player smoothly
     camera.target.x = cutscenePlayer->getX() + cutscenePlayer->getAABB().width / 2.0f;
@@ -1718,7 +1746,6 @@ void VictoryState::updateScene1(float dt) {
       lighting->update(tunnelMap.get());
     }
 
-    stepAnimTimer += dt;
     // 15 steps ~ 2.5s - 3.0s
     if (stepAnimTimer >= 3.0f) {
       currentScene = EndingScene::SCENE2_DESERT_FALL;
@@ -2774,8 +2801,11 @@ void TransitionState::enter() {
 
   physics = std::make_unique<PhysicsSystem>(tunnelMap.get());
   player = std::make_unique<Player>(
-      16 * 32.0f, 11 * 32.0f,
+      16 * 32.0f + 8.0f, 11 * 32.0f + 8.0f,
       GameManager::getInstance()->getSelectedCharacter());
+  player->setTileMap(tunnelMap.get());
+  player->startDoorSpawnAnim();
+
   lighting = std::make_unique<LightingSystem>(40, 15);
   // Lit up by 20% (0.20f) compared to normal caves
   lighting->setAmbientLight({0.35f, 0.35f, 0.45f});
@@ -2800,8 +2830,10 @@ void TransitionState::handleInput() {
 void TransitionState::update(float dt) {
   if (player && physics && tunnelMap) {
     player->update(dt);
-    player->applyGravity(dt);
-    physics->resolveEntityTileCollision(player.get());
+    if (!player->isDoorAnimPlaying()) {
+      player->applyGravity(dt);
+      physics->resolveEntityTileCollision(player.get());
+    }
     if (lighting) {
       lighting->clearLights();
     }
@@ -2819,23 +2851,41 @@ void TransitionState::update(float dt) {
                          4.5f + (flicker * 1.5f));
       lighting->update(tunnelMap.get());
     }
-    if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
-      Rectangle pRect = player->getAABB();
-      int tx = (pRect.x + pRect.width / 2) / tunnelMap->getTileSize();
-      int ty = (pRect.y + pRect.height / 2) / tunnelMap->getTileSize();
-      if (tx >= 0 && tx < tunnelMap->getWidth() && ty >= 0 &&
-          ty < tunnelMap->getHeight()) {
-        if (tunnelMap->getTile(tx, ty) == TileType::EXIT) {
-          GameManager::getInstance()->syncPlayerStats(
-              player->getHealth(), player->getBombs(), player->getRopes(),
-              player->getGold());
-          if (GameManager::getInstance()->getFloor() >= 3) {
-              game->changeState(GameStateType::VICTORY);
-          } else {
-              GameManager::getInstance()->nextFloor();
-              game->changeState(GameStateType::PLAY);
+    
+    // Exit door animation completion & check
+    if (player->isDoorAnimPlaying()) {
+      if (player->isDoorAnimFinished()) {
+        Rectangle pRect = player->getAABB();
+        int tx = (pRect.x + pRect.width / 2) / tunnelMap->getTileSize();
+        int ty = (pRect.y + pRect.height / 2) / tunnelMap->getTileSize();
+        if (tx >= 0 && tx < tunnelMap->getWidth() && ty >= 0 &&
+            ty < tunnelMap->getHeight()) {
+          if (tunnelMap->getTile(tx, ty) == TileType::EXIT) {
+            GameManager::getInstance()->syncPlayerStats(
+                player->getHealth(), player->getBombs(), player->getRopes(),
+                player->getGold());
+            if (GameManager::getInstance()->getFloor() >= 16) {
+                game->changeState(GameStateType::VICTORY);
+            } else {
+                GameManager::getInstance()->nextFloor();
+                game->changeState(GameStateType::PLAY);
+            }
+            return;
           }
-          return;
+        }
+      }
+    } else {
+      if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
+        Rectangle pRect = player->getAABB();
+        int tx = (pRect.x + pRect.width / 2) / tunnelMap->getTileSize();
+        int ty = (pRect.y + pRect.height / 2) / tunnelMap->getTileSize();
+        if (tx >= 0 && tx < tunnelMap->getWidth() && ty >= 0 &&
+            ty < tunnelMap->getHeight()) {
+          if (tunnelMap->getTile(tx, ty) == TileType::EXIT) {
+            float targetX = tx * 32.0f + 8.0f;
+            player->move(targetX - player->getX(), 0.0f);
+            player->startDoorEnterAnim();
+          }
         }
       }
     }

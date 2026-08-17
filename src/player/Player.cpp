@@ -37,6 +37,7 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     currentAnim = AnimState::IDLE;
     frameTimer = 0.0f;
     currentFrame = 0;
+    doorAnimFinished = false;
     isClimbing = false;
     frameRec = {0.0f, 0.0f, 80.0f, 80.0f};
     switch (type) {
@@ -77,7 +78,7 @@ Player::~Player() {
 }
 
 void Player::handleInput() {
-    if (isWhipping || !moveStrategy) return;
+    if (isWhipping || !moveStrategy || isDoorAnimPlaying()) return;
 
     bool onLadder = false;
     if (tileMap) {
@@ -217,7 +218,11 @@ void Player::update(float dt, Player* player) {
         }
     }
 
-    if (isClimbing) {
+    if (isDoorAnimPlaying()) {
+        vx = 0.0f;
+        vy = 0.0f;
+        gravity = 0.0f;
+    } else if (isClimbing) {
         bool onLadder = false;
         if (tileMap) {
             int tx = static_cast<int>((x + width / 2) / tileMap->getTileSize());
@@ -241,7 +246,9 @@ void Player::update(float dt, Player* player) {
     // ALWAYS apply gravity so the player constantly pushes into the floor.
     // This ensures physics->resolveEntityTileCollision() always detects the floor
     // and keeps isGrounded = true steadily, preventing the idle animation from flickering to FALL.
-    vy += (gravity * moveStrategy->getGravityScale()) * dt;
+    if (!isDoorAnimPlaying()) {
+        vy += (gravity * moveStrategy->getGravityScale()) * dt;
+    }
 
     float currentVx = vx;
     if (isSwimming) {
@@ -306,11 +313,14 @@ void Player::update(float dt, Player* player) {
         climbTimer = 0.0f;
     }
     
+    // Reset whip hitbox flag for the frame
     whipHitThisFrame = false;
     
     // Animation state machine
     AnimState newAnim = AnimState::IDLE;
-    if (!isAlive()) {
+    if (isDoorAnimPlaying()) {
+        newAnim = currentAnim;
+    } else if (!isAlive()) {
         newAnim = AnimState::DEAD;
         vx = 0; // Stop moving when dead
     } else if (isWhipping) {
@@ -450,12 +460,34 @@ void Player::update(float dt, Player* player) {
             colOffset = 0;
             frameDuration = 0.2f;
             break;
+        case AnimState::DOOR_SPAWN:
+            maxFrames = 6;
+            row = 5;
+            colOffset = 6;
+            frameDuration = 0.1f;
+            break;
+        case AnimState::DOOR_ENTER:
+            maxFrames = 6;
+            row = 5;
+            colOffset = 0;
+            frameDuration = 0.1f;
+            break;
     }
     
     if (frameTimer >= frameDuration) {
         frameTimer -= frameDuration; // Prevent dt leak!
         if (currentAnim == AnimState::LOOK_UP && currentFrame == maxFrames - 1) {
             // Stay on the last frame while holding up
+        } else if (currentAnim == AnimState::DOOR_SPAWN && currentFrame == maxFrames - 1) {
+            // Finished stepping out of entrance door
+            doorAnimFinished = true;
+            currentAnim = AnimState::IDLE;
+            currentFrame = 0;
+            row = 0;
+            colOffset = 0;
+        } else if (currentAnim == AnimState::DOOR_ENTER && currentFrame == maxFrames - 1) {
+            // Finished stepping into exit door (stay on dark last frame)
+            doorAnimFinished = true;
         } else if (currentAnim == AnimState::LOOK_UP_END && currentFrame == maxFrames - 1) {
             // Finished stopping look up, return to idle
             currentAnim = AnimState::IDLE;
@@ -481,11 +513,51 @@ void Player::update(float dt, Player* player) {
     frameRec.width = isFacingRight ? 80.0f : -80.0f;
 }
 
+void Player::startDoorSpawnAnim() {
+    currentAnim = AnimState::DOOR_SPAWN;
+    currentFrame = 0;
+    frameTimer = 0.0f;
+    doorAnimFinished = false;
+    vx = 0.0f;
+    vy = 0.0f;
+    isWhipping = false;
+    isClimbing = false;
+    isFacingRight = true;
+}
+
+void Player::startDoorEnterAnim() {
+    currentAnim = AnimState::DOOR_ENTER;
+    currentFrame = 0;
+    frameTimer = 0.0f;
+    doorAnimFinished = false;
+    vx = 0.0f;
+    vy = 0.0f;
+    isWhipping = false;
+    isClimbing = false;
+    isFacingRight = true;
+}
+
 void Player::render(float lightLevel) {
-    unsigned char tintVal = static_cast<unsigned char>(255.0f * lightLevel);
-    Color tint = { tintVal, tintVal, tintVal, 255 };
+    float doorFactor = 1.0f;
+    if (currentAnim == AnimState::DOOR_SPAWN) {
+        float prog = (currentFrame + (frameTimer / 0.1f)) / 6.0f;
+        if (prog < 0.0f) prog = 0.0f;
+        if (prog > 1.0f) prog = 1.0f;
+        doorFactor = prog;
+    } else if (currentAnim == AnimState::DOOR_ENTER) {
+        float prog = (currentFrame + (frameTimer / 0.1f)) / 6.0f;
+        if (prog < 0.0f) prog = 0.0f;
+        if (prog > 1.0f) prog = 1.0f;
+        doorFactor = 1.0f - prog;
+    }
+
+    unsigned char tintVal = static_cast<unsigned char>(255.0f * lightLevel * doorFactor);
+    unsigned char alphaVal = isDoorAnimPlaying() 
+        ? static_cast<unsigned char>(255.0f * std::min(1.0f, doorFactor * 1.25f))
+        : 255;
+    Color tint = { tintVal, tintVal, tintVal, alphaVal };
     
-    if (invincibilityTimer > 0.0f) {
+    if (invincibilityTimer > 0.0f && !isDoorAnimPlaying()) {
         tint.a = 128; // Flash effect
     }
     
