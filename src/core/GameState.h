@@ -201,6 +201,30 @@ public:
 };
 
 class VictoryState : public GameState {
+public:
+    enum class EndingScene {
+        SCENE1_TUNNEL,
+        SCENE2_DESERT_FALL,
+        SCENE3_TALLY,
+        SCENE4_BLACK_SCREEN,
+        SCENE5_SUMMARY
+    };
+
+    struct CutsceneActor {
+        Vector2 position = {0, 0};
+        Vector2 velocity = {0, 0};
+        float animTimer = 0.0f;
+        int animFrame = 0;
+        bool isFacingRight = true;
+    };
+
+    struct GemDrop {
+        Vector2 position = {0, 0};
+        Vector2 velocity = {0, 0};
+        int type = 0; // 0=gold, 1=emerald, 2=sapphire, 3=ruby
+        float rotation = 0.0f;
+    };
+
 private:
     int finalScore = 0;
     int finalFloor = 0;
@@ -208,7 +232,72 @@ private:
     int letterCount = 0;
     bool nameEntered = false;
     std::vector<HighScoreEntry> leaderboard;
+
+    // Redesigned cutscene states & assets
+    EndingScene currentScene = EndingScene::SCENE1_TUNNEL;
+    float sceneTimer = 0.0f;
+    int stepsTaken = 0;
+    float stepAnimTimer = 0.0f;
+    
+    CutsceneActor player;
+    CutsceneActor chest;
+    float chestScale = 1.0f;
+    
+    // Grid-based random sand for Scene 2 (width=40 tiles, height=5 rows)
+    int sandGrid[40][5];
+
+    // Asset Textures
+    Texture2D skyTex;
+    Texture2D mountainTex;
+    Texture2D sandTex;
+    Texture2D sand2Tex;
+    Texture2D sandTopTex;
+    Texture2D palmTreeTex;
+    Texture2D shrubTex;
+    Texture2D bigTreasureTex;
+    Texture2D playerSpriteSheet;
+    Texture2D templeTex;
+
+    // Scene 3 Tally fields
+    int tallyStatus = 0; 
+    float tallyTimer = 0.0f;
+    float currentTallyScore = 0.0f;
+    std::vector<GemDrop> gems;
+
+    float fadeAlpha = 0.0f;
+    float blackScreenTimer = 0.0f;
+
+    // Scene 1 Objects (same structure as TransitionState)
+    std::unique_ptr<Player> cutscenePlayer;
+    std::unique_ptr<PhysicsSystem> physics;
+    std::unique_ptr<TileMap> tunnelMap;
+    std::unique_ptr<LightingSystem> lighting;
+    std::unique_ptr<LiquidSimulator> lavaSim;
+
+    // Camera for Mode2D tracking
+    Camera2D camera = {0};
+
+    // Helper functions
+    void updateScene1(float dt);
+    void updateScene2(float dt);
+    void updateScene3(float dt);
+    void updateScene4(float dt);
+    void updateScene5(float dt);
+
+    void renderScene1();
+    void renderScene2();
+    void renderScene3();
+    void renderScene4();
+    void renderScene5();
+
 public:
+    VictoryState();
+    ~VictoryState() override;
+    VictoryState(const VictoryState&) = delete;
+    VictoryState& operator=(const VictoryState&) = delete;
+    VictoryState(VictoryState&&) = delete;
+    VictoryState& operator=(VictoryState&&) = delete;
+
     void enter() override;
     void exit() override;
     void handleInput() override;

@@ -70,9 +70,9 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempExitPos     = Vector2{0, 0};
 
     // Reset entity limits (Spelunky-DS style)
-    snakesLeft    = 5 + (floor - 1);
-    batsLeft      = 3 + (floor - 1);
-    spidersLeft   = 3 + (floor - 1);
+    snakesLeft    = 4 + (floor - 1);
+    batsLeft      = 2 + (floor - 1);
+    spidersLeft   = 2 + (floor - 1);
     cavemenLeft   = 3 + (floor - 1);
     skeletonsLeft = 3 + (floor - 1);
     damselsLeft   = 1;
@@ -694,15 +694,19 @@ void LevelGenerator::populateEntities(const int npcGrid[ROOM_HEIGHT][ROOM_WIDTH]
             break;
           }
           case 9: { // ArrowTrap Left
-            map->setTile(tx, ty, TileType::ARROW_TRAP_LEFT);
-            auto trap = EntityFactory::createTrap('<', px, py);
-            if (trap) tempTraps.push_back(std::move(trap));
+            if (GetRandomValue(1, 100) <= 5) {
+                map->setTile(tx, ty, TileType::ARROW_TRAP_LEFT);
+                auto trap = EntityFactory::createTrap('<', px, py);
+                if (trap) tempTraps.push_back(std::move(trap));
+            }
             break;
           }
           case 10: { // ArrowTrap Right
-            map->setTile(tx, ty, TileType::ARROW_TRAP_RIGHT);
-            auto trap = EntityFactory::createTrap('>', px, py);
-            if (trap) tempTraps.push_back(std::move(trap));
+            if (GetRandomValue(1, 100) <= 5) {
+                map->setTile(tx, ty, TileType::ARROW_TRAP_RIGHT);
+                auto trap = EntityFactory::createTrap('>', px, py);
+                if (trap) tempTraps.push_back(std::move(trap));
+            }
             break;
           }
           case 13: { // Shop Item
