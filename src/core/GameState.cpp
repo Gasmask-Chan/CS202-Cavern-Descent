@@ -2879,7 +2879,7 @@ void TransitionState::update(float dt) {
             GameManager::getInstance()->syncPlayerStats(
                 player->getHealth(), player->getBombs(), player->getRopes(),
                 player->getGold());
-            if (GameManager::getInstance()->getFloor() >= 16) {
+            if (GameManager::getInstance()->getFloor() >= 3) {
                 game->changeState(GameStateType::VICTORY);
             } else {
                 GameManager::getInstance()->nextFloor();
