@@ -516,6 +516,7 @@ void PlayState::enter() {
       tempLevel.playerSpawn.x, tempLevel.playerSpawn.y,
       GameManager::getInstance()->getSelectedCharacter());
   player->setTileMap(tempLevel.tileMap.get());
+  player->startDoorSpawnAnim();
 
   minimap = std::make_unique<Minimap>(tempLevel.exitPos);
 
@@ -1183,33 +1184,54 @@ void PlayState::update(float dt) {
       }
     }
 
-    // Exit and Chest interaction (requires manual UP+Y input)
-    if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
-      Rectangle pRect = player->getAABB();
-      
-      // 1. Check for Chests first
-      for (auto &item : tempLevel.items) {
-          if (item && item->getType() == ItemType::CHEST) {
-              if (physics->checkAABBOverlap(pRect, item->getAABB())) {
-                  item->activate(player.get());
-              }
-          }
-      }
-      
-      // 2. Check for Exit
-      int cx = pRect.x + pRect.width / 2;
-      int cy = pRect.y + pRect.height / 2;
-      int tx = cx / tempLevel.tileMap->getTileSize();
-      int ty = cy / tempLevel.tileMap->getTileSize();
+    // Exit door animation completion & check
+    if (player->isDoorAnimPlaying()) {
+      if (player->isDoorAnimFinished()) {
+        Rectangle pRect = player->getAABB();
+        int cx = pRect.x + pRect.width / 2;
+        int cy = pRect.y + pRect.height / 2;
+        int tx = cx / tempLevel.tileMap->getTileSize();
+        int ty = cy / tempLevel.tileMap->getTileSize();
 
-      if (tx >= 0 && tx < tempLevel.tileMap->getWidth() && ty >= 0 &&
-          ty < tempLevel.tileMap->getHeight()) {
-        if (tempLevel.tileMap->getTile(tx, ty) == TileType::EXIT) {
-          GameManager::getInstance()->syncPlayerStats(
-              player->getHealth(), player->getBombs(), player->getRopes(),
-              player->getGold());
-          game->changeState(GameStateType::TRANSITION);
-          return;
+        if (tx >= 0 && tx < tempLevel.tileMap->getWidth() && ty >= 0 &&
+            ty < tempLevel.tileMap->getHeight()) {
+          if (tempLevel.tileMap->getTile(tx, ty) == TileType::EXIT) {
+            GameManager::getInstance()->syncPlayerStats(
+                player->getHealth(), player->getBombs(), player->getRopes(),
+                player->getGold());
+            game->changeState(GameStateType::TRANSITION);
+            return;
+          }
+        }
+      }
+    } else {
+      // Exit and Chest interaction (requires manual UP+Y input)
+      if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
+        Rectangle pRect = player->getAABB();
+        
+        // 1. Check for Chests first
+        for (auto &item : tempLevel.items) {
+            if (item && item->getType() == ItemType::CHEST) {
+                if (physics->checkAABBOverlap(pRect, item->getAABB())) {
+                    item->activate(player.get());
+                }
+            }
+        }
+
+        // 2. Check for Exit
+        int cx = pRect.x + pRect.width / 2;
+        int cy = pRect.y + pRect.height / 2;
+        int tx = cx / tempLevel.tileMap->getTileSize();
+        int ty = cy / tempLevel.tileMap->getTileSize();
+
+        if (tx >= 0 && tx < tempLevel.tileMap->getWidth() && ty >= 0 &&
+            ty < tempLevel.tileMap->getHeight()) {
+          if (tempLevel.tileMap->getTile(tx, ty) == TileType::EXIT) {
+            // Horizontally snap player to center of the exit door
+            float targetX = tx * 32.0f + 8.0f;
+            player->move(targetX - player->getX(), 0.0f);
+            player->startDoorEnterAnim();
+          }
         }
       }
     }
@@ -1518,21 +1540,134 @@ void GameOverState::render() {
 =========================VICTORY=======================
 =======================================================
 */
+VictoryState::VictoryState() = default;
+VictoryState::~VictoryState() = default;
 
 void VictoryState::enter() {
   AudioManager::getInstance()->playBGM("mVictory");
   finalScore = GameManager::getInstance()->getScore();
+  if (finalScore <= 0) {
+    finalScore = GetRandomValue(65000, 195000); // Random score for test
+  }
   finalFloor = GameManager::getInstance()->getFloor();
+  if (finalFloor <= 0) {
+    finalFloor = 16;
+  }
   nameEntered = false;
   letterCount = 0;
   nameInput[0] = '\0';
+
+  currentScene = EndingScene::SCENE1_TUNNEL;
+  sceneTimer = 0.0f;
+  stepsTaken = 0;
+  stepAnimTimer = 0.0f;
+
+  // 1. Build TunnelMap 60x30 matching TransitionState structure with temple tiles
+  tunnelMap = std::make_unique<TileMap>(60, 30, 32);
+  for (int y = 0; y < 30; y++) {
+    for (int x = 0; x < 60; x++) {
+      tunnelMap->setTile(x, y, TileType::TEMPLE_ROCK);
+    }
+  }
+  // Tunnel opens from x = 10 to 59 (x = 0..9 is the solid left wall)
+  for (int y = 8; y <= 11; y++) {
+    for (int x = 10; x < 60; x++) {
+      tunnelMap->setTile(x, y, TileType::NOTHING);
+    }
+  }
+  // Entrance door on the left wall at x = 10, y = 11
+  tunnelMap->setTile(10, 11, TileType::ENTRANCE);
+
+  // Floor is row 12 (walkway)
+  for (int x = 10; x < 60; x++) {
+    tunnelMap->setTile(x, 12, TileType::TEMPLE_ROCK);
+  }
+  // Row 13 is empty space (cách 1 hàng trống)
+  for (int x = 10; x < 60; x++) {
+    tunnelMap->setTile(x, 13, TileType::NOTHING);
+  }
+  // Rows 14 to 29 are empty space for Lava (render lava all the way down)
+  for (int y = 14; y < 30; y++) {
+    for (int x = 0; x < 60; x++) {
+      tunnelMap->setTile(x, y, TileType::NOTHING);
+    }
+  }
+
+  tunnelMap->setTileset(EntityFactory::getTexture("assets/tilemaps/gfx_cavebg.png"));
+  tunnelMap->setJungleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_junglebg.png"));
+  tunnelMap->setTempleTileset(EntityFactory::getTexture("assets/tilemaps/gfx_templebg.png"));
+  tunnelMap->setRopeTexture(EntityFactory::getTexture("assets/sprites/8x8/gfx_blood_rock_rope_poof.png"));
+
+  lavaSim = std::make_unique<LiquidSimulator>(tunnelMap.get());
+  for (int y = 14; y < 30; y++) {
+    for (int x = 0; x < 60; x++) {
+      lavaSim->addLiquid(x, y, 255, LiquidType::LAVA);
+    }
+  }
+
+  physics = std::make_unique<PhysicsSystem>(tunnelMap.get());
+  cutscenePlayer = std::make_unique<Player>(
+      10 * 32.0f + 8.0f, 11 * 32.0f + 8.0f,
+      GameManager::getInstance()->getSelectedCharacter());
+  cutscenePlayer->setTileMap(tunnelMap.get());
+  cutscenePlayer->startDoorSpawnAnim();
+
+  lighting = std::make_unique<LightingSystem>(60, 30);
+  lighting->setAmbientLight({0.35f, 0.35f, 0.45f});
+
+  camera.target = {(10 * 32.0f + 16.0f), (10 * 32.0f)};
+  camera.offset = {(float)GetScreenWidth() / 2.0f, (float)GetScreenHeight() / 2.0f};
+  camera.rotation = 0.0f;
+  camera.zoom = 2.0f;
+
+  for (int x = 0; x < 40; x++) {
+    for (int y = 0; y < 10; y++) {
+      sandGrid[x][y] = GetRandomValue(0, 1);
+    }
+  }
+
+  CharacterType charType = GameManager::getInstance()->getSelectedCharacter();
+  std::string playerTexPath = "assets/characters/explorer.png";
+  if (charType == CharacterType::NINJA) {
+      playerTexPath = "assets/characters/ninja.png";
+  } else if (charType == CharacterType::TANK) {
+      playerTexPath = "assets/characters/tank.png";
+  }
+  playerSpriteSheet = EntityFactory::getTexture(playerTexPath);
+
+  skyTex = EntityFactory::getTexture("assets/ending/sEnd2BG.png");
+  mountainTex = EntityFactory::getTexture("assets/ending/sBGEnd3.png");
+  sandTex = EntityFactory::getTexture("assets/ending/sDesert.png");
+  sand2Tex = EntityFactory::getTexture("assets/ending/sDesert2.png");
+  sandTopTex = EntityFactory::getTexture("assets/ending/sDesertTop.png");
+  palmTreeTex = EntityFactory::getTexture("assets/ending/sPalmTree.png");
+  shrubTex = EntityFactory::getTexture("assets/ending/sShrub.png");
+  bigTreasureTex = EntityFactory::getTexture("assets/ending/sBigTreasure.png");
+
+  tallyStatus = 0;
+  tallyTimer = 0.0f;
+  currentTallyScore = 0.0f;
+  gems.clear();
+  fadeAlpha = 0.0f;
+  blackScreenTimer = 0.0f;
 }
 
 void VictoryState::exit() {
-    AudioManager::getInstance()->stopBGM();
+  AudioManager::getInstance()->stopBGM();
 }
 
 void VictoryState::handleInput() {
+  if (currentScene != EndingScene::SCENE5_SUMMARY) {
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER)) {
+      currentScene = EndingScene::SCENE5_SUMMARY;
+      sceneTimer = 0.0f;
+      nameEntered = false;
+      letterCount = 0;
+      nameInput[0] = '\0';
+    }
+    return;
+  }
+
   if (!nameEntered) {
     int key = GetCharPressed();
     while (key > 0) {
@@ -1568,9 +1703,413 @@ void VictoryState::handleInput() {
   }
 }
 
-void VictoryState::update(float dt) {}
+void VictoryState::update(float dt) {
+  sceneTimer += dt;
+
+  switch (currentScene) {
+    case EndingScene::SCENE1_TUNNEL:
+      updateScene1(dt);
+      break;
+    case EndingScene::SCENE2_DESERT_FALL:
+      updateScene2(dt);
+      break;
+    case EndingScene::SCENE3_TALLY:
+      updateScene3(dt);
+      break;
+    case EndingScene::SCENE4_BLACK_SCREEN:
+      updateScene4(dt);
+      break;
+    case EndingScene::SCENE5_SUMMARY:
+      updateScene5(dt);
+      break;
+  }
+}
+
+void VictoryState::updateScene1(float dt) {
+  if (cutscenePlayer && physics && tunnelMap) {
+    if (cutscenePlayer->isDoorAnimPlaying()) {
+      cutscenePlayer->update(dt, cutscenePlayer.get());
+    } else {
+      // Automatically walk right at 175px/s
+      cutscenePlayer->setVelocity(175.0f, cutscenePlayer->getVelocityY());
+      cutscenePlayer->update(dt, cutscenePlayer.get());
+      cutscenePlayer->applyGravity(dt);
+      physics->resolveEntityTileCollision(cutscenePlayer.get());
+      stepAnimTimer += dt;
+    }
+
+    // Update camera to follow player smoothly
+    camera.target.x = cutscenePlayer->getX() + cutscenePlayer->getAABB().width / 2.0f;
+    camera.target.y = 10 * 32.0f; // Lock Y axis to tunnel center
+
+    if (lavaSim) {
+      lavaSim->update(dt);
+    }
+
+    if (lighting) {
+      lighting->clearLights();
+      float trueX = (cutscenePlayer->getX() + cutscenePlayer->getAABB().width / 2.0f) /
+                    tunnelMap->getTileSize();
+      float trueY = (cutscenePlayer->getY() + cutscenePlayer->getAABB().height / 2.0f) /
+                    tunnelMap->getTileSize();
+      double time = GetTime();
+      float flicker = std::sin(time * 12.0) * 0.02f;
+      flicker += std::sin(time * 23.0) * 0.015f;
+      Vector3 torchColor = {0.95f + flicker, (0.95f + flicker) * 0.9f, (0.95f + flicker) * 0.6f};
+      lighting->addLight(trueX, trueY, torchColor,
+                         4.5f + (flicker * 1.5f));
+      lighting->update(tunnelMap.get());
+    }
+
+    // 15 steps ~ 2.5s - 3.0s
+    if (stepAnimTimer >= 3.0f) {
+      currentScene = EndingScene::SCENE2_DESERT_FALL;
+      sceneTimer = 0.0f;
+      tallyStatus = 0;
+      tallyTimer = 0.0f;
+      player.position = { 540.0f, -100.0f }; // Start falling in the horizontal center
+      player.velocity = { 0.0f, 0.0f };
+      player.isFacingRight = true;
+      chest.position = { 660.0f, -128.0f };
+      chest.velocity = { 0.0f, 0.0f };
+    }
+  }
+}
+
+void VictoryState::updateScene2(float dt) {
+  if (tallyStatus == 0) {
+    player.velocity.y += 1000.0f * dt;
+    player.position.y += player.velocity.y * dt;
+    if (player.position.y >= 520.0f) {
+      player.position.y = 520.0f;
+      player.velocity.y = 0.0f;
+      AudioManager::getInstance()->playSFX("xland");
+      tallyStatus = 1;
+      tallyTimer = 0.0f;
+    }
+  }
+  else if (tallyStatus == 1) {
+    tallyTimer += dt;
+    if (tallyTimer >= 2.0f) {
+      tallyStatus = 2;
+      chest.position = { 660.0f, -128.0f };
+      chest.velocity = { 0.0f, 0.0f };
+    }
+  }
+  else if (tallyStatus == 2) {
+    chest.velocity.y += 1000.0f * dt;
+    chest.position.y += chest.velocity.y * dt;
+    
+    // So target chest y coordinate is 520 - 128 = 392.
+    if (chest.position.y >= 392.0f) {
+      chest.position.y = 392.0f;
+      chest.velocity.y = 0.0f;
+      AudioManager::getInstance()->playSFX("xtfall"); // Heavy fall SFX
+      
+      // Make player bounce!
+      player.velocity.y = -450.0f;
+      tallyStatus = 3;
+    }
+  }
+  else if (tallyStatus == 3) {
+    player.velocity.y += 1000.0f * dt;
+    player.position.y += player.velocity.y * dt;
+    
+    if (player.position.y >= 520.0f) {
+      player.position.y = 520.0f;
+      player.velocity.y = 0.0f;
+      AudioManager::getInstance()->playSFX("xland");
+      tallyStatus = 4;
+      tallyTimer = 0.0f;
+    }
+  }
+  else if (tallyStatus == 4) {
+    tallyTimer += dt;
+    if (tallyTimer >= 0.5f) {
+      currentScene = EndingScene::SCENE3_TALLY;
+      sceneTimer = 0.0f;
+      tallyStatus = 0;
+      tallyTimer = 0.0f;
+      currentTallyScore = 0.0f;
+    }
+  }
+}
+
+void VictoryState::updateScene3(float dt) {
+  // Spawn gems periodically
+  int prevTick = (int)((sceneTimer - dt) * 10);
+  int currTick = (int)(sceneTimer * 10);
+  if (currTick > prevTick && tallyStatus >= 2 && tallyStatus < 5) {
+    GemDrop gem;
+    gem.position = { (float)GetRandomValue(50, 1230), -20.0f };
+    gem.velocity = { 0.0f, (float)GetRandomValue(300, 500) };
+    gem.type = GetRandomValue(0, 3);
+    gem.rotation = (float)GetRandomValue(0, 360);
+    gems.push_back(gem);
+  }
+
+  // Update gems
+  for (auto &gem : gems) {
+    gem.position.y += gem.velocity.y * dt;
+    gem.rotation += 180.0f * dt;
+  }
+  gems.erase(std::remove_if(gems.begin(), gems.end(), [](const GemDrop &g) {
+    return g.position.y > 750.0f;
+  }), gems.end());
+
+  // Tally state transitions
+  if (tallyStatus == 0) {
+    tallyTimer += dt;
+    if (tallyTimer >= 1.0f) {
+      tallyStatus = 1;
+      tallyTimer = 0.0f;
+    }
+  }
+  else if (tallyStatus == 1) {
+    tallyTimer += dt;
+    if (tallyTimer >= 1.0f) {
+      tallyStatus = 2;
+      tallyTimer = 0.0f;
+    }
+  }
+  else if (tallyStatus == 2) {
+    if (finalScore <= 0) {
+      currentTallyScore = 0.0f;
+      tallyStatus = 3;
+      tallyTimer = 0.0f;
+    } else {
+      float prevScore = currentTallyScore;
+      currentTallyScore += finalScore * dt * 0.5f; // takes 2 seconds to tally up
+      if ((int)(currentTallyScore / 2500) > (int)(prevScore / 2500)) {
+        AudioManager::getInstance()->playSFX("xcoin");
+      }
+      if (currentTallyScore >= finalScore) {
+        currentTallyScore = finalScore;
+        AudioManager::getInstance()->playSFX("xgem");
+        tallyStatus = 3;
+        tallyTimer = 0.0f;
+      }
+    }
+  }
+  else if (tallyStatus == 3) {
+    tallyTimer += dt;
+    if (tallyTimer >= 1.0f) {
+      tallyStatus = 4;
+      tallyTimer = 0.0f;
+    }
+  }
+  else if (tallyStatus == 4) {
+    tallyTimer += dt;
+    if (tallyTimer >= 1.0f) {
+      tallyStatus = 5;
+      tallyTimer = 0.0f;
+    }
+  }
+  else if (tallyStatus == 5) {
+    fadeAlpha += dt * 0.5f; // 2 seconds fade
+    if (fadeAlpha >= 1.0f) {
+      fadeAlpha = 1.0f;
+      currentScene = EndingScene::SCENE4_BLACK_SCREEN;
+      sceneTimer = 0.0f;
+      blackScreenTimer = 0.0f;
+    }
+  }
+}
+
+void VictoryState::updateScene4(float dt) {
+  blackScreenTimer += dt;
+  if (blackScreenTimer >= 5.0f) {
+    currentScene = EndingScene::SCENE5_SUMMARY;
+    sceneTimer = 0.0f;
+    nameEntered = false;
+    letterCount = 0;
+    nameInput[0] = '\0';
+  }
+}
+
+void VictoryState::updateScene5(float dt) {
+}
 
 void VictoryState::render() {
+  switch (currentScene) {
+    case EndingScene::SCENE1_TUNNEL:
+      renderScene1();
+      break;
+    case EndingScene::SCENE2_DESERT_FALL:
+      renderScene2();
+      break;
+    case EndingScene::SCENE3_TALLY:
+      renderScene3();
+      break;
+    case EndingScene::SCENE4_BLACK_SCREEN:
+      renderScene4();
+      break;
+    case EndingScene::SCENE5_SUMMARY:
+      renderScene5();
+      break;
+  }
+}
+
+void VictoryState::renderScene1() {
+  ClearBackground(BLACK);
+  BeginMode2D(camera);
+  if (tunnelMap) {
+    tunnelMap->renderParallaxBackground(camera);
+    if (lighting)
+      tunnelMap->render(camera, lighting->getLightMap(), false);
+  }
+  if (lavaSim) {
+    lavaSim->render(camera);
+  }
+  if (cutscenePlayer) {
+    cutscenePlayer->render(1.0f);
+  }
+  if (tunnelMap && lighting) {
+    tunnelMap->render(camera, lighting->getLightMap(), true);
+  }
+  EndMode2D();
+}
+
+void VictoryState::renderScene2() {
+  ClearBackground(BLACK);
+  
+  // 1. Sky: Vibrant blue sky gradient from top to mountain line (y=0 to y=520)
+  DrawRectangleGradientV(0, 0, 1280, 520, Color{ 50, 120, 210, 255 }, Color{ 140, 185, 230, 255 });
+  
+  // Draw clean sky texture overlay from sEnd2BG.png (y=40..130) for authentic Spelunky clouds/sky
+  DrawTexturePro(skyTex, { 0.0f, 40.0f, 640.0f, 95.0f }, { 0.0f, 0.0f, 1280.0f, 520.0f }, { 0.0f, 0.0f }, 0.0f, Color{ 255, 255, 255, 220 });
+
+  // 2. Mountains (sBGEnd3.png)
+  float mountW = 480.0f * 2.0f;
+  float mountH = 112.0f * 2.0f;
+  float mountY = 520.0f - mountH + 8.0f; // Align mountain base with sand surface
+  for (float mx = 0.0f; mx < 1280.0f; mx += mountW) {
+    DrawTexturePro(mountainTex, { 0.0f, 0.0f, 480.0f, 112.0f }, { mx, mountY, mountW, mountH }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  }
+  
+  // 3. Solid Sand Base (no black gaps anywhere!)
+  DrawRectangle(0, 520, 1280, 200, Color{ 251, 213, 98, 255 });
+  
+  // Sand Tiles Pattern
+  for (int ty = 0; ty < 7; ty++) {
+    for (int tx = 0; tx < 40; tx++) {
+      Texture2D tex = (sandGrid[tx][ty % 5] == 0) ? sandTex : sand2Tex;
+      DrawTexturePro(tex, { 0.0f, 0.0f, 16.0f, 16.0f }, { (float)tx * 32.0f, 520.0f + (float)ty * 32.0f, 32.0f, 32.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+    }
+  }
+
+  // Sand Top Dune Waves (sDesertTop with source {0, 12, 16, 4} mapped directly on top of y=520)
+  for (int tx = 0; tx < 40; tx++) {
+    DrawTexturePro(sandTopTex, { 0.0f, 12.0f, 16.0f, 4.0f }, { (float)tx * 32.0f, 520.0f - 8.0f, 32.0f, 8.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  }
+  
+  // 4. Large Palm Trees (Scaled up)
+  DrawTexturePro(palmTreeTex, { 0.0f, 0.0f, 32.0f, 128.0f }, { 10.0f, 520.0f - 420.0f, 110.0f, 420.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  DrawTexturePro(palmTreeTex, { 0.0f, 0.0f, -32.0f, 128.0f }, { 1160.0f, 520.0f - 420.0f, 110.0f, 420.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  
+  // 5. Large Shrubs (Scaled up)
+  DrawTexturePro(shrubTex, { 0.0f, 0.0f, 16.0f, 16.0f }, { 110.0f, 520.0f - 60.0f, 60.0f, 60.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  DrawTexturePro(shrubTex, { 0.0f, 0.0f, -16.0f, 16.0f }, { 1110.0f, 520.0f - 60.0f, 60.0f, 60.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  
+  // 6. Big Treasure (Center-Right at x=660)
+  if (currentScene == EndingScene::SCENE3_TALLY || (currentScene == EndingScene::SCENE2_DESERT_FALL && tallyStatus >= 2)) {
+    float chestY = (currentScene == EndingScene::SCENE3_TALLY) ? 392.0f : chest.position.y;
+    DrawTexturePro(bigTreasureTex, { 0.0f, 0.0f, 32.0f, 32.0f }, { 660.0f, chestY, 128.0f, 128.0f }, { 0.0f, 0.0f }, 0.0f, WHITE);
+  }
+  
+  // 7. Player (Center-Left at x=540, scaled 2x to 80x80)
+  if (playerSpriteSheet.id != 0) {
+    int row = 0;
+    int col = 0;
+    float playerY = player.position.y;
+    if (currentScene == EndingScene::SCENE2_DESERT_FALL) {
+      if (tallyStatus == 0) { // falling
+        row = 9;
+        col = 1;
+      } else if (tallyStatus == 1) { // stunned
+        row = 2;
+        col = 3;
+      } else if (tallyStatus == 3) { // jumping/bouncing
+        row = 9;
+        col = 0;
+      } else { // standing
+        row = 0;
+        col = 0;
+      }
+    } else { // Scene 3 (Tally) and onwards: player stands firmly on the ground next to treasure
+      row = 0;
+      col = 0;
+      playerY = 520.0f;
+    }
+    float srcW = player.isFacingRight ? 80.0f : -80.0f;
+    Rectangle src = { col * 80.0f, row * 80.0f, srcW, 80.0f };
+    Rectangle dest = { player.position.x - 40.0f, playerY - 70.0f, 80.0f, 80.0f };
+    DrawTexturePro(playerSpriteSheet, src, dest, {0, 0}, 0.0f, WHITE);
+  }
+}
+
+void VictoryState::renderScene3() {
+  renderScene2();
+  
+  // Gems rain
+  Texture2D rubiesTex = EntityFactory::getTexture("assets/sprites/8x8/gfx_rubies.png");
+  Texture2D goldTex = EntityFactory::getTexture("assets/sprites/8x8/gold.png");
+  for (const auto &gem : gems) {
+    if (gem.type == 0) {
+      DrawTexturePro(goldTex, { 0.0f, 0.0f, 8.0f, 8.0f }, { gem.position.x, gem.position.y, 24.0f, 24.0f }, { 12.0f, 12.0f }, gem.rotation, WHITE);
+    } else {
+      int col = gem.type - 1;
+      DrawTexturePro(rubiesTex, { col * 8.0f, 0.0f, 8.0f, 8.0f }, { gem.position.x, gem.position.y, 24.0f, 24.0f }, { 12.0f, 12.0f }, gem.rotation, WHITE);
+    }
+  }
+  
+  // Draw Tally Scoreboard Panel in upper center
+  float boardW = 620.0f;
+  float boardH = 240.0f;
+  float boardX = (GetScreenWidth() - boardW) / 2.0f;
+  float boardY = 45.0f;
+
+  // Background panel with rounded corners and border
+  DrawRectangleRounded({ boardX - 4, boardY - 4, boardW + 8, boardH + 8 }, 0.08f, 6, Color{ 30, 18, 10, 240 });
+  DrawRectangleRounded({ boardX, boardY, boardW, boardH }, 0.08f, 6, Color{ 15, 12, 10, 220 });
+  DrawRectangleRoundedLines({ boardX, boardY, boardW, boardH }, 0.08f, 6, Color{ 220, 175, 45, 255 });
+
+  // Draw Tally UI texts inside the board
+  if (tallyStatus >= 0) {
+    drawCenteredText("YOU MADE IT!", boardY + 20, 42.0f, GOLD);
+  }
+  if (tallyStatus >= 1) {
+    drawCenteredText("FINAL SCORE:", boardY + 75, 24.0f, WHITE);
+  }
+  if (tallyStatus >= 2) {
+    drawCenteredText(TextFormat("%d", (int)currentTallyScore), boardY + 110, 36.0f, YELLOW);
+  }
+  if (tallyStatus >= 3) {
+    srand(finalScore);
+    int randomTimeTotal = 180 + (rand() % 240);
+    int tallyMinutes = randomTimeTotal / 60;
+    int tallySeconds = randomTimeTotal % 60;
+    drawCenteredText(TextFormat("TIME: %02d:%02d", tallyMinutes, tallySeconds), boardY + 160, 24.0f, WHITE);
+  }
+  if (tallyStatus >= 4) {
+    srand(finalScore);
+    rand();
+    int tallyKills = 10 + (rand() % 35);
+    drawCenteredText(TextFormat("KILLS: %d", tallyKills), boardY + 195, 24.0f, WHITE);
+  }
+  
+  // Black fade overlay
+  if (fadeAlpha > 0.0f) {
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), ColorAlpha(BLACK, fadeAlpha));
+  }
+}
+
+void VictoryState::renderScene4() {
+  ClearBackground(BLACK);
+  drawCenteredText("you shall be remembered as hero", GetScreenHeight() / 2 - 14, 28.0f, WHITE);
+}
+
+void VictoryState::renderScene5() {
   ClearBackground(BLACK);
   MenuBackground::render();
 
@@ -2277,8 +2816,11 @@ void TransitionState::enter() {
 
   physics = std::make_unique<PhysicsSystem>(tunnelMap.get());
   player = std::make_unique<Player>(
-      16 * 32.0f, 11 * 32.0f,
+      16 * 32.0f + 8.0f, 11 * 32.0f + 8.0f,
       GameManager::getInstance()->getSelectedCharacter());
+  player->setTileMap(tunnelMap.get());
+  player->startDoorSpawnAnim();
+
   lighting = std::make_unique<LightingSystem>(40, 15);
   // Lit up by 20% (0.20f) compared to normal caves
   lighting->setAmbientLight({0.35f, 0.35f, 0.45f});
@@ -2303,8 +2845,10 @@ void TransitionState::handleInput() {
 void TransitionState::update(float dt) {
   if (player && physics && tunnelMap) {
     player->update(dt);
-    player->applyGravity(dt);
-    physics->resolveEntityTileCollision(player.get());
+    if (!player->isDoorAnimPlaying()) {
+      player->applyGravity(dt);
+      physics->resolveEntityTileCollision(player.get());
+    }
     if (lighting) {
       lighting->clearLights();
     }
@@ -2322,23 +2866,41 @@ void TransitionState::update(float dt) {
                          4.5f + (flicker * 1.5f));
       lighting->update(tunnelMap.get());
     }
-    if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
-      Rectangle pRect = player->getAABB();
-      int tx = (pRect.x + pRect.width / 2) / tunnelMap->getTileSize();
-      int ty = (pRect.y + pRect.height / 2) / tunnelMap->getTileSize();
-      if (tx >= 0 && tx < tunnelMap->getWidth() && ty >= 0 &&
-          ty < tunnelMap->getHeight()) {
-        if (tunnelMap->getTile(tx, ty) == TileType::EXIT) {
-          GameManager::getInstance()->syncPlayerStats(
-              player->getHealth(), player->getBombs(), player->getRopes(),
-              player->getGold());
-          if (GameManager::getInstance()->getFloor() >= 3) {
-              game->changeState(GameStateType::VICTORY);
-          } else {
-              GameManager::getInstance()->nextFloor();
-              game->changeState(GameStateType::PLAY);
+    
+    // Exit door animation completion & check
+    if (player->isDoorAnimPlaying()) {
+      if (player->isDoorAnimFinished()) {
+        Rectangle pRect = player->getAABB();
+        int tx = (pRect.x + pRect.width / 2) / tunnelMap->getTileSize();
+        int ty = (pRect.y + pRect.height / 2) / tunnelMap->getTileSize();
+        if (tx >= 0 && tx < tunnelMap->getWidth() && ty >= 0 &&
+            ty < tunnelMap->getHeight()) {
+          if (tunnelMap->getTile(tx, ty) == TileType::EXIT) {
+            GameManager::getInstance()->syncPlayerStats(
+                player->getHealth(), player->getBombs(), player->getRopes(),
+                player->getGold());
+            if (GameManager::getInstance()->getFloor() >= 16) {
+                game->changeState(GameStateType::VICTORY);
+            } else {
+                GameManager::getInstance()->nextFloor();
+                game->changeState(GameStateType::PLAY);
+            }
+            return;
           }
-          return;
+        }
+      }
+    } else {
+      if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
+        Rectangle pRect = player->getAABB();
+        int tx = (pRect.x + pRect.width / 2) / tunnelMap->getTileSize();
+        int ty = (pRect.y + pRect.height / 2) / tunnelMap->getTileSize();
+        if (tx >= 0 && tx < tunnelMap->getWidth() && ty >= 0 &&
+            ty < tunnelMap->getHeight()) {
+          if (tunnelMap->getTile(tx, ty) == TileType::EXIT) {
+            float targetX = tx * 32.0f + 8.0f;
+            player->move(targetX - player->getX(), 0.0f);
+            player->startDoorEnterAnim();
+          }
         }
       }
     }

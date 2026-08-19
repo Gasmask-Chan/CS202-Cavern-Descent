@@ -37,10 +37,11 @@ private:
     int bubbleTimer;
 
     // Animation state
-    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP, CLIMB, SWIM, DEAD } currentAnim;
+    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP, CLIMB, SWIM, DEAD, DOOR_SPAWN, DOOR_ENTER } currentAnim;
     float frameTimer;
     int currentFrame;
     Rectangle frameRec;
+    bool doorAnimFinished;
 
 public:
     Player(float x, float y, CharacterType type);
@@ -64,6 +65,11 @@ public:
     bool isInvincible() const { return invincibilityTimer > 0.0f; }
     void whipAttack();
     void setMovementStrategy(std::unique_ptr<MovementStrategy> s);
+
+    void startDoorSpawnAnim();
+    void startDoorEnterAnim();
+    bool isDoorAnimPlaying() const { return currentAnim == AnimState::DOOR_SPAWN || currentAnim == AnimState::DOOR_ENTER; }
+    bool isDoorAnimFinished() const { return doorAnimFinished; }
 
     /**
      * @brief Sets the tile map reference for the player, allowing interaction with the environment (e.g., breaking blocks).

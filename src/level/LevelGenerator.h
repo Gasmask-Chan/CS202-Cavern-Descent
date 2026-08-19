@@ -53,8 +53,8 @@ private:
 
     // Spelunky-DS style global entity limits per level
     int snakesLeft   = 4;
-    int batsLeft     = 4;
-    int spidersLeft  = 4;
+    int batsLeft     = 2;
+    int spidersLeft  = 2;
     int cavemenLeft  = 3;
     int skeletonsLeft= 3;
     int damselsLeft  = 1;
