@@ -69,6 +69,7 @@ public:
     void setSelectedCharacter(CharacterType type);
 
     float getGhostTimer();
+    void setGhostTimer(float timer);
 
     /**
      * @brief Decrements `ghostTimer` by `dt`. Returns `true` when timer reaches zero (signals ghost spawn). Timer stops decrementing once ghost is active.

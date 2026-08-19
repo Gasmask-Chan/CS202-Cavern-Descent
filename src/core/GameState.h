@@ -123,7 +123,6 @@ private:
     float cameraShakeTimer;
     float cameraShakeIntensity;
     
-    float ghostTimer;
     bool ghostSpawned;
     float deathTimer;
     

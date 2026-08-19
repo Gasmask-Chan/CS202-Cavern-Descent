@@ -540,7 +540,6 @@ void PlayState::enter() {
 
   camera.target = Vector2{player->getX(), player->getY()};
 
-  ghostTimer = 0.0f;
   ghostSpawned = false;
 
   cameraShakeTimer = 0.0f;
@@ -552,12 +551,20 @@ void PlayState::enter() {
   shop->initializeFromItems(tempLevel.items,
                             GameManager::getInstance()->getFloor());
 
+  if (tempLevel.modifier == FloorModifier::CURSED_FLOOR) {
+    tempLevel.difficulty.treasureValueMultiplier *= 2;
+    tempLevel.difficulty.ghostTimerSeconds = std::max(30.0f, tempLevel.difficulty.ghostTimerSeconds / 2.0f);
+  }
+
+  GameManager::getInstance()->setGhostTimer(tempLevel.difficulty.ghostTimerSeconds);
+
   EventBus::getInstance()->clearListeners(EventType::EVENT_GOLD_COLLECTED);
   EventBus::getInstance()->subscribe(
       EventType::EVENT_GOLD_COLLECTED, [this](EventData data) {
         if (this->combo)
-          this->combo->onTreasureCollected(data.amount, data.worldX,
-                                           data.worldY);
+          this->combo->onTreasureCollected(
+              data.amount * this->tempLevel.difficulty.treasureValueMultiplier,
+              data.worldX, data.worldY);
       });
 
   EventBus::getInstance()->clearListeners(EventType::EVENT_ENEMY_KILLED);
@@ -772,8 +779,7 @@ void PlayState::handleInput() {
 
 void PlayState::update(float dt) {
   if (!ghostSpawned) {
-    ghostTimer += dt;
-    if (ghostTimer >= 60.0f) { // 1 minute
+    if (GameManager::getInstance()->tickGhostTimer(dt)) {
       ghostSpawned = true;
       auto ghost = EntityFactory::createGhost(player->getX() - 600.0f,
                                               player->getY() - 600.0f);

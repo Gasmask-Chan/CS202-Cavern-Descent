@@ -35,12 +35,8 @@ enum class FloorModifier {
 };
 
 struct DifficultyConfig {
-    int maxEnemiesPerRoom;
-    float trapDensity;
-    int treasureValueMultiplier;
-    float enemySpeedScale;
     float ghostTimerSeconds;
-    float liquidProbability;
+    int treasureValueMultiplier;
 };
 
 } // namespace Platformer
