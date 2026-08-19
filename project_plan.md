@@ -283,12 +283,30 @@ classDiagram
     }
 
     class VictoryState {
-        -MenuBackground* background
+        -int currentScene
+        -float sceneTimer
+        -float playerX
+        -float playerY
+        -float playerVx
+        -float playerVy
+        -float treasureY
+        -float treasureVy
+        -int finalScore
         +enter() void
         +exit() void
         +handleInput() void
         +update(float dt) void
         +render() void
+        -updateScene1(float dt) void
+        -updateScene2(float dt) void
+        -updateScene3(float dt) void
+        -updateScene4(float dt) void
+        -updateScene5(float dt) void
+        -renderScene1() void
+        -renderScene2() void
+        -renderScene3() void
+        -renderScene4() void
+        -renderScene5() void
     }
 
     Game "1" *-- "many" GameState : stateStack
@@ -355,7 +373,7 @@ classDiagram
 | `PlayState::update(dt)` | Executes the 21-step update order from §6.1: input → player → ghost → enemies → gravity → collisions → items → bombs → liquids → lighting → events → combo → camera → cleanup → death check. |
 | `PauseState::handleInput()` | Escape key → return to `PlayState`. Up/Down select Resume/Quit. Enter triggers selected option. |
 | `GameOverState::enter()` | Captures final score and floors reached from `GameManager`. Prompts for name entry for high score save. |
-| `VictoryState::enter()` | Instantiates `MenuBackground` for tiled rendering. Plays victory fanfare. Captures final score. |
+| `VictoryState::enter()` | Initiates the 5-phase cinematic ending sequence: (1) Temple Corridor automatic sprint and exit, (2) Desert sky fall and landing, (3) Giant Treasure Statue crash impact with vertical physics bounce, (4) Score summary and run statistics, and (5) Final epilogue screen ("You shall be remembered as a hero!"). Plays victory BGM and SFX. |
 | `EditorFileMenuState::enter()` | Presents native OS dialogs (via `tinyfiledialogs`) to select "Play Custom", "New Level", or "Open Level". Handles native file path selection. |
 | `EditorState::enter()` | Creates `LevelEditor` instance. Initializes empty tilemap or loads selected `.lvl`. Shows tile/entity palette UI. |
 
