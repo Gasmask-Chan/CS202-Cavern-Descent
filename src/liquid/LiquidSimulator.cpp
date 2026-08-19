@@ -5,7 +5,7 @@
 namespace Platformer {
 
 LiquidSimulator::LiquidSimulator(TileMap *map)
-    : tileMap(map), isWaterDirty(false) {
+    : tileMap(map) {
   width = map->getWidth();
   height = map->getHeight();
   hasLiquid.resize(height, std::vector<bool>(width, false));
@@ -99,7 +99,6 @@ void LiquidSimulator::update(float dt) {
 
     typeGrid[y][x] = LiquidType::NONE;
     blocksDestroyed++;
-    isWaterDirty = true;
   }
 
   if (blocksDestroyed == 0) {
@@ -131,7 +130,6 @@ void LiquidSimulator::addLiquid(int gx, int gy, uint8_t amount,
     isSpurtBlock[gy][gx] = true;
     spurtTimer[gy][gx] = (float)GetRandomValue(60, 180) / 60.0f;
   }
-  isWaterDirty = true;
   checkLiquid = true;
 }
 
@@ -141,7 +139,6 @@ void LiquidSimulator::removeLiquid(int gx, int gy) {
   if (hasLiquid[gy][gx]) {
       hasLiquid[gy][gx] = false;
       typeGrid[gy][gx] = LiquidType::NONE;
-      isWaterDirty = true;
       checkLiquid = true;
   }
 }
@@ -255,7 +252,6 @@ void LiquidSimulator::applyFloodedFloorModifier(int bottomRows,
 }
 
 void LiquidSimulator::onTerrainDestroyed(EventData data) {
-  isWaterDirty = true;
   checkLiquid = true;
 }
 

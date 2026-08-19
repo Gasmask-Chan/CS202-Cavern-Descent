@@ -55,9 +55,6 @@ private:
     int snakesLeft   = 4;
     int batsLeft     = 2;
     int spidersLeft  = 2;
-    int cavemenLeft  = 3;
-    int skeletonsLeft= 3;
-    int damselsLeft  = 1;
     int spikesLeft   = 4;
     int lastPlacement = 3; // cooldown counter to avoid clustering
 

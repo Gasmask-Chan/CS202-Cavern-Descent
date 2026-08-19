@@ -65,6 +65,10 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempItems.clear();
     tempTraps.clear();
     tempDecorations.clear();
+    tempEnemies.reserve(32);
+    tempItems.reserve(32);
+    tempTraps.reserve(32);
+    tempDecorations.reserve(32);
     level.initialLiquids.clear();
     tempPlayerSpawn = Vector2{0, 0};
     tempExitPos     = Vector2{0, 0};
@@ -73,9 +77,6 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     snakesLeft    = 4 + (floor - 1);
     batsLeft      = 2 + (floor - 1);
     spidersLeft   = 2 + (floor - 1);
-    cavemenLeft   = 3 + (floor - 1);
-    skeletonsLeft = 3 + (floor - 1);
-    damselsLeft   = 1;
     spikesLeft    = 4;
     lastPlacement = 3;
 
