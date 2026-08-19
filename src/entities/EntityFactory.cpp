@@ -52,6 +52,13 @@ void EntityFactory::preloadTextures() {
     getTexture("assets/tilemaps/gfx_templebg.png");
 }
 
+void EntityFactory::unloadTextures() {
+    for (auto& pair : textureCache) {
+        UnloadTexture(pair.second);
+    }
+    textureCache.clear();
+}
+
 std::unique_ptr<DynamicEntity> EntityFactory::createEnemy(char code, float x, float y) {
     std::string texBatSnake = "assets/sprites/16x16/gfx_bat_snake_jetpack.png";
     std::string texSpider = "assets/sprites/16x16/gfx_spider_skeleton.png";

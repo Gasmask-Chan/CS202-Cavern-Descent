@@ -1,5 +1,6 @@
 #include "Game.h"
 #include "../audio/AudioManager.h"
+#include "../entities/EntityFactory.h"
 
 namespace Platformer {
 
@@ -55,6 +56,7 @@ void Game::init() {
     audio->loadSFX("xpush", "assets/audio/sfx/xpush.wav");
     audio->loadSFX("xhurt", "assets/audio/sfx/xhurt.wav");
     audio->loadSFX("xdie", "assets/audio/sfx/xdie.wav");
+    audio->loadSFX("xhit", "assets/audio/sfx/xhit.wav");
     audio->loadSFX("xkiss", "assets/audio/sfx/xkiss.wav");
     audio->loadSFX("xletsexplore", "assets/audio/sfx/xletsexplore.wav");
     audio->loadSFX("xbat", "assets/audio/sfx/xbat.wav");
@@ -146,13 +148,15 @@ void Game::render() {
 }
 
 void Game::cleanup() {
-    for (auto state : stateStack) {
-        state->exit();
-        delete state;
+    while (!stateStack.empty()) {
+        GameState* s = stateStack.back();
+        stateStack.pop_back();
+        s->exit();
+        delete s;
     }
-    stateStack.clear();
     
     UnloadFont(globalFont);
+    EntityFactory::unloadTextures();
 
     CloseWindow();
 }
@@ -171,16 +175,18 @@ void Game::applyPendingStateChanges() {
     if (pendingAction == StateAction::NONE) return;
 
     if (pendingAction == StateAction::CHANGE) {
-        for (auto s : stateStack) {
+        while (!stateStack.empty()) {
+            GameState* s = stateStack.back();
+            stateStack.pop_back();
             s->exit();
             delete s;
         }
-        stateStack.clear();
     } else if (pendingAction == StateAction::POP) {
         if (!stateStack.empty()) {
-            stateStack.back()->exit();
-            delete stateStack.back();
+            GameState* s = stateStack.back();
             stateStack.pop_back();
+            s->exit();
+            delete s;
         }
         pendingAction = StateAction::NONE;
         return; // Don't push a new state

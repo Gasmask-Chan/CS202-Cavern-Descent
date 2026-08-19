@@ -16,6 +16,7 @@ class EntityFactory {
 public:
     static Texture2D getTexture(const std::string& path);
     static void preloadTextures();
+    static void unloadTextures();
 
     /**
      * @brief Creates an enemy entity based on the character code.

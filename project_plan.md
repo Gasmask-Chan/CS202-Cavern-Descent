@@ -1,4 +1,4 @@
-# CS202 Final Project — Game Design Document
+# CS202 Final Project Report
 ## *Cavern Descent*: A Spelunky-Inspired 2D Roguelike Platformer
 
 > [!NOTE]
@@ -9,7 +9,9 @@
 
 ---
 
-## 1. Feature Justification Table (Max Grade Focus)
+## 1. Introduction & Project Overview
+
+This document serves as the final academic project report for **Cavern Descent**. Below is the feature checklist fulfilling the CS202 rubric:
 
 The CS202 rubric scores the standard 4-person Mario project across three tiers:
 
@@ -64,245 +66,39 @@ These cover every item in the base **Functionality** and **Design & Implementati
 
 ---
 
-## 2. Core Game Loop & Mechanics
 
-### 2.1 Permadeath Loop
+## 2. Object-Oriented Programming (OOP) Principles
 
-```text
-MAIN MENU → Select Character → Generate Floor 1
-  ↓
-GAMEPLAY LOOP:
-  Explore dark caves with torch light
-  → Collect Treasure (combo multiplier ticking!)
-  → Avoid/Fight Enemies & Traps
-  → Navigate water/lava
-  → Find Exit before Ghost spawns!
-  → Descend to Next Floor (difficulty ↑, maybe a floor modifier!)
-  ↓
-DEATH → Game Over Screen → Show Score → Return to MAIN MENU
-```
+The Cavern Descent codebase heavily leverages fundamental OOP principles to maintain a clean, extensible, and modular architecture.
 
-### 2.2 Procedural Generation (Graph Algorithm) + Difficulty Scaling
+### Encapsulation
+Data hiding is enforced across the engine. All classes (e.g., `Player`, `GameManager`) keep their member variables private or protected. Interaction with state occurs strictly through public getter/setter methods or behavioral triggers (e.g., `takeDamage(int dmg)`, `collectGold(int amount)`). This prevents systems like `PhysicsSystem` from directly mutating `Player::health`, ensuring that side effects (like emitting blood particles or checking death states) are always safely executed.
 
-Each floor is a **4×4 macro-grid** of 16 room slots:
+### Abstraction
+Complex underlying systems are abstracted behind simple interfaces. For instance, the `LightingSystem` exposes a single `renderLightMask()` method. The game loop does not need to know about the recursive shadowcasting math or the float-grid blending; it only calls the public interface. Similarly, `GameState` abstracts the complexity of different game modes (Menu, Play, Pause) behind unified `update()` and `render()` virtual calls.
 
-```text
-[R00] [R01] [R02] [R03]      ← Player spawns in a top-row room
-[R04] [R05] [R06] [R07]
-[R08] [R09] [R10] [R11]
-[R12] [R13] [R14] [R15]      ← Exit placed in a bottom-row room
-```
+### Inheritance
+We use deep inheritance hierarchies to share common behavior while allowing specialization:
+- **Entity Hierarchy:** `Entity` (base) -> `DynamicEntity` (adds physics) -> `Player` / `Enemy`.
+- **State Hierarchy:** `GameState` (abstract base) -> `MenuState`, `PlayState`, `EditorState` (concrete implementations).
+- **Item Hierarchy:** `Item` (base) -> `BombItem`, `RopeItem`, `Treasure` (concrete items overriding the virtual `activate()` method).
 
-**Algorithm — Golden Path Generation:**
-
-1. **Macro Grid Walk:** Model the 4×4 grid as a 2D array (`RoomRole macroGrid[4][4]`). Start at a random top-row cell.
-2. **Random Walk:** Loop until reaching the bottom row: 80% chance to move left/right, 20% chance to drop down. Edges force a drop down. The traversed cells form the **Golden Path**.
-3. **BFS Validation:** After room population, BFS from spawn to exit on the tile grid confirms reachability with platformer physics constraints (jump height, gravity).
-4. **Room Template Instantiation:** To generate the actual geometry, each room slot loads a C++ `uint8_t` array (a "Template"). Each template represents a grid of exactly **10x8 tiles**. Since the macro grid is 4x4 rooms, the final playable level is exactly **40x32 tiles**. The numbers in the array are IDs from 0 to 42 (e.g., 0 = Air, 1 = Dirt Block, 4 = Wooden Platform), directly matching our master spritesheet. Note: We use a python script (`fix_templates.py`) to post-process these matrices during development to ensure each room contains a maximum of 1 enemy per type, and no enclosed dead-ends.
-
-**Integrated Difficulty Scaling (per floor):**
-
-```text
-Floor  | Enemy Spawn Rate | Trap Density | Treasure Value | Enemy Speed | Ghost Timer
--------|------------------|-------------|----------------|-------------|------------
- 1–3   |      60%         |    Low      |     Low        |    1.0×     |   180s
- 4–6   |      70%         |   Medium    |    Medium      |    1.2×     |   150s
- 7–9   |      85%         |    High     |     High       |    1.5×     |   120s
-```
-
-**Data Structures:**
-- `RoomRole macroGrid[4][4]` — 2D array tracking room roles.
-- `std::vector<std::vector<uint8_t>>` — room template grids defined in C++ arrays.
-- `std::queue<int>` — BFS validation queue.
-
-### 2.3 Block Destruction (Standard) vs. Bomb Destruction (Advanced)
-
-**Standard — Whip/Attack (S11):** Player whips single `TileType::CRACKED` blocks to break them and reveal items. One tile at a time. Mario-equivalent brick breaking.
-
-**Advanced — Bomb Area Destruction (A5):** Bombs detonate with a **3×3 blast radius**, clearing all solid tiles. Cascading effects:
-- Liquid floods into newly opened space (A7 system notified).
-- Lighting recalculates for changed tile opacity (A6 system notified).
-- Both triggered via Observer pattern (EventBus).
-
-### 2.4 Dynamic Lighting & Shadow Casting (A6)
-
-The cave is **dark by default**. The player carries a torch that casts light. Walls block light, creating real-time shadows.
-
-**Algorithm — Recursive Shadowcasting (8-octant):**
-
-```text
-For each of 8 octants around the light source:
-  1. Scan outward row-by-row from origin
-  2. Check each cell for wall (opaque)
-  3. Wall found → narrow scan's start/end slope to create shadow
-  4. Transparent cell after wall → recurse with remaining arc
-  5. Light intensity = inverse-square falloff by distance
-```
-
-**Light Sources:**
-- **Player torch:** Primary light. Radius affected by "Dark Floor" modifier (A10).
-- **Bomb flash:** Brief, intense, wide-radius burst.
-- **Lava glow:** Lava tiles emit dim, warm, constant light.
-- **Shop lantern:** Ambient warm light in shop rooms.
-
-All sources additively blended into a 2D float grid → `ColorTint(tileColor, lightLevel)` in Raylib.
-
-### 2.5 Liquid Simulation (A7)
-
-Water and lava simulated using the **Spelunky Classic Cascade Drainage** algorithm overlaying the tile map.
-
-**Cascade Drainage Rules:**
-
-```text
-1. The Alarm Bell: When terrain is destroyed by an explosion, a global alarm (checkLiquid = true) rings.
-2. Hole Detection: For every liquid block in the lake, if its Left, Right, or Bottom neighbor is empty (air), it marks itself for destruction.
-3. The Cascade: At the end of the frame, marked blocks instantly destroy themselves and spawn a Drip particle.
-4. Domino Effect: On the next frame, the blocks behind them are now exposed, so they destroy themselves. The lake rapidly drains frame-by-frame until empty.
-```
-
-**Interactions:**
-- **Water:** Slows player by 50%. Drowns enemies at depth threshold.
-- **Lava:** Continuous damage. Emits light into lighting system. 25% chance to hide a secret "Spurt" trigger that erupts flames when the player is near!
-
-### 2.6 The Nemesis Ghost (A9)
-
-Each floor has a **countdown timer** (e.g., 180 seconds on floor 1, decreasing per floor). When the timer reaches zero:
-
-1. A ghost entity spawns at a random map edge.
-2. It **passes through all walls** (ignores tile collision entirely).
-3. It **flies directly toward the player's position** every frame.
-4. Contact is **instant death**.
-5. It has a ghostly semi-transparent render with a trailing particle effect.
-
-```cpp
-// Extremely simple update logic:
-void NemesisGhost::update(float dt) {
-    float dx = player->getX() - x;
-    float dy = player->getY() - y;
-    float dist = std::sqrt(dx * dx + dy * dy);
-    if (dist > 0.01f) {
-        vx = (dx / dist) * flySpeed;
-        vy = (dy / dist) * flySpeed;
-    }
-    x += vx * dt;
-    y += vy * dt;
-    // NO tile collision resolution — ghost passes through everything
-}
-```
-
-> [!TIP]
-> This is the Spelunky "Ghost" mechanic. Extremely high visual drama for ~30 lines of code. Encourages fast play and creates tense demo moments.
-
-### 2.7 Level Environmental Modifiers (A10)
-
-When generating a floor, the `LevelGenerator` rolls a random **floor modifier** (30% chance per floor, never on floor 1):
-
-| Modifier | Effect | Implementation |
-|---|---|---|
-| **Dark Floor** | Player torch radius reduced by 50% | Set `playerTorch->setRadius(baseRadius * 0.5f)` |
-| **Flooded Floor** | Bottom 2 tile rows pre-filled with water | `liquidSim->addLiquid(x, bottomRows, 255, WATER)` in generation |
-| **Cursed Floor** | All treasure values doubled, but ghost timer halved | Modify `DifficultyConfig` fields |
-
-Applied as a `FloorModifier` enum stored in `PlayState/GameState`. Each modifier tweaks an existing system's parameter — no new systems needed.
-
-### 2.8 Minimap with Fog of War (A3)
-
-A small **4×4 grid overlay** rendered in a corner of the HUD, representing the 16 room slots of the current floor. Rooms start blacked out (fog of war) and are revealed as the player enters them.
-
-```text
-[?] [?] [?] [?]       [██] [  ] [??] [??]
-[?] [?] [?] [?]  →    [██] [🔦] [??] [??]    (🔦 = player's current room)
-[?] [?] [?] [?]       [??] [??] [??] [??]
-[?] [?] [?] [?]       [??] [??] [🚪] [??]    (🚪 = exit, shown once found)
-```
-
-**Implementation (~50 lines):**
-- `bool visited[4][4]` — set to `true` when player enters a room.
-- Current room highlighted with player icon.
-- Exit room marked once the player discovers it.
-- Golden-path rooms could be tinted differently for subtle guidance.
-- Rendered as small colored rectangles in the HUD layer (outside `BeginMode2D`).
-
-> [!TIP]
-> A staple of the roguelike genre. Always visible on screen during gameplay — great for the demo video. Enhances exploration strategy with almost zero code.
-
-### 2.9 Treasure Combo Multiplier (A11)
-
-When the player collects a treasure:
-1. A **combo timer** (3 seconds) starts or resets.
-2. The **combo counter** increments (×2, ×3, ×4...).
-3. Gold gained = `baseValue × comboMultiplier`.
-4. A **floating text** (e.g., "+50 ×3!") rises from the treasure position and fades out.
-5. If the timer expires without another pickup, the combo resets to ×1.
-
-```cpp
-int ComboSystem::onTreasureCollected(int baseGold, float worldX, float worldY) {
-    comboTimer = COMBO_DURATION; // reset 3-second timer
-    comboCount++;
-    int multiplied = baseGold * comboCount;
-    spawnFloatingText("+" + std::to_string(multiplied) + " x" +
-                      std::to_string(comboCount) + "!",
-                      worldX, worldY, GOLD);
-    return multiplied;
-}
-```
-
-> [!TIP]
-> Very high "game juice" for ~50 lines of code. The floating text and multiplier number create satisfying visual feedback in the demo video.
-
-### 2.10 Enemy AI — State Machine (A2)
-
-Enemies use a simple state machine with direct movement — no pathfinding needed.
-
-- **IdleState:** Patrol a small area (bat drifts, snake walks back and forth, spider hangs). Transition to Chase if player enters detection radius.
-- **ChaseState:** Move directly toward player's X-position. Bats fly toward player. Snakes walk toward player, turn at ledges/walls. Spiders drop when player is below.
-- **ReturnState:** If player leaves detection range, return to original patrol position.
-
-### 2.11 Master Spritesheet Rendering
-
-To keep level design simple and authentic, we use a single master spritesheet (`gfx_cavebg.png`) containing 42 different tile textures (each originally 16x16 pixels). 
-
-1. **Direct ID Mapping:** Instead of complex autotiling math, our level generator places exact integer IDs (1-42) into the grid. The renderer simply maps ID `N` to the `N`th sprite on the sheet. For example:
-   - ID 1: Standard dirt block (`CAVE_ROCK`).
-   - ID 4: Platform that can be jumped through from below.
-   - ID 5-8: Decorative border dirt blocks.
-2. **Parallax Background:** A dark, repeating dirt background is rendered behind the cave using parallax scrolling with a `{80, 80, 80, 255}` tint to simulate depth of field and make the foreground tiles pop.
-3. **Zoom & Bounds:** The camera features a 2.0x zoom (making the 16x16 tiles appear as chunky 32x32 blocks). The 40x32 map is mathematically surrounded by infinite dirt bounds (`CAVE_ROCK`), which the camera lets the player partially see without falling off the edge.
+### Polymorphism
+Polymorphism allows our typed collections to process diverse objects uniformly without `dynamic_cast`. 
+- The `PlayState` manages a `std::vector<std::unique_ptr<DynamicEntity>>`. During the update loop, it simply calls `entity->update(dt)`. Because `update()` is a virtual function, C++ dynamically dispatches the call to the correct overridden method (e.g., `NemesisGhost::update` vs `Bat::update`).
+- The `EntityFactory` returns abstract `DynamicEntity*` pointers, allowing the level generator to blindly spawn various enemies without coupling to their concrete types.
 
 ---
 
-## 3. Design Patterns Integration
+## 3. Software Architecture (Class Diagrams)
 
-Exactly **5 design patterns**, each mapped to a concrete system:
+> [!NOTE]
+> **Pragmatic Design Tradeoffs:**
+> 1. **Monolithic `GameState.cpp`:** All game states (Play, Menu, Pause, etc.) are implemented in a single `GameState.cpp` file. While splitting this into 10 separate files is traditional, our 2-person team opted for a monolithic approach to avoid excessive header complexity and speed up compilation for shared systems.
+> 2. **`Spike` as an `Enemy`:** `Spike` inherits from `Enemy` rather than a static `Trap` base class. This is an intentional semantic compromise that allows the `LevelGenerator` to seamlessly spawn spikes alongside enemies and process them in the exact same collision loops without maintaining a separate "hazards" list. Spikes simply override `takeDamage()` to be indestructible.
 
-| Pattern | System | Implementation |
-|---|---|---|
-| **Singleton** | `GameManager` | Global game state (floor, score, lives). `GameManager::getInstance()`. Also `AudioManager`, `EventBus`. |
-| **Factory** | `EntityFactory` | Translates integer IDs (from the room templates) into `TileType` enums and spawns items/enemies at runtime via concrete subclass constructors. |
-| **State** | Enemy AI & Game Screens | Enemies: `EnemyState` → Idle/Chase/Return. Game: `GameState` → Menu/CharSelect/Play/Pause/GameOver/Editor. |
-| **Strategy** | Character Movement | `MovementStrategy` → Explorer (balanced), Ninja (high jump, fast), Tank (slow, high HP). Swapped at character select. |
-| **Observer** | Event System | `EventBus::subscribe/publish`. Events: bomb → terrain+lighting+liquid+audio; treasure pickup → combo system; ghost timer → spawn ghost; taking damage → spawn blood particles. |
 
-### Pattern Interaction Example
-
-```text
-Player throws a Bomb at a wall holding back lava
-  → Timer expires → Observer publishes EVENT_BOMB_EXPLODE
-  → TerrainSystem destroys 3×3 tiles and publishes EVENT_TERRAIN_DESTROYED
-  → LightingSystem creates ExplosionFlash
-  → LiquidSimulator wakes up and triggers Cascade Drainage
-  → AudioManager plays explosion SFX
-  → Meanwhile, combo timer is ticking...
-  → Player grabs treasure near the blast → ComboSystem: "×2!"
-  → Ghost timer hits zero → Observer publishes EVENT_GHOST_SPAWN
-  → NemesisGhost spawns, chasing through flooded cave!
-```
-
----
-
-## 4. Architecture & Modular Class Diagrams
-
-### 4.1 Core Engine Subsystem
+### 3.1 Core Engine Subsystem
 
 ```mermaid
 classDiagram
@@ -406,7 +202,7 @@ classDiagram
     }
 
     class PlayState {
-        -PlayState/GameState* levelManager
+        -PlayState* levelManager
         -Player* player
         -Camera2D camera
         -LightingSystem* lighting
@@ -555,7 +351,7 @@ classDiagram
 | `GameState::setGame(Game* g)` | Stores the owning `Game` pointer. Called by `Game::changeState()` and `Game::init()` immediately after creating a new state. |
 | `MenuState::enter()` | Loads menu background texture. Starts menu BGM via `AudioManager`. Sets `selectedOption = 0`. |
 | `MenuState::handleInput()` | Up/Down arrows change `selectedOption` (0=Start, 1=Editor, 2=Quit). Enter key triggers: 0→`game->changeState(GameStateType::CHAR_SELECT)`, 1→`game->changeState(GameStateType::EDITOR)`, 2→exit. |
-| `PlayState::enter()` | Creates `PlayState/GameState`, `PhysicsSystem`, `LightingSystem`, `LiquidSimulator`, `ComboSystem`, `Minimap`, `HUD`. Calls `levelManager->generateFloor(1)`. Starts zone BGM. |
+| `PlayState::enter()` | Creates `PlayState`, `PhysicsSystem`, `LightingSystem`, `LiquidSimulator`, `ComboSystem`, `Minimap`, `HUD`. Calls `levelManager->generateFloor(1)`. Starts zone BGM. |
 | `PlayState::update(dt)` | Executes the 21-step update order from §6.1: input → player → ghost → enemies → gravity → collisions → items → bombs → liquids → lighting → events → combo → camera → cleanup → death check. |
 | `PauseState::handleInput()` | Escape key → return to `PlayState`. Up/Down select Resume/Quit. Enter triggers selected option. |
 | `GameOverState::enter()` | Captures final score and floors reached from `GameManager`. Prompts for name entry for high score save. |
@@ -563,10 +359,10 @@ classDiagram
 | `EditorFileMenuState::enter()` | Presents native OS dialogs (via `tinyfiledialogs`) to select "Play Custom", "New Level", or "Open Level". Handles native file path selection. |
 | `EditorState::enter()` | Creates `LevelEditor` instance. Initializes empty tilemap or loads selected `.lvl`. Shows tile/entity palette UI. |
 
-### 4.2 Entity System
+### 3.2 Entity System
 
 > [!IMPORTANT]
-> **Typed ownership — no `dynamic_cast`.** `PlayState/GameState` stores entities in separate typed vectors (see §4.4). The game loop iterates each list directly. Collision is O(N²) across typed lists — sufficient for ~30–50 entities per level.
+> **Typed ownership — no `dynamic_cast`.** `PlayState` stores entities in separate typed vectors (see §4.4). The game loop iterates each list directly. Collision is O(N²) across typed lists — sufficient for ~30–50 entities per level.
 
 ```mermaid
 classDiagram
@@ -658,7 +454,21 @@ classDiagram
         +getIsWhipHitThisFrame() bool
         +getWhipHitbox() Rectangle
         +isAlive() bool
+        +startDoorSpawnAnim() void
+        +startDoorEnterAnim() void
+        +isDoorAnimPlaying() bool
+        +isDoorAnimFinished() bool
     }
+
+    class MovementStrategy {
+        <<interface>>
+        +virtual getMoveSpeed() float
+        +virtual getJumpForce() float
+        +virtual getMaxHealth() int
+        +virtual getGravityScale() float
+    }
+
+    
 
     class Enemy {
         #int health
@@ -686,6 +496,43 @@ classDiagram
         #updateSpriteRect() void
     }
 
+    class Item {
+        #ItemType type
+        #bool isCollected
+        +bool isShopItem
+        +Item(float x, float y, float w, float h, ItemType type)
+        +virtual activate(Player* player) bool
+        +virtual update(float dt) void
+        +virtual render(float lightLevel) void
+    }
+
+    class Chest {
+        -bool isOpened
+        +activate(Player* player) bool
+    }
+
+    class LootPickup {
+        -int value
+        +activate(Player* player) bool
+    }
+
+    class BombPickup {
+        -int amount
+        +activate(Player* player) bool
+    }
+
+    class Trap {
+        #int damage
+        +Trap(float x, float y, float w, float h, int dmg)
+        +virtual trigger() void
+    }
+
+    class ArrowTrap {
+        -bool hasFired
+        +trigger() void
+        +update(float dt) void
+    }
+
     class Bomb {
         -float fuseTimer
         -bool exploded
@@ -710,7 +557,7 @@ classDiagram
         +update(float dt) void
     }
 
-    note for Enemy "All Enemy subclasses and NemesisGhost\nreside in src/entities/enemies/"
+    note for Enemy "All Enemy subclasses and NemesisGhost<br/>reside in src/entities/enemies/"
 
     class Snake {
         -float patrolSpeed
@@ -735,8 +582,6 @@ classDiagram
         +render(float lightLevel) void
     }
 
-
-
     class RopeProjectile {
         -float startY
         -bool isUnfurling
@@ -751,7 +596,11 @@ classDiagram
 
     Entity <|-- DynamicEntity
     Entity <|-- Trap
-    Entity <|-- Item
+    DynamicEntity <|-- Item
+    Item <|-- Chest
+    Item <|-- LootPickup
+    Item <|-- BombPickup
+    Trap <|-- ArrowTrap
     DynamicEntity <|-- Player
     DynamicEntity <|-- Enemy
     DynamicEntity <|-- Bomb
@@ -763,6 +612,8 @@ classDiagram
     Enemy <|-- Spider
     Enemy <|-- NemesisGhost
     Player --> MovementStrategy : uses
+    
+    
     Enemy --> EnemyState : currentState
 ```
 
@@ -776,7 +627,7 @@ classDiagram
 | `render(float lightLevel)` | Virtual. Draws `sprite` texture at `(x, y)` tinted by `lightLevel` (0.0=black, 1.0=full brightness) using Raylib `DrawTextureEx` with `ColorTint`. |
 | `getAABB()` | Returns a Raylib `Rectangle{x, y, width, height}` representing the axis-aligned bounding box. Used by `PhysicsSystem` for all collision checks. |
 | `isAlive()` | Virtual. Returns `isActive` by default. Entities with `isActive == false` are removed during the cleanup step (step 20 in game loop). |
-| `destroy()` | Sets `isActive = false`. The entity remains in its vector until `PlayState/GameState::removeDeadEntities()` erases it. |
+| `destroy()` | Sets `isActive = false`. The entity remains in its vector until `PlayState::removeDeadEntities()` erases it. |
 
 **DynamicEntity**
 
@@ -793,9 +644,9 @@ classDiagram
 | `handleInput()` | Reads Raylib key states: A/D → set `vx` to `±moveStrategy->getMoveSpeed()`. Space (pressed) → if `isGrounded`, set `vy = -moveStrategy->getJumpForce()`. Space (released mid-jump) → cap `vy` at half jump force for variable jump height. Z → `whipAttack()`. X → `useBomb()`. C → `useRope()`. |
 | `update(float dt)` | Applies velocity: `x += vx * dt`, `y += vy * dt`. Decrements `invincibilityTimer` by `dt`. Updates animation frame based on state (idle/run/jump/fall). If `isSubmerged`, multiplies `vx` by 0.5 (water slow). |
 | `takeDamage(int dmg)` | If `invincibilityTimer > 0`, return (immune). Else: `health -= dmg`. Sets `invincibilityTimer = 1.5f` (1.5 seconds of i-frames). Publishes `EVENT_PLAYER_DAMAGED` to `EventBus`. If `health <= 0`, publishes `EVENT_PLAYER_DEATH`. |
-| `whipAttack()` | Calculates a 1-tile-wide attack rectangle in front of the player (direction based on `isFacingRight`). Checks if that grid cell is `TileType::CRACKED` → calls `PlayState/GameState::breakCrackedBlock()`. Also checks overlap with enemies in detection range → deals 1 damage. |
-| `useBomb()` | If `bombs > 0`: decrements `bombs`, creates a `Bomb` projectile entity at player position with a 3-second fuse timer, adds it to `dynamicEntities`. Returns `true`. Else returns `false`. |
-| `useRope()` | If `ropes > 0`: decrements `ropes`, creates a vertical `Rope` entity above the player (extends upward until hitting a solid tile). Player can grab and climb it. Returns `true`. Else returns `false`. |
+| `whipAttack()` | Freezes horizontal movement. Active hitbox generated at 0.15s - 0.20s (24x12 px). Destroys cracked blocks on TileMap (`xbreak` SFX). Renders whip wind-back behind player and lash-forward in front of player. |
+| `useBomb()` | If `bombs > 0`: decrements `bombs`, creates a `Bomb` projectile entity with inherited velocity + forward throw; 2.5s fuse timer. Bounces off walls/floors. Returns `true`. Else returns `false`. |
+| `useRope()` | If `ropes > 0`: decrements `ropes`, fires a `RopeProjectile` upward at -600 px/s. Returns `true`. Else returns `false`. |
 | `collectGold(int amount)` | Adds `amount` to `gold`. Publishes `EVENT_GOLD_COLLECTED` to `EventBus`. `AudioManager` plays coin SFX via observer subscription. |
 | `isAlive()` | Overrides `Entity::isAlive()`. Returns `health > 0`. Ensures that the player can safely play out a death animation without triggering further damage collisions from hazards like lava. |
 
@@ -811,29 +662,58 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `update(float dt)` | In IdleState: drifts in a sine-wave pattern around `originY` (`y = originY + sin(time * swoopAngle) * amplitude`). In ChaseState: flies directly toward player coordinates (`vx = dir.x * flySpeed`, `vy = dir.y * flySpeed`). Ignores ground/gravity — always flying. |
+| `handleIdle` | Hangs upside down on ceilings, zero gravity. |
+| `handleChase` | Flies directly toward player at 80 px/s. Water avoidance AI looks 5 frames ahead and redirects straight upward if water is detected. |
+| `handleReturn` | If Player distance > 9 tiles, flies straight up until hitting ceiling, then transitions back to Idle. |
 
 **Snake : Enemy**
 
 | Method | Behavior |
 |---|---|
-| `update(float dt)` | In IdleState: walks back and forth between `originX ± patrolRange`. Reverses direction at range limits or when encountering a wall/ledge. In ChaseState: walks toward player's X-position at `patrolSpeed * 1.5`. Turns around at walls and ledge edges (checks `!tileMap->isSolid(frontTile)` and `tileMap->isSolid(belowFrontTile)`). Gravity applies normally. |
+| `handleIdle` | Walks along floor at 40 px/s. Detects wall collisions, ledge drops (1 tile ahead and 1 below), and upcoming water bodies. Upon encountering obstacle/ledge/water, pauses for a random interval (0.5s - 1.5s) with vx = 0, then inverts direction. |
 
 **Spider : Enemy**
 
 | Method | Behavior |
 |---|---|
-| `update(float dt)` | In IdleState: hangs from ceiling at `originY`, motionless. In ChaseState: if player is directly below (within 2-tile X tolerance), sets `isDropping = true`, falls with gravity (`vy += gravity * dt`). After hitting the ground, waits 1 second, then slowly climbs back up to `originY` via `webLength` retraction (`y -= dropSpeed * 0.3 * dt`). |
+| `handleIdle` | Hangs from ceiling with zero gravity. Drops when player passes underneath within $\pm 64$px horizontally and $< 600$px vertically, enabling gravity (800 px/s²). |
+| `handleChase` | On landing, waits 1.0s - 2.5s, then executes an aggressive leap towards player with random velocity (vx: 100-300, vy: -600 to -300). Inverts jump velocity if landing trajectory hits water. |
 
 **NemesisGhost**
 
 | Method | Behavior |
 |---|---|
-| `update(float dt)` | If `!isSpawned`, return. Calculates direction vector from ghost position to player position. Normalizes it. Sets `vx = dir.x * flySpeed`, `vy = dir.y * flySpeed`. Updates position: `x += vx * dt`, `y += vy * dt`. **Does NOT call `PhysicsSystem` — passes through all walls.** Updates alpha pulse for ghostly flicker effect. |
-| `render(float lightLevel)` | Draws ghost sprite with semi-transparency (`alpha` oscillates between 0.5 and 0.9 via sine wave). Ignores `lightLevel` — ghost glows in the dark. Draws a trailing particle effect (3–5 fading afterimages at previous positions). |
-| `spawn(float startX, float startY)` | Sets `x = startX`, `y = startY`, `isSpawned = true`. Start position is a random map edge. Publishes `EVENT_GHOST_SPAWN` to `EventBus`. `AudioManager` plays ominous ghost SFX via observer. |
+| `handleChase` | Constantly homes in on player at 60 px/s. Relentless pursuit. |
+| `render` | Custom 16-frame multi-row spritesheet animation, rendered with semi-transparency (alpha 160) ignoring lighting. |
+| `updateSpriteRect` | Normalizes frames so the entire animation naturally faces RIGHT, applying global facing direction. |
 
-### 4.3 Strategy & State Patterns
+**Spike : Enemy**
+
+| Method | Behavior |
+|---|---|
+| `update` | Indestructible trap (999 HP). Checks player collision: only damages if player is falling onto it (`!isGrounded && vy > 10.0f`). |
+| `setBlood` | Switches sprite to bloody texture upon lethal damage. |
+
+**Flame : Enemy**
+
+| Method | Behavior |
+|---|---|
+| `update` | Fireball hazard launching from lava pits with initial $v_y = -400$ px/s, gravity 800 px/s², air resistance ($v_x \times 0.95$). Self-destructs upon hitting solid ground or ceilings. |
+| `render` | Self-illuminating (draws at full white brightness ignoring ambient light), rotates sprite towards velocity vector using `atan2`. |
+
+**ArrowTrap : Trap**
+
+| Method | Behavior |
+|---|---|
+| `updateTrap` | Invisible trap block performing line-of-sight raycasting up to 7 tiles horizontally. Triggers for Player, moving Enemies, moving thrown Bombs, and moving Items. On trigger, fires an `Arrow` at 800 px/s and plays `xarrowtrap` SFX. |
+
+**Arrow : DynamicEntity**
+
+| Method | Behavior |
+|---|---|
+| `update` | High-speed lethal projectile (800 px/s, 20 damage). Dynamic angle calculated from velocity and mapped to 16-directional rotational spritesheet. When hitting a wall, bounces back, loses lethality, and enables gravity. When hitting the floor, comes to rest and sticks into the ground (`_stuck = true`). |
+
+### 3.3 Strategy & State Patterns
 
 ```mermaid
 classDiagram
@@ -922,14 +802,14 @@ classDiagram
 | `ChaseState` | Sets chase speed to `enemy->patrolSpeed * 1.5`. Plays alert SFX. | Moves enemy directly toward player's position. Snake: walks toward player X, turns at ledges. Bat: flies toward player XY. Spider: drops if player is below. | Resets velocity. | Player leaves `detectionRange * 1.5` → `ReturnState` |
 | `ReturnState` | Records current position. Calculates direction to `enemy->getOrigin()`. | Moves enemy toward `(originX, originY)` at normal patrol speed. | — | Reached within 4px of origin → `IdleState` |
 
-### 4.4 Level Generation & Entity Ownership Subsystem
+### 3.4 Level Generation & Entity Ownership Subsystem
 
 > [!IMPORTANT]
 > **Typed ownership model.** `Player` stored as separate `unique_ptr`. Enemies in `dynamicEntities`. Items in `items`. Traps in `traps`. Ghost as separate `unique_ptr`. No `dynamic_cast` anywhere.
 
 ```mermaid
 classDiagram
-    class PlayState/GameState {
+    class PlayState {
         -TileMap* currentMap
         -LevelGenerator* generator
         -unique_ptr~Player~ player
@@ -940,8 +820,8 @@ classDiagram
         -int currentFloor
         -ZoneType currentZone
         -FloorModifier modifier
-        +PlayState/GameState()
-        +~PlayState/GameState()
+        +PlayState()
+        +~PlayState()
         +generateFloor(int floor) void
         +getTileMap() TileMap*
         +getPlayer() Player*
@@ -1028,8 +908,8 @@ classDiagram
         +isInBounds(int x, int y) bool
     }
 
-    PlayState/GameState --> TileMap
-    PlayState/GameState --> LevelGenerator
+    PlayState --> TileMap
+    PlayState --> LevelGenerator
     LevelGenerator --> RoomTemplate : loads many
     LevelGenerator --> DifficultyConfig
     LevelGenerator --> FloorModifier
@@ -1038,7 +918,7 @@ classDiagram
 
 #### Method Behavior Descriptions — Level Generation & Ownership
 
-**PlayState/GameState**
+**PlayState**
 
 | Method | Behavior |
 |---|---|
@@ -1074,7 +954,7 @@ classDiagram
 | `worldToGrid(float wx, float wy)` | Returns `Vec2i{(int)(wx / tileSize), (int)(wy / tileSize)}`. Converts pixel coordinates to grid indices. |
 | `gridToWorld(int gx, int gy)` | Returns `Vec2f{gx * tileSize, gy * tileSize}`. Converts grid indices to pixel coordinates (top-left corner of tile). |
 
-### 4.5 Dynamic Lighting Subsystem
+### 3.5 Dynamic Lighting Subsystem
 
 ```mermaid
 classDiagram
@@ -1116,7 +996,7 @@ classDiagram
 | `update(TileMap* map)` | Iterates all `LightSource`s in `sources`. For each source, it calculates the grid coordinates and invokes `castLight` for all 8 octants. |
 | `castLight(...)` | A highly optimized continuous floating-point shadowcasting algorithm. Uses angular visibility checks (`overlap / cell_width`) to generate anti-aliased soft shadows without grid snapping. Calculates inverse-square falloff and additively blends into `lightMap`. |
 
-### 4.6 Liquid Physics Subsystem
+### 3.6 Liquid Physics Subsystem
 
 ```mermaid
 classDiagram
@@ -1165,7 +1045,7 @@ classDiagram
 | `onTerrainDestroyed(EventData data)` | Subscribed to `EVENT_TERRAIN_DESTROYED`. When a bomb breaks a block, this triggers `checkLiquid = true` and `isWaterDirty = true` to wake up the Cascade algorithm and re-evaluate holes. |
 | `applyFloodedFloorModifier(int bottomRows)` | Fills the bottom `bottomRows` rows (typically 2) of the grid with `WATER`. Called once during floor generation when `FloorModifier::FLOODED_FLOOR` is active. |
 
-### 4.7 Physics & Items Subsystem
+### 3.7 Physics & Items Subsystem
 
 ```mermaid
 classDiagram
@@ -1290,7 +1170,7 @@ classDiagram
 | `Spike` (Enemy) | Static entity inheriting from Enemy instead of Trap. Ignores horizontal collision, deals instant kill damage (takeDamage(100)) only when Player falls onto it from above. Changes to a blood-stained sprite when dealing damage. Automatically snaps to the nearest ground floor during LevelGeneration using raycast. |
 | `ArrowTrap` | Has a directional facing (`facingRight`). Checks Line of Sight (using `TileMap::isSolid`) along the firing direction, and only triggers if there are no solid wall obstacles between the trap and the target. The trap itself is completely invisible and not rendered. |
 
-### 4.8 Support Systems (Minimap, Combo, Shop, Editor, HUD, EventBus)
+### 3.8 Support Systems (Minimap, Combo, Shop, Editor, HUD, EventBus)
 
 ```mermaid
 classDiagram
@@ -1430,18 +1310,21 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `onTreasureCollected(int baseGold, float wx, float wy)` | Resets `comboTimer = comboDuration` (3 seconds). Increments `comboCount`. Calculates `multiplied = baseGold * comboCount`. Calls `spawnFloatingText()` with text like "+50 ×3!" at world position `(wx, wy)`. Returns `multiplied` gold value to caller (`PlayState`) for `player->collectGold()`. |
-| `update(float dt)` | Decrements `comboTimer -= dt`. If timer reaches 0, resets `comboCount = 0` (combo broken). Iterates `floatingTexts`: for each, decrements `lifetime -= dt`, moves `y -= 30 * dt` (text floats upward), reduces `alpha`. Removes texts with `lifetime <= 0`. |
-| `render(Camera2D cam)` | Iterates `floatingTexts`. For each active text: draws the string at world position `(x, y)` with color faded by `alpha`. Uses `DrawText()` inside `BeginMode2D` so text moves with the camera. Font size scales with combo count (larger = bigger combo). |
+| `onTreasureCollected / onEnemyKilled` | Event subscriber callbacks. They call `addComboPoints()`. |
+| `addComboPoints(int basePoints, x, y)` | Computes `totalPoints = basePoints * currentMultiplier`. Invokes `GameManager::getInstance()->addScore(totalPoints)`. Spawns floating text with random jitter. Refreshes `comboTimer = 3.0f` and increments `currentMultiplier`. |
+| `update(float dt)` | Decrements `comboTimer -= dt`. If timer reaches 0, resets `currentMultiplier = 1` (combo broken). Iterates `floatingTexts`: for each, decrements `lifetime -= dt`, moves `y -= speed * dt` (text floats upward at 50 px/s), reduces `alpha`. Removes texts with `lifetime <= 0`. |
+| `render(Font font)` | World-space rendering pass (inside Mode2D). Draws active floating texts with alpha fading using custom font at size 13.0f. |
+| `renderHUD(Font font)` | Screen-space UI rendering pass. If multiplier > 1, draws centered "COMBO xN" text and an orange progress timer bar inside a dark gray track at screen bottom. |
 
 **ShopSystem**
 
 | Method | Behavior |
 |---|---|
-| `generateInventory(int floor)` | Clears `inventory`. Generates 3–4 random `ShopItem` entries. Base prices scale with floor number (`price = basePrice * (1 + floor * 0.2)`). Item types are randomly selected from the `ItemType` enum (bombs, ropes, health, etc.). Sets `isSold = false` for all. |
-| `attemptPurchase(Player* player, int index)` | Checks `player->getGold() >= inventory[index].price` and `!inventory[index].isSold`. If both true: deducts gold, creates the corresponding item effect (e.g., adds bombs), sets `isSold = true`, plays purchase SFX, returns `true`. Else plays error SFX, returns `false`. |
-| `render()` | Draws a semi-transparent overlay panel listing each `ShopItem` with name, price, and sold status. Selected item is highlighted. Uses screen-space coordinates (outside `BeginMode2D`). |
-| `isPlayerInShop()` | Returns `isActive`. Set to `true` when player enters a shop room trigger zone, `false` when they leave. |
+| `initializeFromItems(items, floor)` | Filters level items marked with `isShopItem == true` and `!isPickedUp()`. Applies price formula: `multiplier = 1.0 + (floor - 1) * 0.2`. Sets physical item pointer. |
+| `attemptPurchase(Player* player, int index)` | Checks bounds and `!item.isSold`. If `player->getGold() >= item.price`, clears `physicalItem->isShopItem = false`, calls `physicalItem->activate(player)`, and if successful, calls `player->spendGold(item.price)` and marks `isSold = true`. |
+| `handleInput(Player* player)` | Navigates selection using `KEY_UP`/`KEY_DOWN` (wrap-around). Confirms purchase on `KEY_ENTER`, `KEY_SPACE`, or `KEY_Z`. |
+| `render(Font font)` | Screen-space modal dialog drawing a dark semi-transparent panel with gold border, header "SHOP", selection cursor ">", item names, and prices or "SOLD" tags. |
+| `setPlayerInShop(bool)` | Toggles shop modal visibility. Set to true when player presses 'Y' inside the shopArea. |
 
 **LevelEditor**
 
@@ -1471,9 +1354,407 @@ classDiagram
 
 ---
 
-## 5. Tech Stack & Data Structures
 
-### 5.1 Core Technologies
+## 4. Game Loop & Data Flow
+
+
+### 4.1 Per-Frame Update Order (PlayState)
+
+> [!IMPORTANT]
+> Every step iterates a typed list directly — **no `dynamic_cast`**. Collision is O(N²). New systems (Ghost, Combo, Minimap, Modifiers) are trivially integrated.
+
+```text
+Step  Subsystem                     Iterates                     Reads → Writes
+──────────────────────────────────────────────────────────────────────────────────────
+ 1    Input                         —                            Keyboard → Player.inputFlags
+ 2    Player.update(dt)             —                            inputFlags, Strategy → vx, vy
+ 3    Player.whipAttack()           —                            Facing dir → break cracked tile
+ 4    Ghost timer tick              —                            dt → timer--; if 0 → spawnGhost()
+ 5    Ghost.update(dt)              —                            Player pos → ghost flies toward player
+ 6    Enemy AI (state machines)     dynamicEntities              Player pos → Enemy vx, vy, state
+ 7    Trap.update(dt)               traps                        Timers → arrow fire
+ 8    Apply gravity                 player + dynamicEntities     — → vy += gravity * dt
+ 9    Tile collisions               player + dynamicEntities     TileMap → position correction
+10    Entity-entity collisions      typed lists (O(N²))          AABBs → damage, knockback
+11    Item collection + combo       items                        Player AABB → combo, inventory
+12    Bomb detonation               —                            Timer → TileMap 3×3 mutation
+13    Liquid simulation (CA tick)   —                            liquidGrid → flow/spread
+14    Liquid-entity interaction     player + dynamicEntities     liquidGrid → speed mod, damage
+15    Light sources update          lights list                  dt → flicker, flash decay
+16    Lighting recalculate          lights list                  LightSources, TileMap → lightMap
+17    EventBus dispatch             —                            Queued events → subscriber effects
+18    Combo timer update            —                            dt → comboTimer, floating texts
+19    Camera update                 —                            Player pos → camera lerp
+20    Remove dead entities          all typed lists              isActive → erase dead
+21    Death / Exit check            —                            Player health/pos → state change
+```
+
+### 4.2 Render Order (PlayState)
+
+```text
+BeginDrawing()
+  ClearBackground(BLACK)
+
+  BeginMode2D(camera)
+    1. TileMap::render(lightMap)           — tiles tinted by light intensity
+    2. LiquidSimulator::render()           — translucent water/lava overlays
+    3. for trap in traps → render()        — spikes, arrow launchers
+    4. for item in items → render()        — treasure, crates, pickups
+    5. for de in dynamicEntities → render()— enemies (tinted by light)
+    6. Player::render()                    — player sprite (tinted by light)
+    7. NemesisGhost::render()              — semi-transparent ghost + trail
+    8. ComboSystem::render(cam)            — floating text ("+50 ×3!")
+  EndMode2D()
+
+   9. HUD::render()                        — health, bombs, ropes, gold, floor,
+                                              combo meter, modifier icon
+  10. Minimap::render()                     — 4×4 room grid with fog of war
+  11. ShopSystem::render() (if in shop)     — shop overlay
+EndDrawing()
+```
+
+---
+
+
+## 5. Design Patterns Integration
+
+
+Exactly **5 design patterns**, each mapped to a concrete system:
+
+| Pattern | System | Implementation |
+|---|---|---|
+| **Singleton** | `GameManager` | Global game state (floor, score, lives). `GameManager::getInstance()`. Also `AudioManager`, `EventBus`. |
+| **Factory** | `EntityFactory` | Translates integer IDs (from the room templates) into `TileType` enums and spawns items/enemies at runtime via concrete subclass constructors. |
+| **State** | Enemy AI & Game Screens | Enemies: `EnemyState` → Idle/Chase/Return. Game: `GameState` → Menu/CharSelect/Play/Pause/GameOver/Editor. |
+| **Strategy** | Character Movement | `MovementStrategy` → Explorer (balanced), Ninja (high jump, fast), Tank (slow, high HP). Swapped at character select. |
+| **Observer** | Event System | `EventBus::subscribe/publish`. Events: bomb → terrain+lighting+liquid+audio; treasure pickup → combo system; ghost timer → spawn ghost; taking damage → spawn blood particles. |
+
+### Pattern Interaction Example
+
+```text
+Player throws a Bomb at a wall holding back lava
+  → Timer expires → Observer publishes EVENT_BOMB_EXPLODE
+  → TerrainSystem destroys 3×3 tiles and publishes EVENT_TERRAIN_DESTROYED
+  → LightingSystem creates ExplosionFlash
+  → LiquidSimulator wakes up and triggers Cascade Drainage
+  → AudioManager plays explosion SFX
+  → Meanwhile, combo timer is ticking...
+  → Player grabs treasure near the blast → ComboSystem: "×2!"
+  → Ghost timer hits zero → Observer publishes EVENT_GHOST_SPAWN
+  → NemesisGhost spawns, chasing through flooded cave!
+```
+
+### 5.1 Sequence Diagrams for Design Patterns
+
+**1. Observer Pattern (EventBus)**
+```mermaid
+sequenceDiagram
+    participant B as Bomb
+    participant EB as EventBus
+    participant PS as PlayState
+    participant LS as LightingSystem
+    participant LqS as LiquidSimulator
+
+    B->>B: fuseTimer reaches 0
+    B->>EB: publish(EVENT_BOMB_EXPLODE, data)
+    EB-->>PS: trigger tile destruction & damage
+    EB-->>LS: spawnExplosionFlash(data)
+    EB-->>LqS: onTerrainDestroyed()
+    LqS->>LqS: set checkLiquid = true (Wake CA)
+```
+
+**2. State Pattern (Game & GameState)**
+```mermaid
+sequenceDiagram
+    participant G as Game
+    participant PS as PlayState
+    participant P as PauseState
+
+    G->>PS: handleInput()
+    PS->>G: pushState(PAUSE)
+    Note over G: Transition deferred to end of frame
+    G->>PS: update(dt)
+    G->>G: applyPendingStateChanges()
+    G->>P: enter()
+    G->>P: handleInput() (Next frame)
+    G->>P: update(dt)
+    G->>PS: render() (Background)
+    G->>P: render() (Overlay)
+```
+
+**3. Strategy Pattern (MovementStrategy)**
+```mermaid
+sequenceDiagram
+    participant GM as GameManager
+    participant P as Player
+    participant MS as MovementStrategy (Ninja)
+    
+    GM->>P: setSelectedCharacter(NINJA)
+    P->>MS: instantiate NinjaStrategy
+    P->>P: handleInput()
+    P->>MS: getMoveSpeed()
+    MS-->>P: returns 215.0f
+    P->>P: vx = 215.0f
+    P->>MS: getJumpForce()
+    MS-->>P: returns 480.0f
+    P->>P: vy = -480.0f
+```
+
+**4. Singleton Pattern (GameManager)**
+```mermaid
+sequenceDiagram
+    participant P as PlayState
+    participant GM as GameManager
+    
+    P->>GM: GameManager::getInstance()
+    alt First Call
+        GM->>GM: Instantiates static instance
+    end
+    GM-->>P: returns GameManager*
+    P->>GM: addScore(500)
+    GM->>GM: score += 500
+```
+
+**5. Factory Pattern (EntityFactory)**
+```mermaid
+sequenceDiagram
+    participant LG as LevelGenerator
+    participant EF as EntityFactory
+    participant S as Snake (Enemy)
+    participant B as Bat (Enemy)
+    
+    LG->>EF: createEnemy('S', x, y)
+    EF->>S: new Snake(x, y)
+    S-->>EF: returns Snake*
+    EF-->>LG: returns unique_ptr<DynamicEntity>
+    
+    LG->>EF: createEnemy('B', x, y)
+    EF->>B: new Bat(x, y)
+    B-->>EF: returns Bat*
+    EF-->>LG: returns unique_ptr<DynamicEntity>
+```
+
+---
+
+
+## 6. Core Algorithms & Subsystems
+
+
+### 6.1 Permadeath Loop
+
+```text
+MAIN MENU → Select Character → Generate Floor 1
+  ↓
+GAMEPLAY LOOP:
+  Explore dark caves with torch light
+  → Collect Treasure (combo multiplier ticking!)
+  → Avoid/Fight Enemies & Traps
+  → Navigate water/lava
+  → Find Exit before Ghost spawns!
+  → Descend to Next Floor (difficulty ↑, maybe a floor modifier!)
+  ↓
+DEATH → Game Over Screen → Show Score → Return to MAIN MENU
+```
+
+### 6.2 Procedural Generation (Graph Algorithm) + Difficulty Scaling
+
+Each floor is a **4×4 macro-grid** of 16 room slots:
+
+```text
+[R00] [R01] [R02] [R03]      ← Player spawns in a top-row room
+[R04] [R05] [R06] [R07]
+[R08] [R09] [R10] [R11]
+[R12] [R13] [R14] [R15]      ← Exit placed in a bottom-row room
+```
+
+**Algorithm — Golden Path Generation:**
+
+1. **Macro Grid Walk:** Model the 4×4 grid as a 2D array (`RoomRole macroGrid[4][4]`). Start at a random top-row cell.
+2. **Random Walk:** Loop until reaching the bottom row, carving a path horizontally or forcing a drop down. The traversed cells form the **Golden Path**.
+3. **Shop & Lake Placement:** The first adjacent closed room to the golden path is converted into a Shop. A Lake room is generated 70% of the time, carving a basin for water/lava.
+4. **Room Template Instantiation:** To generate the actual geometry, each room slot loads a C++ `uint8_t` array template. Each template represents a grid of exactly **10x10 tiles**. Since the macro grid is 4x4 rooms, the final playable level is exactly **40x40 tiles**. Tile IDs are dynamically remapped based on the Zone (Cave, Jungle, Temple). 
+5. **BFS Reachability Validation:** After room population, BFS from spawn to exit on the tile grid confirms reachability using state space `(x, y, jumpEnergy)` to ensure players can jump and climb to the exit. If it fails, the level is discarded and regenerated (up to 10 retries).
+
+**Integrated Difficulty Scaling (per floor):**
+
+```text
+Floor  | Enemy Spawn Rate | Trap Density | Treasure Value | Enemy Speed | Ghost Timer
+-------|------------------|-------------|----------------|-------------|------------
+ 1–3   |      60%         |    Low      |     Low        |    1.0×     |   180s
+ 4–6   |      70%         |   Medium    |    Medium      |    1.2×     |   150s
+ 7–9   |      85%         |    High     |     High       |    1.5×     |   120s
+```
+
+**Data Structures:**
+- `RoomRole macroGrid[4][4]` — 2D array tracking room roles.
+- `std::vector<std::vector<uint8_t>>` — room template grids defined in C++ arrays.
+- `std::queue<int>` — BFS validation queue.
+
+### 6.3 Block Destruction (Standard) vs. Bomb Destruction (Advanced)
+
+**Standard — Whip/Attack (S11):** Player whips single `TileType::CRACKED` blocks to break them and reveal items. One tile at a time. Mario-equivalent brick breaking.
+
+**Advanced — Bomb Area Destruction (A5):** Bombs detonate with a **3×3 blast radius**, clearing all solid tiles. Cascading effects:
+- Liquid floods into newly opened space (A7 system notified).
+- Lighting recalculates for changed tile opacity (A6 system notified).
+- Both triggered via Observer pattern (EventBus).
+
+### 6.4 Dynamic Lighting & Shadow Casting (A6)
+
+The cave is **dark by default**. The player carries a torch that casts light. Walls block light, creating real-time shadows.
+
+**Algorithm — Recursive Shadowcasting (8-octant):**
+
+```text
+For each of 8 octants around the light source:
+  1. Scan outward row-by-row from origin
+  2. Check each cell for wall (opaque)
+  3. Wall found → narrow scan's start/end slope to create shadow
+  4. Transparent cell after wall → recurse with remaining arc
+  5. Light intensity = inverse-square falloff by distance
+```
+
+**Light Sources:**
+- **Player torch:** Primary light. Radius affected by "Dark Floor" modifier (A10).
+- **Bomb flash:** Brief, intense, wide-radius burst.
+- **Lava glow:** Lava tiles emit dim, warm, constant light.
+- **Shop lantern:** Ambient warm light in shop rooms.
+
+All sources additively blended into a 2D float grid → `ColorTint(tileColor, lightLevel)` in Raylib.
+
+### 6.5 Liquid Simulation (A7)
+
+Water and lava simulated using the **Spelunky Classic Cascade Drainage** algorithm overlaying the tile map.
+
+**Cascade Drainage Rules:**
+
+```text
+1. The Alarm Bell: When terrain is destroyed by an explosion, a global alarm (checkLiquid = true) rings.
+2. Hole Detection: For every liquid block in the lake, if its Left, Right, or Bottom neighbor is empty (air), it marks itself for destruction.
+3. The Cascade: At the end of the frame, marked blocks instantly destroy themselves and spawn a Drip particle.
+4. Domino Effect: On the next frame, the blocks behind them are now exposed, so they destroy themselves. The lake rapidly drains frame-by-frame until empty.
+```
+
+**Interactions:**
+- **Water:** Slows player by 50%. Drowns enemies at depth threshold.
+- **Lava:** Continuous damage. Emits light into lighting system. 25% chance to hide a secret "Spurt" trigger that erupts flames when the player is near!
+
+### 6.6 The Nemesis Ghost (A9)
+
+Each floor has a **countdown timer** (e.g., 180 seconds on floor 1, decreasing per floor). When the timer reaches zero:
+
+1. A ghost entity spawns at a random map edge.
+2. It **passes through all walls** (ignores tile collision entirely).
+3. It **flies directly toward the player's position** every frame.
+4. Contact is **instant death**.
+5. It has a ghostly semi-transparent render with a trailing particle effect.
+
+```cpp
+// Relentless homing pursuit logic:
+void NemesisGhost::handleChase(float dt, Player* player) {
+    if (!player) return;
+    
+    float dx = player->getX() - x;
+    float dy = player->getY() - y;
+    float dist = std::sqrt(dx*dx + dy*dy);
+    
+    if (dist > 0.0f) {
+        float speed = 60.0f; // Relentless pursuit
+        vx = (dx / dist) * speed;
+        vy = (dy / dist) * speed;
+        isFacingRight = (vx > 0);
+    }
+    // Note: NemesisGhost explicitly bypasses tile collision
+    // because its passesThroughWalls flag is set to true.
+}
+```
+
+> [!TIP]
+> This is the Spelunky "Ghost" mechanic. Extremely high visual drama for ~30 lines of code. Encourages fast play and creates tense demo moments.
+
+### 6.7 Level Environmental Modifiers (A10)
+
+When generating a floor, the `LevelGenerator` rolls a random **floor modifier** (30% chance per floor, never on floor 1):
+
+| Modifier | Effect | Implementation |
+|---|---|---|
+| **Dark Floor** | Player torch radius reduced by 50% | Set `playerTorch->setRadius(baseRadius * 0.5f)` |
+| **Flooded Floor** | Bottom 2 tile rows pre-filled with water | `liquidSim->addLiquid(x, bottomRows, 255, WATER)` in generation |
+| **Cursed Floor** | All treasure values doubled, but ghost timer halved | Modify `DifficultyConfig` fields |
+
+Applied as a `FloorModifier` enum stored in `PlayState`. Each modifier tweaks an existing system's parameter — no new systems needed.
+
+### 6.8 Minimap with Fog of War (A3)
+
+A small **4×4 grid overlay** rendered in a corner of the HUD, representing the 16 room slots of the current floor. Rooms start blacked out (fog of war) and are revealed as the player enters them.
+
+```text
+[?] [?] [?] [?]       [██] [  ] [??] [??]
+[?] [?] [?] [?]  →    [██] [🔦] [??] [??]    (🔦 = player's current room)
+[?] [?] [?] [?]       [??] [??] [??] [??]
+[?] [?] [?] [?]       [??] [??] [🚪] [??]    (🚪 = exit, shown once found)
+```
+
+**Implementation (~50 lines):**
+- `bool visited[4][4]` — set to `true` when player enters a room.
+- Current room highlighted with player icon.
+- Exit room marked once the player discovers it.
+- Golden-path rooms could be tinted differently for subtle guidance.
+- Rendered as small colored rectangles in the HUD layer (outside `BeginMode2D`).
+
+> [!TIP]
+> A staple of the roguelike genre. Always visible on screen during gameplay — great for the demo video. Enhances exploration strategy with almost zero code.
+
+### 6.9 Treasure Combo Multiplier (A11)
+
+When the player collects a treasure:
+1. A **combo timer** (3 seconds) starts or resets.
+2. The **combo counter** increments (×2, ×3, ×4...).
+3. Gold gained = `baseValue × comboMultiplier`.
+4. A **floating text** (e.g., "+50 ×3!") rises from the treasure position and fades out.
+5. If the timer expires without another pickup, the combo resets to ×1.
+
+```cpp
+int ComboSystem::onTreasureCollected(int baseGold, float worldX, float worldY) {
+    comboTimer = COMBO_DURATION; // reset 3-second timer
+    comboCount++;
+    int multiplied = baseGold * comboCount;
+    spawnFloatingText("+" + std::to_string(multiplied) + " x" +
+                      std::to_string(comboCount) + "!",
+                      worldX, worldY, GOLD);
+    return multiplied;
+}
+```
+
+> [!TIP]
+> Very high "game juice" for ~50 lines of code. The floating text and multiplier number create satisfying visual feedback in the demo video.
+
+### 6.10 Enemy AI — State Machine (A2)
+
+Enemies use a simple state machine with direct movement — no pathfinding needed.
+
+- **IdleState:** Patrol a small area (bat drifts, snake walks back and forth, spider hangs). Transition to Chase if player enters detection radius.
+- **ChaseState:** Move directly toward player's X-position. Bats fly toward player. Snakes walk toward player, turn at ledges/walls. Spiders drop when player is below.
+- **ReturnState:** If player leaves detection range, return to original patrol position.
+
+### 6.11 Master Spritesheet Rendering
+
+To keep level design simple and authentic, we use a single master spritesheet (`gfx_cavebg.png`) containing 42 different tile textures (each originally 16x16 pixels). 
+
+1. **Direct ID Mapping:** Instead of complex autotiling math, our level generator places exact integer IDs (1-42) into the grid. The renderer simply maps ID `N` to the `N`th sprite on the sheet. For example:
+   - ID 1: Standard dirt block (`CAVE_ROCK`).
+   - ID 4: Platform that can be jumped through from below.
+   - ID 5-8: Decorative border dirt blocks.
+2. **Parallax Background:** A dark, repeating dirt background is rendered behind the cave using parallax scrolling with a `{80, 80, 80, 255}` tint to simulate depth of field and make the foreground tiles pop.
+3. **Zoom & Bounds:** The camera features a 2.0x zoom (making the 16x16 tiles appear as chunky 32x32 blocks). The 40x32 map is mathematically surrounded by infinite dirt bounds (`CAVE_ROCK`), which the camera lets the player partially see without falling off the edge.
+
+---
+
+
+## 7. Data Structures & Technologies
+
+
+### 7.1 Core Technologies
 
 | Component | Technology | Justification |
 |---|---|---|
@@ -1483,7 +1764,7 @@ classDiagram
 | Physics | **Custom AABB** | Hand-written collision — no Box2D |
 | Version Control | **Git + GitHub** | Separate branches per member, PR-based merging |
 
-### 5.2 Data Structures Map
+### 7.2 Data Structures Map
 
 | Data Structure | Where Used | Why |
 |---|---|---|
@@ -1494,9 +1775,9 @@ classDiagram
 | `std::vector<int>` | Golden Path | Ordered room-index sequence from DFS |
 | `std::queue<std::pair<int, int>>` | BFS validation + Cascade Drainage | Standard BFS frontier + list of blocks to destroy per frame |
 | `std::stack<int>` | DFS golden-path generation | Standard DFS traversal |
-| `std::vector<unique_ptr<DynamicEntity>>` | **PlayState/GameState typed ownership** | Enemies — iterate without `dynamic_cast` |
-| `std::vector<unique_ptr<Item>>` | **PlayState/GameState typed ownership** | Items — type-safe iteration |
-| `std::vector<unique_ptr<Trap>>` | **PlayState/GameState typed ownership** | Traps — type-safe iteration |
+| `std::vector<unique_ptr<DynamicEntity>>` | **PlayState typed ownership** | Enemies — iterate without `dynamic_cast` |
+| `std::vector<unique_ptr<Item>>` | **PlayState typed ownership** | Items — type-safe iteration |
+| `std::vector<unique_ptr<Trap>>` | **PlayState typed ownership** | Traps — type-safe iteration |
 | `bool visited[4][4]` | Minimap fog of war | Tracks which rooms are revealed |
 | `std::vector<FloatingText>` | Combo system | Active floating text elements |
 | `std::unordered_map<string, Sound>` | AudioManager SFX cache | O(1) sound lookup by name |
@@ -1504,7 +1785,7 @@ classDiagram
 | `std::vector<RoomTemplate>` | Room template library | Loaded at startup |
 | `std::fstream` | Save/Load, templates, Level Editor | File I/O for `.txt`, `.sav`, `.lvl` |
 
-### 5.3 Collision Approach: O(N²) Typed-List Iteration
+### 7.3 Collision Approach: O(N²) Typed-List Iteration
 
 With ~30–50 entities per level, simple nested loops over typed lists are correct and fast:
 
@@ -1537,7 +1818,7 @@ for (auto& item : items) {
     if (physics->checkAABBOverlap(player->getAABB(), item->getAABB())) {
         if (item->getType() == ItemType::TREASURE) {
             int gold = combo->onTreasureCollected(
-                static_cast<Treasure*>(item.get())->getGoldValue(),
+                item->getGoldValue(),
                 item->getX(), item->getY());
             player->collectGold(gold);
         } else {
@@ -1562,7 +1843,7 @@ for (auto& enemy : enemies) {
 }
 ```
 
-### 5.4 Recursive Shadowcasting Pseudocode
+### 7.4 Recursive Shadowcasting Pseudocode
 
 ```cpp
 void LightingSystem::recursiveShadowCast(
@@ -1603,7 +1884,7 @@ void LightingSystem::recursiveShadowCast(
 }
 ```
 
-### 5.5 Level Editor File Format (`.lvl`)
+### 7.5 Level Editor File Format (`.lvl`)
 
 ```text
 HEADER:width,height,tileSize
@@ -1625,66 +1906,9 @@ END
 
 ---
 
-## 6. Game Loop & Data Flow
 
-### 6.1 Per-Frame Update Order (PlayState)
+## 8. Development Timeline & Asset Attribution
 
-> [!IMPORTANT]
-> Every step iterates a typed list directly — **no `dynamic_cast`**. Collision is O(N²). New systems (Ghost, Combo, Minimap, Modifiers) are trivially integrated.
-
-```text
-Step  Subsystem                     Iterates                     Reads → Writes
-──────────────────────────────────────────────────────────────────────────────────────
- 1    Input                         —                            Keyboard → Player.inputFlags
- 2    Player.update(dt)             —                            inputFlags, Strategy → vx, vy
- 3    Player.whipAttack()           —                            Facing dir → break cracked tile
- 4    Ghost timer tick              —                            dt → timer--; if 0 → spawnGhost()
- 5    Ghost.update(dt)              —                            Player pos → ghost flies toward player
- 6    Enemy AI (state machines)     dynamicEntities              Player pos → Enemy vx, vy, state
- 7    Trap.update(dt)               traps                        Timers → arrow fire
- 8    Apply gravity                 player + dynamicEntities     — → vy += gravity * dt
- 9    Tile collisions               player + dynamicEntities     TileMap → position correction
-10    Entity-entity collisions      typed lists (O(N²))          AABBs → damage, knockback
-11    Item collection + combo       items                        Player AABB → combo, inventory
-12    Bomb detonation               —                            Timer → TileMap 3×3 mutation
-13    Liquid simulation (CA tick)   —                            liquidGrid → flow/spread
-14    Liquid-entity interaction     player + dynamicEntities     liquidGrid → speed mod, damage
-15    Light sources update          lights list                  dt → flicker, flash decay
-16    Lighting recalculate          lights list                  LightSources, TileMap → lightMap
-17    EventBus dispatch             —                            Queued events → subscriber effects
-18    Combo timer update            —                            dt → comboTimer, floating texts
-19    Camera update                 —                            Player pos → camera lerp
-20    Remove dead entities          all typed lists              isActive → erase dead
-21    Death / Exit check            —                            Player health/pos → state change
-```
-
-### 6.2 Render Order (PlayState)
-
-```text
-BeginDrawing()
-  ClearBackground(BLACK)
-
-  BeginMode2D(camera)
-    1. TileMap::render(lightMap)           — tiles tinted by light intensity
-    2. LiquidSimulator::render()           — translucent water/lava overlays
-    3. for trap in traps → render()        — spikes, arrow launchers
-    4. for item in items → render()        — treasure, crates, pickups
-    5. for de in dynamicEntities → render()— enemies (tinted by light)
-    6. Player::render()                    — player sprite (tinted by light)
-    7. NemesisGhost::render()              — semi-transparent ghost + trail
-    8. ComboSystem::render(cam)            — floating text ("+50 ×3!")
-  EndMode2D()
-
-   9. HUD::render()                        — health, bombs, ropes, gold, floor,
-                                              combo meter, modifier icon
-  10. Minimap::render()                     — 4×4 room grid with fog of war
-  11. ShopSystem::render() (if in shop)     — shop overlay
-EndDrawing()
-```
-
----
-
-## 7. Task Division & 10-Week Roadmap
 
 ### Team Roles
 
@@ -1796,7 +2020,7 @@ EndDrawing()
 
 ---
 
-## Verification Plan
+## 9. Verification Plan
 
 ### Automated Tests
 - **BFS validator** — known solvable/unsolvable grids.
@@ -1819,3 +2043,36 @@ EndDrawing()
 - **5 design patterns** identifiable in code for presentation.
 - **Memory check** with Visual Studio diagnostics.
 - **Demo video:** menu → char select → dark cave (torch, minimap) → combo treasures → bomb wall → flood → ghost chase → shop → death → score → editor.
+
+## 10. File & Directory Structure
+
+The codebase is organized logically into domain-specific subsystems. Below is a breakdown of the primary header (`.h`) and source (`.cpp`) files and their architectural responsibilities:
+
+### Core Engine (`src/core/`)
+* **`Game.h / .cpp`**: The main Raylib wrapper. Initializes the window, loads core assets, and pumps the global `update()` and `render()` loop. Owns the `GameState` stack.
+* **`GameManager.h / .cpp`**: Persistent Singleton that tracks cross-run data (high scores, unlocked characters, global configs, floor number).
+* **`GameState.h / .cpp`**: Abstract State pattern base class and its concrete implementations (`PlayState`, `MenuState`, etc.). `PlayState` holds all the actual gameplay systems (physics, lighting, level map).
+* **`EventBus.h / .cpp`**: A decoupled Publisher/Subscriber system allowing distant systems to communicate (e.g., Bomb exploding tells LiquidSimulator to update).
+
+### Game Entities (`src/entities/`)
+* **`Entity.h` & `DynamicEntity.h`**: The base polymorphic hierarchy for everything in the game. Defines `update()`, `render()`, and AABB bounds.
+* **`EntityFactory.h / .cpp`**: Factory pattern implementation for spawning entities via ID or char codes.
+* **`enemies/`**: Contains `Enemy.h` (base) and concrete variants like `Bat.h`, `Snake.h`, `Spider.h`, `NemesisGhost.h`. Uses the State pattern (`EnemyState.h`) for AI behaviors.
+* **`items/`**: Contains `Item.h` (base) and interactables like `Bomb.h`, `Lamp.h`, and `Treasure.h`.
+* **`traps/` & `projectiles/`**: Handles environmental hazards (`ArrowTrap.h`) and moving hitboxes (`Arrow.h`).
+
+### Player & Physics (`src/player/` & `src/physics/`)
+* **`Player.h / .cpp`**: The central actor. Handles complex state machines (whipping, jumping, climbing ladders, door animations).
+* **`MovementStrategy.h / .cpp`**: Strategy pattern implementation defining different gravity and speed stats for characters (Explorer, Ninja, Tank).
+* **`PhysicsSystem.h / .cpp`**: Custom AABB collision engine. Sweeps entity bounding boxes against the `TileMap` and each other.
+
+### Level & Environment (`src/level/` & `src/liquid/`)
+* **`TileMap.h / .cpp`**: The 2D grid structure holding terrain. Handles fast spatial lookups for rendering and collision.
+* **`LevelGenerator.h / .cpp`**: Procedural generation algorithms (Spelunky-style rooms, cellular automata caves, A* path validation).
+* **`LightingSystem.h / .cpp`**: Handles dynamic 2D shadowcasting and light masks.
+* **`LiquidSimulator.h / .cpp`**: Simulates flowing water and lava using a cellular automata tick system.
+
+### UI & Systems (`src/ui/`, `src/audio/`, `src/shop/`)
+* **`HUD.h` & `ComboSystem.h`**: Renders health, gold, bombs, and tracks fast-paced kill chains.
+* **`AudioManager.h / .cpp`**: Wraps Raylib's audio stream. Caches and plays loaded SFX strings (e.g., `"xhit"`).
+* **`ShopSystem.h / .cpp`**: Manages the merchant room, generating items for sale and deducting player gold.

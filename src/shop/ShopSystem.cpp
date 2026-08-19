@@ -55,16 +55,23 @@ bool ShopSystem::attemptPurchase(Player* player, int index) {
     }
     
     if (player->getGold() >= item.price) {
-        player->spendGold(item.price);
-        item.isSold = true;
-        
-        // Remove shop item status so it acts like a normal item, or just activate it immediately
+        bool activated = true;
         if (item.physicalItem) {
             item.physicalItem->isShopItem = false;
-            item.physicalItem->activate(player);
+            activated = item.physicalItem->activate(player);
         }
         
-        return true;
+        if (activated) {
+            player->spendGold(item.price);
+            item.isSold = true;
+            return true;
+        } else {
+            // Restore shop item status if activation failed
+            if (item.physicalItem) {
+                item.physicalItem->isShopItem = true;
+            }
+            return false;
+        }
     }
     
     return false;

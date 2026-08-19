@@ -54,13 +54,13 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     }
     
     if (type == CharacterType::EXPLORER) {
-        moveStrategy = new ExplorerStrategy();
+        moveStrategy = std::make_unique<ExplorerStrategy>();
     } else if (type == CharacterType::NINJA) {
-        moveStrategy = new NinjaStrategy();
+        moveStrategy = std::make_unique<NinjaStrategy>();
     } else if (type == CharacterType::TANK) {
-        moveStrategy = new TankStrategy();
+        moveStrategy = std::make_unique<TankStrategy>();
     } else {
-        moveStrategy = new ExplorerStrategy();
+        moveStrategy = std::make_unique<ExplorerStrategy>();
     }
     
     maxHealth = moveStrategy->getMaxHealth();
@@ -72,12 +72,10 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
 Player::~Player() {
     UnloadTexture(sprite);
     UnloadTexture(whipSprite);
-    if (moveStrategy) {
-        delete moveStrategy;
-    }
 }
 
 void Player::handleInput() {
+    if (!isAlive()) return;
     if (isWhipping || !moveStrategy || isDoorAnimPlaying()) return;
 
     bool onLadder = false;
@@ -338,16 +336,15 @@ void Player::update(float dt, Player* player) {
             whipHitThisFrame = true;
             
             if (tileMap) {
-                int startTx = (int)(whipHitbox.x / 32.0f);
-                int startTy = (int)(whipHitbox.y / 32.0f);
-                int endTx = (int)((whipHitbox.x + whipHitbox.width - 0.001f) / 32.0f);
-                int endTy = (int)((whipHitbox.y + whipHitbox.height - 0.001f) / 32.0f);
+                float ts = tileMap->getTileSize();
+                int startTx = (int)(whipHitbox.x / ts);
+                int startTy = (int)(whipHitbox.y / ts);
+                int endTx = (int)((whipHitbox.x + whipHitbox.width - 0.001f) / ts);
+                int endTy = (int)((whipHitbox.y + whipHitbox.height - 0.001f) / ts);
                 
                 for (int ty = startTy; ty <= endTy; ty++) {
                     for (int tx = startTx; tx <= endTx; tx++) {
                         if (tileMap->isCracked(tx, ty)) {
-                            // TODO: Replace with LevelManager->breakCrackedBlock() once Person B implements LevelManager.
-                            // This is currently bypassing particle events, and potential item drops!
                             AudioManager::getInstance()->playSFX("xbreak");
                             tileMap->destroyBlock(tx, ty);
                         }
@@ -474,7 +471,7 @@ void Player::update(float dt, Player* player) {
             break;
     }
     
-    if (frameTimer >= frameDuration) {
+    while (frameTimer >= frameDuration) {
         frameTimer -= frameDuration; // Prevent dt leak!
         if (currentAnim == AnimState::LOOK_UP && currentFrame == maxFrames - 1) {
             // Stay on the last frame while holding up
@@ -691,11 +688,9 @@ void Player::whipAttack() {
     }
 }
 
-void Player::setMovementStrategy(MovementStrategy* s) {
-    if (moveStrategy) {
-        delete moveStrategy;
-    }
-    moveStrategy = s;
+void Player::setMovementStrategy(std::unique_ptr<MovementStrategy> s) {
+    if (moveStrategy == s) return;
+    moveStrategy = std::move(s);
     maxHealth = moveStrategy->getMaxHealth();
     if (health > maxHealth) {
         health = maxHealth;
