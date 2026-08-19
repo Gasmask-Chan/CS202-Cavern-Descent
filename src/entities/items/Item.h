@@ -29,7 +29,7 @@ public:
 
     virtual void update(float dt, class Player* player = nullptr) override;
 
-    virtual void activate(Player* player);
+    virtual bool activate(Player* player);
 
     virtual void render(float lightLevel) override;
 
@@ -45,7 +45,7 @@ private:
     int value;
 public:
     LootPickup(float x, float y, float w, float h, int val);
-    void activate(Player* player) override;
+    bool activate(Player* player) override;
 };
 
 
@@ -56,7 +56,7 @@ private:
 public:
     Chest(float x, float y, float w, float h);
     void update(float dt, class Player* player = nullptr) override;
-    void activate(Player* player) override;
+    bool activate(Player* player) override;
 };
 
 class BombPickup : public Item {
@@ -64,7 +64,7 @@ private:
     int amount;
 public:
     BombPickup(float x, float y, float w, float h, int amount);
-    void activate(Player* player) override;
+    bool activate(Player* player) override;
 };
 
 class RopePickup : public Item {
@@ -72,7 +72,7 @@ private:
     int amount;
 public:
     RopePickup(float x, float y, float w, float h, int amount);
-    void activate(Player* player) override;
+    bool activate(Player* player) override;
 };
 
 }

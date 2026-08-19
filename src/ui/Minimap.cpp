@@ -68,13 +68,13 @@ void Minimap::render() {
                 
                 // Draw Exit indicator if this room has the exit
                 if (x == exitRoomX && y == exitRoomY) {
-                    DrawRectangle(rx + roomSize/2 - 3, ry + roomSize/2 - 3, 6, 6, GREEN);
+                    // Draw slightly larger so it isn't completely hidden by the player
+                    DrawRectangle(rx + roomSize/2 - 4, ry + roomSize/2 - 4, 8, 8, GREEN);
                 }
                 
                 // Draw Player indicator if this is the current room
                 if (x == currentRoomX && y == currentRoomY) {
-                    // Using a perfectly centered 6x6 square instead of a tiny circle 
-                    // because OpenGL circle rasterization can look asymmetrical/off-center at very small radii
+                    // Using a perfectly centered 6x6 square
                     DrawRectangle(rx + roomSize/2 - 3, ry + roomSize/2 - 3, 6, 6, WHITE);
                 }
             }

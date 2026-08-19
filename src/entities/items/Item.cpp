@@ -32,8 +32,9 @@ void Item::update(float dt, Player* player) {
     }
 }
 
-void Item::activate(Player* player) {
-    // Default implementation does nothing
+bool Item::activate(Player* player) {
+    collect();
+    return true;
 }
 
 void Item::render(float lightLevel) {
@@ -61,7 +62,7 @@ ItemType Item::getType() {
 LootPickup::LootPickup(float x, float y, float w, float h, int val)
     : Item(x, y, w, h, ItemType::LOOT_PICKUP), value(val) {}
 
-void LootPickup::activate(Player* player) {
+bool LootPickup::activate(Player* player) {
     if (value > 100) {
         AudioManager::getInstance()->playSFX("xgem");
     } else {
@@ -69,6 +70,7 @@ void LootPickup::activate(Player* player) {
     }
     player->collectGold(value);
     collect();
+    return true;
 }
 
 // Chest
@@ -77,67 +79,65 @@ Chest::Chest(float x, float y, float w, float h)
 
 void Chest::update(float dt, Player* player) {
     Item::update(dt, player);
-    
-    if (!isOpened && player) {
-        // Distance check
-        float dist = std::sqrt(std::pow(player->getX() - x, 2) + std::pow(player->getY() - y, 2));
-        if (dist < 32.0f && (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y) && !isShopItem) {
-            // Open Chest
-            isOpened = true;
-            AudioManager::getInstance()->playSFX("xchestopen");
-            
-            // Change sprite to open chest (Row 0, Col 3 -> {48, 0, 16, 16})
-            srcRect.x = 48.0f;
-            
-            // Spawn 4 rubies bursting out
-            for (int i = 0; i < 4; i++) {
-                EventData data;
-                char lootType = (GetRandomValue(0, 1) == 0) ? 'R' : 'G'; // R=Ruby Big, G=Ruby Small
-                data.amount = lootType;
-                
-                if (lootType == 'G') {
-                    // Gold is 32x32, same as chest, so spawn exactly at chest bounds to prevent clipping
-                    data.worldX = this->x;
-                    data.worldY = this->y;
-                } else {
-                    // Rubies are 16x16, center them inside the 32x32 chest
-                    data.worldX = this->x + 8.0f;
-                    data.worldY = this->y + 8.0f;
-                }
-                
-                // Set burst velocity with high variance to pop out of the chest significantly
-                data.vy = -3.5f * 150.0f + (float)GetRandomValue(-50, 50); 
-                float baseVx = (GetRandomValue(0, 1) == 0 ? -0.8f : 0.8f) * 150.0f;
-                data.vx = baseVx + (float)GetRandomValue(-40, 40);
-                
-                EventBus::getInstance()->publish(EventType::EVENT_SPAWN_ITEM, data);
-            }
-        }
-    }
 }
 
-void Chest::activate(Player* player) {
-    // Chest interaction is handled in update(), not by simple overlap
+bool Chest::activate(Player* player) {
+    if (!isOpened && !isShopItem) {
+        // Open Chest
+        isOpened = true;
+        AudioManager::getInstance()->playSFX("xchestopen");
+        
+        // Change sprite to open chest (Row 0, Col 3 -> {48, 0, 16, 16})
+        srcRect.x = 48.0f;
+        
+        // Spawn 4 rubies bursting out
+        for (int i = 0; i < 4; i++) {
+            EventData data;
+            char lootType = (GetRandomValue(0, 1) == 0) ? 'R' : 'G'; // R=Ruby Big, G=Ruby Small
+            data.amount = lootType;
+            
+            if (lootType == 'G') {
+                // Gold is 32x32, same as chest, so spawn exactly at chest bounds to prevent clipping
+                data.worldX = this->x;
+                data.worldY = this->y;
+            } else {
+                // Rubies are 16x16, center them inside the 32x32 chest
+                data.worldX = this->x + 8.0f;
+                data.worldY = this->y + 8.0f;
+            }
+            
+            // Set burst velocity with high variance to pop out of the chest significantly
+            data.vy = -3.5f * 150.0f + (float)GetRandomValue(-50, 50); 
+            float baseVx = (GetRandomValue(0, 1) == 0 ? -0.8f : 0.8f) * 150.0f;
+            data.vx = baseVx + (float)GetRandomValue(-40, 40);
+            
+            EventBus::getInstance()->publish(EventType::EVENT_SPAWN_ITEM, data);
+        }
+        return true;
+    }
+    return false;
 }
 
 // BombPickup
 BombPickup::BombPickup(float x, float y, float w, float h, int amount)
     : Item(x, y, w, h, ItemType::BOMB_PICKUP), amount(amount) {}
 
-void BombPickup::activate(Player* player) {
+bool BombPickup::activate(Player* player) {
     AudioManager::getInstance()->playSFX("xpickup");
     player->addBomb(amount);
     collect();
+    return true;
 }
 
 // RopePickup
 RopePickup::RopePickup(float x, float y, float w, float h, int amount)
     : Item(x, y, w, h, ItemType::ROPE_PICKUP), amount(amount) {}
 
-void RopePickup::activate(Player* player) {
+bool RopePickup::activate(Player* player) {
     AudioManager::getInstance()->playSFX("xpickup");
     player->addRope(amount);
     collect();
+    return true;
 }
 
 }

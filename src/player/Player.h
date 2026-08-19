@@ -16,7 +16,7 @@ private:
     int bombs;
     int ropes;
     int gold;
-    MovementStrategy* moveStrategy;
+    std::unique_ptr<MovementStrategy> moveStrategy;
     float invincibilityTimer;
     bool isSubmerged;
     bool isSwimming;
@@ -63,7 +63,7 @@ public:
     void onHitGround(float impactVelocity) override;
     bool isInvincible() const { return invincibilityTimer > 0.0f; }
     void whipAttack();
-    void setMovementStrategy(MovementStrategy* s);
+    void setMovementStrategy(std::unique_ptr<MovementStrategy> s);
 
     /**
      * @brief Sets the tile map reference for the player, allowing interaction with the environment (e.g., breaking blocks).

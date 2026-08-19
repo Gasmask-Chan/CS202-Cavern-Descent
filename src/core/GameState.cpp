@@ -158,20 +158,23 @@ void PlayState::enter() {
     std::ifstream in(GameManager::getInstance()->getCustomLevelPath());
     if (in.is_open()) {
       int tileVal;
-      for (int y = 0; y < 32; y++) {
-        for (int x = 0; x < 40; x++) {
-          if (in >> tileVal) {
-            TileType type = (TileType)tileVal;
+      int x = 0, y = 0;
+      while (in >> tileVal && y < 32) {
+        TileType type = (TileType)tileVal;
 
-            if (type == TileType::ENTRANCE) {
-              tempLevel.playerSpawn = {(float)x * 32.0f + 16.0f,
-                                       (float)y * 32.0f + 16.0f};
-            } else if (type == TileType::EXIT) {
-              tempLevel.exitPos = {(float)x * 32.0f, (float)y * 32.0f};
-            }
+        if (type == TileType::ENTRANCE) {
+          tempLevel.playerSpawn = {(float)x * 32.0f + 16.0f,
+                                   (float)y * 32.0f + 16.0f};
+        } else if (type == TileType::EXIT) {
+          tempLevel.exitPos = {(float)x * 32.0f, (float)y * 32.0f};
+        }
 
-            tempLevel.tileMap->setTile(x, y, type);
-          }
+        tempLevel.tileMap->setTile(x, y, type);
+
+        x++;
+        if (x >= 40) {
+          x = 0;
+          y++;
         }
       }
       in.close();
@@ -856,6 +859,7 @@ void PlayState::update(float dt) {
           if (whipActive &&
               physics->checkAABBOverlap(whipBox, enemy->getAABB())) {
             enemy->takeDamage(1); // Whip does 1 damage
+            enemy->setVelocity(player->getWhipHitbox().x > player->getX() ? 150.0f : -150.0f, -100.0f);
             AudioManager::getInstance()->playSFX("xhit");
             continue; // Skip collision damage this frame
           }
@@ -1179,9 +1183,20 @@ void PlayState::update(float dt) {
       }
     }
 
-    // Exit check (requires manual UP+Y input)
+    // Exit and Chest interaction (requires manual UP+Y input)
     if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && IsKeyPressed(KEY_Y)) {
       Rectangle pRect = player->getAABB();
+      
+      // 1. Check for Chests first
+      for (auto &item : tempLevel.items) {
+          if (item && item->getType() == ItemType::CHEST) {
+              if (physics->checkAABBOverlap(pRect, item->getAABB())) {
+                  item->activate(player.get());
+              }
+          }
+      }
+      
+      // 2. Check for Exit
       int cx = pRect.x + pRect.width / 2;
       int cy = pRect.y + pRect.height / 2;
       int tx = cx / tempLevel.tileMap->getTileSize();
