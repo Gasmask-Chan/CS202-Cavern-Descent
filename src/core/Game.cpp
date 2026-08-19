@@ -56,6 +56,7 @@ void Game::init() {
     audio->loadSFX("xpush", "assets/audio/sfx/xpush.wav");
     audio->loadSFX("xhurt", "assets/audio/sfx/xhurt.wav");
     audio->loadSFX("xdie", "assets/audio/sfx/xdie.wav");
+    audio->loadSFX("xhit", "assets/audio/sfx/xhit.wav");
     audio->loadSFX("xkiss", "assets/audio/sfx/xkiss.wav");
     audio->loadSFX("xletsexplore", "assets/audio/sfx/xletsexplore.wav");
     audio->loadSFX("xbat", "assets/audio/sfx/xbat.wav");
