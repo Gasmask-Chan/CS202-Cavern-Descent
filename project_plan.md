@@ -454,6 +454,10 @@ classDiagram
         +getIsWhipHitThisFrame() bool
         +getWhipHitbox() Rectangle
         +isAlive() bool
+        +startDoorSpawnAnim() void
+        +startDoorEnterAnim() void
+        +isDoorAnimPlaying() bool
+        +isDoorAnimFinished() bool
     }
 
     class MovementStrategy {
@@ -2039,3 +2043,36 @@ END
 - **5 design patterns** identifiable in code for presentation.
 - **Memory check** with Visual Studio diagnostics.
 - **Demo video:** menu → char select → dark cave (torch, minimap) → combo treasures → bomb wall → flood → ghost chase → shop → death → score → editor.
+
+## 10. File & Directory Structure
+
+The codebase is organized logically into domain-specific subsystems. Below is a breakdown of the primary header (`.h`) and source (`.cpp`) files and their architectural responsibilities:
+
+### Core Engine (`src/core/`)
+* **`Game.h / .cpp`**: The main Raylib wrapper. Initializes the window, loads core assets, and pumps the global `update()` and `render()` loop. Owns the `GameState` stack.
+* **`GameManager.h / .cpp`**: Persistent Singleton that tracks cross-run data (high scores, unlocked characters, global configs, floor number).
+* **`GameState.h / .cpp`**: Abstract State pattern base class and its concrete implementations (`PlayState`, `MenuState`, etc.). `PlayState` holds all the actual gameplay systems (physics, lighting, level map).
+* **`EventBus.h / .cpp`**: A decoupled Publisher/Subscriber system allowing distant systems to communicate (e.g., Bomb exploding tells LiquidSimulator to update).
+
+### Game Entities (`src/entities/`)
+* **`Entity.h` & `DynamicEntity.h`**: The base polymorphic hierarchy for everything in the game. Defines `update()`, `render()`, and AABB bounds.
+* **`EntityFactory.h / .cpp`**: Factory pattern implementation for spawning entities via ID or char codes.
+* **`enemies/`**: Contains `Enemy.h` (base) and concrete variants like `Bat.h`, `Snake.h`, `Spider.h`, `NemesisGhost.h`. Uses the State pattern (`EnemyState.h`) for AI behaviors.
+* **`items/`**: Contains `Item.h` (base) and interactables like `Bomb.h`, `Lamp.h`, and `Treasure.h`.
+* **`traps/` & `projectiles/`**: Handles environmental hazards (`ArrowTrap.h`) and moving hitboxes (`Arrow.h`).
+
+### Player & Physics (`src/player/` & `src/physics/`)
+* **`Player.h / .cpp`**: The central actor. Handles complex state machines (whipping, jumping, climbing ladders, door animations).
+* **`MovementStrategy.h / .cpp`**: Strategy pattern implementation defining different gravity and speed stats for characters (Explorer, Ninja, Tank).
+* **`PhysicsSystem.h / .cpp`**: Custom AABB collision engine. Sweeps entity bounding boxes against the `TileMap` and each other.
+
+### Level & Environment (`src/level/` & `src/liquid/`)
+* **`TileMap.h / .cpp`**: The 2D grid structure holding terrain. Handles fast spatial lookups for rendering and collision.
+* **`LevelGenerator.h / .cpp`**: Procedural generation algorithms (Spelunky-style rooms, cellular automata caves, A* path validation).
+* **`LightingSystem.h / .cpp`**: Handles dynamic 2D shadowcasting and light masks.
+* **`LiquidSimulator.h / .cpp`**: Simulates flowing water and lava using a cellular automata tick system.
+
+### UI & Systems (`src/ui/`, `src/audio/`, `src/shop/`)
+* **`HUD.h` & `ComboSystem.h`**: Renders health, gold, bombs, and tracks fast-paced kill chains.
+* **`AudioManager.h / .cpp`**: Wraps Raylib's audio stream. Caches and plays loaded SFX strings (e.g., `"xhit"`).
+* **`ShopSystem.h / .cpp`**: Manages the merchant room, generating items for sale and deducting player gold.
