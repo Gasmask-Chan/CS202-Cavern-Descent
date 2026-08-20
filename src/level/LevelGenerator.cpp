@@ -829,7 +829,7 @@ bool LevelGenerator::bfsReachability(TileMap* map, Vector2i from, Vector2i to) {
 DifficultyConfig LevelGenerator::getDifficultyConfig(int floor) {
   DifficultyConfig cfg;
   cfg.ghostTimerSeconds         = std::max(60.0f, 180.0f - (floor - 1) * 15.0f);
-  cfg.treasureValueMultiplier   = 1 + (floor - 1) / 3;
+  cfg.treasureValueMultiplier   = floor;
   return cfg;
 }
 
