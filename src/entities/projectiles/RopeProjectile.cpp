@@ -31,7 +31,7 @@ void RopeProjectile::update(float dt, Player* player) {
             x = tx * 32.0f + 16.0f - width / 2.0f;
             y = ty * 32.0f;
             
-            AudioManager::getInstance()->playSFX("hit"); // Fallback sound for rope latching
+            AudioManager::getInstance()->playSFX("xhit"); // Fallback sound for rope latching
         } else {
             // Apply upward movement
             move(0.0f, vy * dt);

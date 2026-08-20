@@ -577,6 +577,7 @@ void PlayState::enter() {
   EventBus::getInstance()->clearListeners(EventType::EVENT_ENEMY_KILLED);
   EventBus::getInstance()->subscribe(
       EventType::EVENT_ENEMY_KILLED, [this](EventData data) {
+        AudioManager::getInstance()->playSFX("xdie");
         if (this->combo)
           this->combo->onEnemyKilled(data.amount, data.worldX, data.worldY);
       });
