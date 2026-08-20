@@ -5,6 +5,7 @@
 #include "../entities/items/Bomb.h"
 #include "../entities/EntityFactory.h"
 #include "../entities/items/Item.h"
+#include "../entities/effects/Bubble.h"
 #include "../entities/effects/LavaDrip.h"
 #include "../entities/traps/Trap.h"
 #include "../entities/enemies/Enemy.h"
@@ -647,6 +648,13 @@ void PlayState::enter() {
       EventType::EVENT_SPAWN_LAVA_DRIP, [this](EventData data) {
         auto drip = std::make_unique<LavaDrip>(data.worldX, data.worldY);
         this->pendingEntities.push_back(std::move(drip));
+      });
+
+  EventBus::getInstance()->clearListeners(EventType::EVENT_SPAWN_BUBBLE);
+  EventBus::getInstance()->subscribe(
+      EventType::EVENT_SPAWN_BUBBLE, [this](EventData data) {
+        auto bubble = std::make_unique<Bubble>(data.worldX, data.worldY, this->liquids.get());
+        this->pendingEntities.push_back(std::move(bubble));
       });
 
   EventBus::getInstance()->clearListeners(EventType::EVENT_ADD_LIQUID);
