@@ -546,7 +546,7 @@ void PlayState::enter() {
   }
 
   if (tempLevel.modifier == FloorModifier::FLOODED_FLOOR) {
-    liquids->applyFloodedFloorModifier(2);
+    liquids->applyFloodedFloorModifier(15);
   }
 
   camera.target = Vector2{player->getX(), player->getY()};
