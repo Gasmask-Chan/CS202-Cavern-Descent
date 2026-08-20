@@ -2267,6 +2267,7 @@ void LevelEditorMenuState::handleInput() {
       const char *filepath = tinyfd_openFileDialog(
           "Play Custom Level", "levels/", 1, filterPatterns, "Level Files", 0);
       if (filepath) {
+        GameManager::getInstance()->resetRun();
         GameManager::getInstance()->setCustomLevelPath(filepath);
         GameManager::getInstance()->setIsCustomLevel(true);
         game->changeState(GameStateType::PLAY);

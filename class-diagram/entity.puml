@@ -3,10 +3,10 @@ class EntityFactory {
     -static textureCache : map<string, Texture2D>
     +static preloadTextures() : void
     +static getTexture(path : string) : Texture2D
-    +static createEnemy(code : char, x : float, y : float) : DynamicEntity*
-    +static createGhost(x : float, y : float) : DynamicEntity*
-    +static createItem(code : char, x : float, y : float) : Item*
-    +static createTrap(code : char, x : float, y : float) : Trap*
+    +static createEnemy(code : char, x : float, y : float) : unique_ptr<DynamicEntity>
+    +static createGhost(x : float, y : float) : unique_ptr<DynamicEntity>
+    +static createItem(code : char, x : float, y : float) : unique_ptr<Item>
+    +static createTrap(code : char, x : float, y : float) : unique_ptr<Trap>
 }
 
 class Entity {
@@ -26,7 +26,8 @@ class DynamicEntity {
     #vx : float
     #vy : float
     #isGrounded : bool
-    +passesThroughWalls : bool
+    # isFacingRight : bool
+    #passesThroughWalls : bool
     +applyGravity(dt : float) : void
     +move(dx : float, dy : float) : void
 }
@@ -37,16 +38,14 @@ class Player {
     -bombs : int
     -ropes : int
     -gold : int
-    -moveStrategy : MovementStrategy*
+    -moveStrategy : unique_ptr<MovementStrategy>
     -isSubmerged : bool
     -isWhipping : bool
     +handleInput() : void
-    +update(dt : float) : void
     +takeDamage(dmg : int) : void
-    +heal(amount : int) : void
     +collectGold(amount : int) : void
     +whipAttack() : void
-    +setMovementStrategy(s : MovementStrategy*) : void
+    +setMovementStrategy(s : unique_ptr<MovementStrategy>) : void
 }
 
 interface MovementStrategy {
@@ -60,57 +59,57 @@ class Enemy {
     #health : int
     #damage : int
     #currentStateObj : shared_ptr<EnemyState>
-    +update(dt : float) : void
-    +takeDamage(dmg : int) : void
     +changeState(newState : shared_ptr<EnemyState>) : void
+    +{abstract} takeDamage(dmg : int) : void
     +{abstract} handleIdle(dt : float, player : Player*) : void
     +{abstract} handleChase(dt : float, player : Player*) : void
     +{abstract} handleReturn(dt : float, player : Player*) : void
 }
 
 class NemesisGhost {
-    +handleChase(dt : float, player : Player*) : void
+
 }
 
 class Item {
     #type : ItemType
     #isCollected : bool
     +isShopItem : bool
+    +collect() : void
     +{abstract} activate(player : Player*) : bool
 }
 
 class Chest {
     -isOpened : bool
-    +activate(player : Player*) : bool
 }
 
 class LootPickup {
     -value : int
-    +activate(player : Player*) : bool
 }
 
 class BombPickup {
     -amount : int
-    +activate(player : Player*) : bool
+}
+
+class RopePickup {
+    -amount : int
 }
 
 class Trap {
     #damage : int
-    +{abstract} trigger() : void
+    +{abstract} updateTrap(dt : float, player : Player*, ...) : void
 }
 
 class ArrowTrap {
-    -hasFired : bool
-    +trigger() : void
+    -activated : bool
+    -facingRight : bool
 }
 
 class Bomb {
     -fuseTimer : float
-    -exploded : bool
-    +explode() : void
 }
 
 class Explosion {
+    -currentFrame : int
     -frameTimer : float
 }
 
@@ -132,6 +131,7 @@ class Spider {
 
 class Particle {
     -lifetime : float
+    -maxLifetime : float
 }
 
 class RopeProjectile {
@@ -146,6 +146,7 @@ DynamicEntity <|-- Item
 Item <|-- Chest
 Item <|-- LootPickup
 Item <|-- BombPickup
+Item <|-- RopePickup
 Trap <|-- ArrowTrap
 DynamicEntity <|-- Player
 DynamicEntity <|-- Enemy
