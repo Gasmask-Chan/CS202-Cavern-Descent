@@ -158,7 +158,10 @@ Enemy <|-- Bat
 Enemy <|-- Snake
 Enemy <|-- Spider
 Enemy <|-- NemesisGhost
-Player --> MovementStrategy : uses
+Player *-- MovementStrategy : moveStrategy
 
-Enemy --> EnemyState : currentState
+Enemy o-- EnemyState : currentStateObj
+EntityFactory ..> DynamicEntity : creates
+EntityFactory ..> Item : creates
+EntityFactory ..> Trap : creates
 @enduml

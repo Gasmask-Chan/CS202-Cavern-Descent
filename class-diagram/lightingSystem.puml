@@ -1,0 +1,25 @@
+@startuml
+
+class LightSource <<struct>> {
+    +fx : float
+    +fy : float
+    +color : Vector3
+    +radius : float
+}
+
+class LightingSystem {
+    -lightMap : vector<vector<Vector3>>
+    -sources : vector<LightSource>
+    -ambientLight : Vector3
+    +setAmbientLight(level : Vector3) : void
+    +clearLights() : void
+    +addLight(fx : float, fy : float, color : Vector3, radius : float) : void
+    +update(map : TileMap*) : void
+    +getLightMap() : const vector<vector<Vector3>>&
+    -castLight(map : TileMap*, cx : int, cy : int, fx : float, fy : float, row : int, startSlope : float, endSlope : float, radius : float, xx : int, xy : int, yx : int, yy : int, color : Vector3) : void
+}
+
+LightingSystem *-- LightSource : sources
+LightingSystem ..> TileMap : reads opacity
+
+@enduml
