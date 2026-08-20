@@ -33,9 +33,9 @@ These cover every item in the base **Functionality** and **Design & Implementati
 | 2 | Collision Detection | Mario ↔ blocks/pipes | Custom AABB tile + entity collision with push-out resolution | (incl.) |
 | 3 | Enemy Behavior | Goombas/Koopas patrol | 3 types with basic patrol: Bat (fly), Snake (walk), Spider (hang) | 10 |
 | 4 | Power-Ups & Items | Mushroom, Fire Flower, Coin | Bombs, Ropes, Health Crate, Treasure (gold/gems) | 10 |
-| 5 | Level 1 | World 1 | Procedural Cave zone (floors 1–3) | 15 |
-| 6 | Level 2 | World 2 | Procedural Jungle zone (floors 4–6) | (incl.) |
-| 7 | Level 3 | World 3 | Procedural Temple zone (floors 7–9) | (incl.) |
+| 5 | Level 1 | World 1 | Procedural Cave zone (Floor 1) | 15 |
+| 6 | Level 2 | World 2 | Procedural Jungle zone (Floor 2) | (incl.) |
+| 7 | Level 3 | World 3 | Procedural Temple zone (Floor 3) | (incl.) |
 | 8 | Sound Effects & Music | Jump SFX, level BGM | SFX (jump, collect, bomb, damage, death) + 3 zone BGMs | 10 |
 | 9 | OOP Design | Inheritance, polymorphism | Entity hierarchy, typed ownership, RAII smart pointers | 10 |
 | 10 | 5 Design Patterns | Factory, Singleton, etc. | Factory, Singleton, State, Strategy, Observer | 25 |
@@ -57,7 +57,7 @@ These cover every item in the base **Functionality** and **Design & Implementati
 | A7 | **🌊 Liquid Simulation (Cascade Drainage)** | Spelunky-style Cascade Drainage, Lava Drip Particles & Spurt Flame Traps | **High** | **Dynamic water/lava lakes, drainage & flame eruptions** |
 | A8 | **🛠️ Full In-Game Level Editor** | Tile palette, grid placement, `.lvl` file serialize/deserialize | **High** | **Players design custom levels (Bonus feature)** |
 | A9 | **🎬 The Nemesis Ghost** | Timer-triggered entity: passes through walls, flies directly toward player coordinates | **Low** | **Terrifying time-limit enforcer** |
-| A10 | **🎬 Level Environmental Modifiers** | Random floor affixes: "Dark Floor" (reduced torch), "Flooded Floor" (water-filled bottom rows) | **Low** | **Each floor feels different** |
+| A10 | **🎬 Level Environmental Modifiers** | Random floor affixes: "Dark Floor" (50% torch radius), "Flooded Floor" (water-filled bottom rows), "Cursed Floor" (2× treasure value, 0.5× ghost timer) | **Low** | **Each floor feels uniquely challenging** |
 | A11 | **🎬 Treasure Combo Multiplier** | 3-second decay timer + multiplier counter + floating text rendering | **Low** | **Satisfying on-screen combo feedback** |
 | A12 | **Shop System** | Dynamic pricing, item inventory, transaction logic | Medium | In-cave shops with upgrades |
 
@@ -75,18 +75,18 @@ The Cavern Descent codebase heavily leverages fundamental OOP principles to main
 Data hiding is enforced across the engine. All classes (e.g., `Player`, `GameManager`) keep their member variables private or protected. Interaction with state occurs strictly through public getter/setter methods or behavioral triggers (e.g., `takeDamage(int dmg)`, `collectGold(int amount)`). This prevents systems like `PhysicsSystem` from directly mutating `Player::health`, ensuring that side effects (like emitting blood particles or checking death states) are always safely executed.
 
 ### Abstraction
-Complex underlying systems are abstracted behind simple interfaces. For instance, the `LightingSystem` exposes a single `renderLightMask()` method. The game loop does not need to know about the recursive shadowcasting math or the float-grid blending; it only calls the public interface. Similarly, `GameState` abstracts the complexity of different game modes (Menu, Play, Pause) behind unified `update()` and `render()` virtual calls.
+Complex underlying systems are abstracted behind simple interfaces. For instance, the `LightingSystem` exposes simple `addLight()` and `update()` methods. The game loop does not need to know about the recursive shadowcasting math or the float-grid blending; it only calls the public interface. Similarly, `GameState` abstracts the complexity of different game modes (Menu, Play, Pause) behind unified `update()` and `render()` virtual calls.
 
 ### Inheritance
 We use deep inheritance hierarchies to share common behavior while allowing specialization:
 - **Entity Hierarchy:** `Entity` (base) -> `DynamicEntity` (adds physics) -> `Player` / `Enemy`.
 - **State Hierarchy:** `GameState` (abstract base) -> `MenuState`, `PlayState`, `EditorState` (concrete implementations).
-- **Item Hierarchy:** `Item` (base) -> `BombItem`, `RopeItem`, `Treasure` (concrete items overriding the virtual `activate()` method).
+- **Item Hierarchy:** `Item` (base) -> `BombPickup`, `RopePickup`, `LootPickup`, `Chest` (concrete items overriding the virtual `activate()` method).
 
 ### Polymorphism
 Polymorphism allows our typed collections to process diverse objects uniformly without `dynamic_cast`. 
 - The `PlayState` manages a `std::vector<std::unique_ptr<DynamicEntity>>`. During the update loop, it simply calls `entity->update(dt)`. Because `update()` is a virtual function, C++ dynamically dispatches the call to the correct overridden method (e.g., `NemesisGhost::update` vs `Bat::update`).
-- The `EntityFactory` returns abstract `DynamicEntity*` pointers, allowing the level generator to blindly spawn various enemies without coupling to their concrete types.
+- The `EntityFactory` returns polymorphic `std::unique_ptr<DynamicEntity>` smart pointers, allowing the level generator to blindly spawn various enemies without coupling to their concrete types.
 
 ---
 
@@ -106,35 +106,40 @@ classDiagram
         -vector~GameState*~ stateStack
         -bool isRunning
         -float deltaTime
+        -Font globalFont
+        -StateAction pendingAction
+        -GameStateType pendingState
         +Game()
         +~Game()
         +run() void
-        -init() void
-        -handleInput() void
-        -update(float dt) void
-        -render() void
-        -cleanup() void
+        +init() void
+        +handleInput() void
+        +update(float dt) void
+        +render() void
         +pushState(GameStateType state) void
         +popState() void
         +changeState(GameStateType state) void
-        +quit() void
+        +getFont() Font
+        -applyPendingStateChanges() void
     }
 
     class GameManager {
         -static GameManager* instance
         -int currentFloor
         -int score
-        -int playerLives
         -int playerHealth
         -int playerBombs
         -int playerRopes
         -int playerGold
         -CharacterType selectedCharacter
         -float ghostTimer
-        -FloorModifier currentModifier
+        -bool isCustomLevel
+        -bool loadIntoEditor
+        -string customLevelPath
         -GameManager()
         +static getInstance() GameManager*
         +getFloor() int
+        +getZone() ZoneType
         +getScore() int
         +addScore(int points) void
         +getPlayerHealth() int
@@ -147,8 +152,14 @@ classDiagram
         +getSelectedCharacter() CharacterType
         +setSelectedCharacter(CharacterType type) void
         +getGhostTimer() float
+        +setGhostTimer(float timer) void
         +tickGhostTimer(float dt) bool
-        +getFloorModifier() FloorModifier
+        +getIsCustomLevel() bool
+        +setIsCustomLevel(bool b) void
+        +getLoadIntoEditor() bool
+        +setLoadIntoEditor(bool b) void
+        +getCustomLevelPath() string
+        +setCustomLevelPath(string p) void
         +saveHighScore(string name) void
         +loadHighScores() vector~HighScoreEntry~
     }
@@ -163,15 +174,17 @@ classDiagram
     class AudioManager {
         -static AudioManager* instance
         -unordered_map~string, Sound~ sfxCache
-        -unordered_map~string, string~ bgmPaths
-        -Music currentBGM
+        -unordered_map~string, Music~ bgmCache
+        -Music* currentBGM
+        -string currentBGMName
         -float sfxVolume
         -float bgmVolume
         -AudioManager()
         +static getInstance() AudioManager*
         +loadSFX(string name, string filePath) void
-        +loadBGM(string name, string filePath) void
         +playSFX(string name) void
+        +stopSFX(string name) void
+        +loadBGM(string name, string filePath) void
         +playBGM(string name) void
         +stopBGM() void
         +updateBGM() void
@@ -202,15 +215,22 @@ classDiagram
     }
 
     class PlayState {
-        -PlayState* levelManager
-        -Player* player
+        -unique_ptr~Player~ player
         -Camera2D camera
-        -LightingSystem* lighting
-        -LiquidSimulator* liquids
-        -PhysicsSystem* physics
-        -Minimap* minimap
-        -ComboSystem* combo
-        -HUD* hud
+        -unique_ptr~LevelGenerator~ tempGenerator
+        -GeneratedLevel tempLevel
+        -unique_ptr~PhysicsSystem~ physics
+        -unique_ptr~Minimap~ minimap
+        -unique_ptr~LightingSystem~ lighting
+        -unique_ptr~LiquidSimulator~ liquids
+        -unique_ptr~ComboSystem~ combo
+        -unique_ptr~ShopSystem~ shop
+        -vector~unique_ptr~Item~~ pendingItems
+        -vector~unique_ptr~DynamicEntity~~ pendingEntities
+        -vector~ExplosionFlash~ explosionFlashes
+        -float cameraShakeTimer
+        -float cameraShakeIntensity
+        -float deathTimer
         +enter() void
         +exit() void
         +handleInput() void
@@ -219,7 +239,7 @@ classDiagram
     }
 
     class PauseState {
-        -int selectedOption
+        -int selectedIndex
         +enter() void
         +exit() void
         +handleInput() void
@@ -229,7 +249,7 @@ classDiagram
 
     class GameOverState {
         -int finalScore
-        -int floorsReached
+        -int finalFloor
         -char[4] nameInput
         -int letterCount
         -bool nameEntered
@@ -264,6 +284,15 @@ classDiagram
         +render() void
     }
 
+    class LevelEditorMenuState {
+        -int selectedOption
+        +enter() void
+        +exit() void
+        +handleInput() void
+        +update(float dt) void
+        +render() void
+    }
+
     class EditorFileMenuState {
         -int selectedOption
         +enter() void
@@ -274,24 +303,31 @@ classDiagram
     }
 
     class EditorState {
-        -LevelEditor* editor
+        -unique_ptr~TileMap~ tileMap
+        -Camera2D camera
+        -vector~PaletteItem~ paletteItems
+        -int selectedTileIdx
+        -vector~TileChange~ undoStack
+        -vector~TileChange~ redoStack
         +enter() void
         +exit() void
         +handleInput() void
         +update(float dt) void
         +render() void
+        -placeTile(int tx, int ty, TileType newType) void
+        -undo() void
+        -redo() void
+        -saveLevel(string path) void
+        -loadLevel(string path) void
     }
 
     class VictoryState {
-        -int currentScene
-        -float sceneTimer
-        -float playerX
-        -float playerY
-        -float playerVx
-        -float playerVy
-        -float treasureY
-        -float treasureVy
+        -EndingScene currentScene
+        -CutsceneActor player
+        -CutsceneActor chest
         -int finalScore
+        -vector~HighScoreEntry~ leaderboard
+        -vector~GemDrop~ gems
         +enter() void
         +exit() void
         +handleInput() void
@@ -316,6 +352,7 @@ classDiagram
     GameState <|.. GameOverState
     GameState <|.. TransitionState
     GameState <|.. CharSelectState
+    GameState <|.. LevelEditorMenuState
     GameState <|.. EditorFileMenuState
     GameState <|.. EditorState
     GameState <|.. VictoryState
@@ -345,7 +382,7 @@ classDiagram
 |---|---|
 | `getInstance()` | Returns the single static instance. Creates it on first call (lazy initialization). Thread-safe not required (single-threaded game). |
 | `addScore(int points)` | Adds `points` to the running `score` total. Called when enemies are killed or treasure is collected. |
-| `nextFloor()` | Increments `currentFloor` by 1. Determines `ZoneType` from floor number (1–3=Cave, 4–6=Jungle, 7–9=Temple). Resets `ghostTimer` to the new floor's timer value from `DifficultyConfig`. |
+| `nextFloor()` | Increments `currentFloor` by 1. Determines `ZoneType` from floor number (1=Cave, 2=Jungle, 3=Temple). Resets `ghostTimer` to the new floor's timer value from `DifficultyConfig`. |
 | `resetRun()` | Resets all run state to defaults: `currentFloor=1`, `score=0`, `playerLives=3`, `ghostTimer=180`. Called on permadeath before starting a new run. |
 | `tickGhostTimer(float dt)` | Decrements `ghostTimer` by `dt`. Returns `true` when timer reaches zero (signals ghost spawn). Timer stops decrementing once ghost is active. |
 | `saveHighScore(string name)` | Opens `highscores.sav` via `std::ofstream` (append mode). Writes `name,score,floorsReached` as a CSV line. Closes file. |
@@ -387,10 +424,13 @@ classDiagram
     class EntityFactory {
         +static preloadTextures() void
         +static getTexture(string path) Texture2D
-        +static createEnemy(char code, float x, float y) DynamicEntity*
-        +static createGhost(float x, float y) DynamicEntity*
-        +static createItem(char code, float x, float y) Item*
-        +static createTrap(char code, float x, float y) Trap*
+        +static createEnemy(char code, float x, float y) unique_ptr~DynamicEntity~
+        +static createGhost(float x, float y) unique_ptr~DynamicEntity~
+        +static createItem(char code, float x, float y) unique_ptr~Item~
+        +static createTrap(char code, float x, float y) unique_ptr~Trap~
+        +static createArrow(float x, float y, float vx) unique_ptr~Arrow~
+        +static createExplosion(float x, float y) unique_ptr~Explosion~
+        +static createBloodParticle(float x, float y) unique_ptr~Particle~
     }
 
     class Entity {
@@ -404,7 +444,7 @@ classDiagram
         +float renderOffsetY
         +Entity(float x, float y, float w, float h)
         +virtual ~Entity()
-        +virtual update(float dt) void
+        +virtual update(float dt, Player* player) void
         +virtual render(float lightLevel) void
         +getAABB() Rectangle
         +virtual isAlive() bool
@@ -435,7 +475,7 @@ classDiagram
         -int bombs
         -int ropes
         -int gold
-        -MovementStrategy* moveStrategy
+        -unique_ptr~MovementStrategy~ moveStrategy
         -float invincibilityTimer
         -bool isSubmerged
         -bool isWhipping
@@ -461,7 +501,7 @@ classDiagram
         +useRope() bool
         +whipAttack() void
         +isInvincible() bool
-        +setMovementStrategy(MovementStrategy* s) void
+        +setMovementStrategy(unique_ptr~MovementStrategy~ s) void
         +setTileMap(TileMap* map) void
         +getHealth() int
         +getBombs() int
@@ -486,23 +526,18 @@ classDiagram
         +virtual getGravityScale() float
     }
 
-    
-
     class Enemy {
         #int health
         #int damage
-        #float detectionRange
-        #EnemyState* currentState
-        #float originX
-        #float originY
+        #shared_ptr~EnemyState~ currentStateObj
         +Enemy(float x, float y, float w, float h, int hp, int dmg)
-        +update(float dt) void
+        +update(float dt, Player* player) void
         +render(float lightLevel) void
-        +takeDamage(int dmg) void
-        +changeState(EnemyState* state) void
-        +getDetectionRange() float
-        +getTarget() Player*
-        +getOrigin() Vec2f
+        +virtual takeDamage(int dmg) void
+        +changeState(shared_ptr~EnemyState~ newState) void
+        +virtual handleIdle(float dt, Player* player) void
+        +virtual handleChase(float dt, Player* player) void
+        +virtual handleReturn(float dt, Player* player) void
     }
 
     class NemesisGhost {
@@ -511,17 +546,49 @@ classDiagram
         +handleIdle(float dt, Player* player) void
         +handleChase(float dt, Player* player) void
         +handleReturn(float dt, Player* player) void
-        #updateSpriteRect() void
+    }
+
+    class Spike {
+        -bool _blood
+        +Spike(float x, float y, float w, float h)
+        +takeDamage(int amount) void
+        +setBlood() void
+    }
+
+    class Flame {
+        +Flame(float x, float y, float vy)
+        +takeDamage(int amt) void
+    }
+
+    class Bat {
+        -float startY
+        +Bat(float x, float y)
+    }
+
+    class Snake {
+        -float waitTimer
+        -float moveSpeed
+        -int direction
+        +Snake(float x, float y)
+    }
+
+    class Spider {
+        -float jumpTimer
+        +Spider(float x, float y)
     }
 
     class Item {
         #ItemType type
         #bool isCollected
         +bool isShopItem
+        +bool isHeld
         +Item(float x, float y, float w, float h, ItemType type)
         +virtual activate(Player* player) bool
-        +virtual update(float dt) void
+        +virtual update(float dt, Player* player) void
         +virtual render(float lightLevel) void
+        +collect() void
+        +isPickedUp() bool
+        +getType() ItemType
     }
 
     class Chest {
@@ -539,24 +606,42 @@ classDiagram
         +activate(Player* player) bool
     }
 
+    class RopePickup {
+        -int amount
+        +activate(Player* player) bool
+    }
+
+    class Lamp {
+        -float pulseTimer
+        +Lamp(float x, float y)
+    }
+
     class Trap {
         #int damage
         +Trap(float x, float y, float w, float h, int dmg)
-        +virtual trigger() void
+        +virtual updateTrap(float dt, Player* player, TileMap* map, vector~unique_ptr~DynamicEntity~~& entities) void
+        +getDamage() int
     }
 
     class ArrowTrap {
-        -bool hasFired
-        +trigger() void
-        +update(float dt) void
+        -bool activated
+        -bool facingRight
+        +ArrowTrap(float x, float y, bool facingRight)
+        +updateTrap(float dt, Player* player, TileMap* map, vector~unique_ptr~DynamicEntity~~& entities) void
+    }
+
+    class Arrow {
+        -bool _stuck
+        -bool _isLethal
+        +Arrow(float x, float y, float vx)
+        +isLethal() bool
+        +getDamage() int
     }
 
     class Bomb {
         -float fuseTimer
-        -bool exploded
         +Bomb(float x, float y, float vx, float vy)
         +update(float dt, Player* player) void
-        +render(float lightLevel) void
         +explode() void
     }
 
@@ -565,31 +650,6 @@ classDiagram
         -float frameTimer
         +Explosion(float x, float y)
         +update(float dt, Player* player) void
-        +render(float lightLevel) void
-    }
-
-    class Bat {
-        -float flySpeed
-        -float swoopAngle
-        +Bat(float x, float y)
-        +update(float dt) void
-    }
-
-    note for Enemy "All Enemy subclasses and NemesisGhost<br/>reside in src/entities/enemies/"
-
-    class Snake {
-        -float patrolSpeed
-        -float patrolRange
-        +Snake(float x, float y)
-        +update(float dt) void
-    }
-
-    class Spider {
-        -bool isDropping
-        -float webLength
-        -float dropSpeed
-        +Spider(float x, float y)
-        +update(float dt) void
     }
 
     class Particle {
@@ -597,42 +657,56 @@ classDiagram
         -float maxLifetime
         +Particle(float x, float y, float vx, float vy, float lifetime)
         +update(float dt, Player* player) void
-        +render(float lightLevel) void
+    }
+
+    class LavaDrip {
+        -int currentFrame
+        -float frameTime
+        +LavaDrip(float x, float y)
+        +update(float dt, Player* player) void
+    }
+
+    class Bubble {
+        -int currentFrame
+        -float animTimer
+        +Bubble(float x, float y, LiquidSimulator* sim)
+        +update(float dt, Player* player) void
     }
 
     class RopeProjectile {
-        -float startY
         -bool isUnfurling
-        -float unfurlTimer
         -int currentLength
         -int maxLength
-        -TileMap* tileMap
         +RopeProjectile(float x, float y, float vy, TileMap* map)
         +update(float dt, Player* player) void
-        +render(float lightLevel) void
     }
 
     Entity <|-- DynamicEntity
     Entity <|-- Trap
+    Entity <|-- Lamp
     DynamicEntity <|-- Item
     Item <|-- Chest
     Item <|-- LootPickup
     Item <|-- BombPickup
+    Item <|-- RopePickup
     Trap <|-- ArrowTrap
     DynamicEntity <|-- Player
     DynamicEntity <|-- Enemy
     DynamicEntity <|-- Bomb
     DynamicEntity <|-- Explosion
     DynamicEntity <|-- Particle
+    DynamicEntity <|-- LavaDrip
+    DynamicEntity <|-- Bubble
+    DynamicEntity <|-- Arrow
     DynamicEntity <|-- RopeProjectile
     Enemy <|-- Bat
     Enemy <|-- Snake
     Enemy <|-- Spider
+    Enemy <|-- Spike
+    Enemy <|-- Flame
     Enemy <|-- NemesisGhost
     Player --> MovementStrategy : uses
-    
-    
-    Enemy --> EnemyState : currentState
+    Enemy --> EnemyState : currentStateObj
 ```
 
 #### Method Behavior Descriptions — Entity System
@@ -771,27 +845,25 @@ classDiagram
     class EnemyState {
         <<interface>>
         +enter(Enemy* enemy) void
-        +update(Enemy* enemy, float dt) void
+        +update(Enemy* enemy, float dt, Player* player) void
         +exit(Enemy* enemy) void
     }
 
     class IdleState {
-        -float patrolTimer
         +enter(Enemy* enemy) void
-        +update(Enemy* enemy, float dt) void
+        +update(Enemy* enemy, float dt, Player* player) void
         +exit(Enemy* enemy) void
     }
 
     class ChaseState {
-        -float chaseSpeed
         +enter(Enemy* enemy) void
-        +update(Enemy* enemy, float dt) void
+        +update(Enemy* enemy, float dt, Player* player) void
         +exit(Enemy* enemy) void
     }
 
     class ReturnState {
         +enter(Enemy* enemy) void
-        +update(Enemy* enemy, float dt) void
+        +update(Enemy* enemy, float dt, Player* player) void
         +exit(Enemy* enemy) void
     }
 
@@ -827,49 +899,45 @@ classDiagram
 
 ```mermaid
 classDiagram
-    class PlayState {
-        -TileMap* currentMap
-        -LevelGenerator* generator
-        -unique_ptr~Player~ player
-        -unique_ptr~NemesisGhost~ ghost
-        -vector~unique_ptr~DynamicEntity~~ dynamicEntities
-        -vector~unique_ptr~Item~~ items
-        -vector~unique_ptr~Trap~~ traps
-        -int currentFloor
-        -ZoneType currentZone
-        -FloorModifier modifier
-        +PlayState()
-        +~PlayState()
-        +generateFloor(int floor) void
-        +getTileMap() TileMap*
-        +getPlayer() Player*
-        +getGhost() NemesisGhost*
-        +getDynamicEntities() vector~unique_ptr~DynamicEntity~~&
-        +getItems() vector~unique_ptr~Item~~&
-        +getTraps() vector~unique_ptr~Trap~~&
-        +destroyTile(int gx, int gy) void
-        +breakCrackedBlock(int gx, int gy) void
-        +spawnGhost() void
-        +removeDeadEntities() void
-        +getFloorModifier() FloorModifier
+    class GeneratedLevel {
+        <<struct>>
+        +unique_ptr~TileMap~ tileMap
+        +vector~unique_ptr~DynamicEntity~~ dynamicEntities
+        +vector~unique_ptr~Item~~ items
+        +vector~unique_ptr~Trap~~ traps
+        +vector~unique_ptr~Entity~~ decorations
+        +Vector2 playerSpawn
+        +Vector2 exitPos
+        +DifficultyConfig difficulty
+        +FloorModifier modifier
+        +vector~LiquidSpawn~ initialLiquids
+        +Rectangle shopArea
     }
 
     class LevelGenerator {
         -RoomRole macroGrid[4][4]
+        -int roomVariations[4][4]
+        -int snakesLeft
+        -int batsLeft
+        -int spidersLeft
+        -int spikesLeft
+        -int lastPlacement
         -int startRoomX, startRoomY
         -int exitRoomX, exitRoomY
-        -vector~RoomTemplate~ templates
         -vector~unique_ptr~DynamicEntity~~ tempEnemies
         -vector~unique_ptr~Item~~ tempItems
         -vector~unique_ptr~Trap~~ tempTraps
+        -vector~unique_ptr~Entity~~ tempDecorations
         -Vector2 tempPlayerSpawn
         -Vector2 tempExitPos
         +LevelGenerator()
+        +~LevelGenerator()
         +generate(int floor, ZoneType zone) GeneratedLevel
         -generateMacroGrid() void
-        -selectRoomTemplate(RoomRole role) RoomTemplate
-        -populateRoom(RoomTemplate tpl, int gx, int gy, RoomRole role, TileMap* map) void
-        -generateParallaxBackground(TileMap* map) void
+        -selectVariation(RoomRole role, bool isEntrance, ZoneType zone) int
+        -instantiateTiles(ZoneType zone, const int tileGrid[10][10], int gx, int gy, RoomRole role, TileMap* map) void
+        -instantiateLakeRoom(int gx, int gy, TileMap* map, LiquidType lType, vector~LiquidSpawn~& initialLiquids) void
+        -populateEntities(const int npcGrid[10][10], const int lootGrid[10][10], int gx, int gy, RoomRole role, TileMap* map) void
         -validateLevel(TileMap* map, Vector2i start, Vector2i exit) bool
         -bfsReachability(TileMap* map, Vector2i from, Vector2i to) bool
         -getDifficultyConfig(int floor) DifficultyConfig
@@ -877,12 +945,9 @@ classDiagram
     }
 
     class DifficultyConfig {
-        +int maxEnemiesPerRoom
-        +float trapDensity
-        +int treasureValueMultiplier
-        +float enemySpeedScale
+        <<struct>>
         +float ghostTimerSeconds
-        +float liquidProbability
+        +int treasureValueMultiplier
     }
 
     class FloorModifier {
@@ -893,45 +958,43 @@ classDiagram
         CURSED_FLOOR
     }
 
-    class RoomTemplate {
-        -vector~vector~uint8_t~~ grid
-        -RoomRole role
-        +RoomTemplate(RoomRole role, const uint8_t* data)
-        +getGrid() vector~vector~uint8_t~~
-        +getRole() RoomRole
-    }
-
     class TileMap {
         -vector~vector~TileType~~ tiles
         -int width
         -int height
         -int tileSize
         -Texture2D dsTileset
+        -Texture2D ropeTex
+        -Texture2D dsTilesetJungle
+        -Texture2D dsTilesetTemple
         -Color zoneTint
+        -ZoneType currentZone
         +TileMap(int w, int h, int size)
         +~TileMap()
-        +setZoneTint(Color tint) void
+        +setTileset(Texture2D tex) void
+        +setRopeTexture(Texture2D tex) void
+        +setJungleTileset(Texture2D tex) void
+        +setTempleTileset(Texture2D tex) void
+        +setZone(ZoneType zone) void
+        +getZone() ZoneType
         +getTile(int x, int y) TileType
         +setTile(int x, int y, TileType type) void
+        +destroyBlock(int x, int y) void
         +isSolid(int x, int y) bool
-        +isOpaque(int x, int y) bool
-        +isCracked(int x, int y) bool
-        +render(Camera2D& cam, vector~vector~float~~ lightMap, bool foregroundPass) void
+        +render(Camera2D& cam, const vector~vector~Vector3~~& lightMap, bool foregroundPass) void
         +renderParallaxBackground(Camera2D& cam) void
-        +worldToGrid(float wx, float wy) Vec2i
-        +gridToWorld(int gx, int gy) Vec2f
+        +worldToGrid(float wx, float wy) Vector2i
+        +gridToWorld(int gx, int gy) Vector2
         +getWidth() int
         +getHeight() int
         +getTileSize() int
         +isInBounds(int x, int y) bool
     }
 
-    PlayState --> TileMap
-    PlayState --> LevelGenerator
-    LevelGenerator --> RoomTemplate : loads many
     LevelGenerator --> DifficultyConfig
     LevelGenerator --> FloorModifier
-    LevelGenerator ..> TileMap : produces
+    LevelGenerator --> GeneratedLevel : produces
+    GeneratedLevel --> TileMap
 ```
 
 #### Method Behavior Descriptions — Level Generation & Ownership
@@ -956,21 +1019,20 @@ classDiagram
 | `populateRoom(RoomTemplate tpl, int gx, int gy, RoomRole role, TileMap* map)` | Copies the template's 10x8 `uint8_t` grid into the `TileMap` at the room's grid offset. Each ID maps directly to a `TileType` (for rendering) or triggers entity spawns. If `role` is `TYPE_2_DROP_THROUGH`, manually punches a 3-tile wide hole in the ceiling blocks. |
 | `validateLevel(TileMap* map, Vector2i start, Vector2i exit)` | Calls `bfsReachability(map, start, exit)`. Returns `true` if the exit is reachable from the spawn point considering platformer physics constraints. |
 | `bfsReachability(TileMap* map, Vector2i from, Vector2i to)` | BFS on the tile grid. Enqueues: left, right (if not solid), down (gravity/ladders), and up to `jumpEnergy` cells upward (or ladders). Returns `true` if `to` cell is visited. |
-| `getDifficultyConfig(int floor)` | Returns a `DifficultyConfig` struct from a hardcoded lookup table indexed by floor ranges. |
-| `rollFloorModifier(int floor)` | If `floor == 1`, returns `NONE`. Else 30% chance to roll a random modifier: `DARK_FLOOR`, `FLOODED_FLOOR`, or `CURSED_FLOOR`. Returns `FloorModifier` enum value. |
+| `getDifficultyConfig(int floor)` | Returns a `DifficultyConfig` struct with floor-scaled `ghostTimerSeconds` and `treasureValueMultiplier`. |
+| `rollFloorModifier(int floor)` | If `floor == 1`, returns `NONE`. Else 50% chance to roll a random modifier: `DARK_FLOOR`, `FLOODED_FLOOR`, or `CURSED_FLOOR`. Returns `FloorModifier` enum value. |
 
 **TileMap**
 
 | Method | Behavior |
 |---|---|
-| `getTile(int x, int y)` | Returns `tiles[y][x]` if in bounds, else `TileType::CAVE_ROCK` (out-of-bounds treated as infinite dirt boundary). |
+| `getTile(int x, int y)` | Returns `tiles[y][x]` if in bounds, else zone boundary rock (`CAVE_ROCK`, `LUSH_ROCK`, `TEMPLE_ROCK`) as solid boundary. |
 | `setTile(int x, int y, TileType type)` | Sets `tiles[y][x] = type`. Called by terrain destruction and level editor. Does bounds check first. |
-| `isSolid(int x, int y)` | Returns `true` if tile at `(x,y)` is within the solid block range (IDs 1 through 8, which includes dirt and platforms). Used by physics for collision. |
-| `isOpaque(int x, int y)` | Returns `true` if tile blocks light. Platforms (`CAVE_DOWN_ORIENTED`) are NOT opaque. |
-| `isCracked(int x, int y)` | Returns `true` only if tile is `TileType::CRACKED`. Only cracked blocks can be broken by whip attack. |
-| `render(Camera2D cam, vector<vector<float>> lightMap)` | Iterates only tiles visible within the camera's viewport (culling). For each visible tile, draws the zone-appropriate sprite at grid position, tinted by `ColorTint(WHITE, lightMap[gy][gx])`. Empty tiles are not drawn (cave background is black). |
-| `worldToGrid(float wx, float wy)` | Returns `Vec2i{(int)(wx / tileSize), (int)(wy / tileSize)}`. Converts pixel coordinates to grid indices. |
-| `gridToWorld(int gx, int gy)` | Returns `Vec2f{gx * tileSize, gy * tileSize}`. Converts grid indices to pixel coordinates (top-left corner of tile). |
+| `destroyBlock(int x, int y)` | Safely destroys a destructible block at `(x, y)`, replacing it with `TileType::NOTHING` and triggering cascade checks. |
+| `isSolid(int x, int y)` | Returns `true` if tile at `(x,y)` is solid (`WALL`, `BORDER_TOP`, `CRACKED`, etc.). Used by physics for collision. |
+| `render(Camera2D cam, const vector<vector<Vector3>>& lightMap, bool foregroundPass)` | Iterates only tiles visible within the camera's viewport (culling). For each visible tile, draws the zone-appropriate sprite at grid position, tinted by `lightMap[gy][gx]`. |
+| `worldToGrid(float wx, float wy)` | Returns `Vector2i{(int)(wx / tileSize), (int)(wy / tileSize)}`. Converts pixel coordinates to grid indices. |
+| `gridToWorld(int gx, int gy)` | Returns `Vector2{gx * tileSize, gy * tileSize}`. Converts grid indices to pixel coordinates (top-left corner of tile). |
 
 ### 3.5 Dynamic Lighting Subsystem
 
@@ -980,23 +1042,23 @@ classDiagram
         <<struct>>
         +float fx
         +float fy
-        +float intensity
+        +Vector3 color
         +float radius
     }
 
     class LightingSystem {
-        -vector~vector~float~~ lightMap
+        -vector~vector~Vector3~~ lightMap
         -vector~LightSource~ sources
-        -float ambientLight
+        -Vector3 ambientLight
         -int width
         -int height
         +LightingSystem(int mapWidth, int mapHeight)
-        +setAmbientLight(float level) void
+        +setAmbientLight(Vector3 level) void
         +clearLights() void
-        +addLight(float fx, float fy, float intensity, float radius) void
+        +addLight(float fx, float fy, Vector3 color, float radius) void
         +update(TileMap* map) void
-        +getLightMap() vector~vector~float~~
-        -castLight(TileMap* map, int cx, int cy, float fx, float fy, int row, float startSlope, float endSlope, float radius, int xx, int xy, int yx, int yy, float intensity) void
+        +getLightMap() vector~vector~Vector3~~&
+        -castLight(TileMap* map, int cx, int cy, float fx, float fy, int row, float startSlope, float endSlope, float radius, int xx, int xy, int yx, int yy, Vector3 color) void
     }
     
     LightingSystem --> LightSource : contains
@@ -1010,7 +1072,7 @@ classDiagram
 | Method | Behavior |
 |---|---|
 | `clearLights()` | Clears the `sources` vector and resets the entire `lightMap` to the `ambientLight` level. Called every frame before adding new lights. |
-| `addLight(fx, fy, intensity, radius)` | Pushes a new `LightSource` struct into the `sources` vector for the current frame. |
+| `addLight(fx, fy, color, radius)` | Pushes a new `LightSource` struct into the `sources` vector for the current frame. |
 | `update(TileMap* map)` | Iterates all `LightSource`s in `sources`. For each source, it calculates the grid coordinates and invokes `castLight` for all 8 octants. |
 | `castLight(...)` | A highly optimized continuous floating-point shadowcasting algorithm. Uses angular visibility checks (`overlap / cell_width`) to generate anti-aliased soft shadows without grid snapping. Calculates inverse-square falloff and additively blends into `lightMap`. |
 
@@ -1085,10 +1147,11 @@ classDiagram
     }
 
     class CollisionResult {
+        <<struct>>
         +bool collided
         +float contactTime
-        +Vec2f contactNormal
-        +Vec2f contactPoint
+        +Vector2 contactNormal
+        +Vector2 contactPoint
     }
 
     class Item {
@@ -1100,7 +1163,7 @@ classDiagram
         +bool isHeld
         +Item(float x, float y, float w, float h, ItemType type)
         +virtual update(float dt, Player* player) void
-        +virtual activate(Player* player) void
+        +virtual activate(Player* player) bool
         +virtual render(float lightLevel) void
         +collect() void
         +isPickedUp() bool
@@ -1110,51 +1173,46 @@ classDiagram
     class LootPickup {
         -int value
         +LootPickup(float x, float y, float w, float h, int val)
-        +activate(Player* player) void
+        +activate(Player* player) bool
     }
 
     class Chest {
         -bool isOpened
         +Chest(float x, float y, float w, float h)
         +update(float dt, Player* player) void
-        +activate(Player* player) void
-        // Ejected items have high initial upward velocity (vy = -3.5f)
+        +activate(Player* player) bool
     }
 
     class BombPickup {
-        -int count
-        +BombPickup(float x, float y, int count)
-        +activate(Player* player) void
+        -int amount
+        +BombPickup(float x, float y, float w, float h, int amount)
+        +activate(Player* player) bool
     }
 
     class RopePickup {
-        -int count
-        +RopePickup(float x, float y, int count)
-        +activate(Player* player) void
+        -int amount
+        +RopePickup(float x, float y, float w, float h, int amount)
+        +activate(Player* player) bool
     }
 
     class Trap {
         <<abstract>>
         #int damage
         +Trap(float x, float y, float w, float h, int dmg)
-        +virtual update(float dt) void
+        +virtual updateTrap(float dt, Player* player, TileMap* map, vector~unique_ptr~DynamicEntity~~& entities) void
         +virtual render(float lightLevel) void
         +getDamage() int
     }
 
-    class Explosion {
-        +Explosion(float x, float y)
-    }
-
     class Spike {
-        +Spike(float x, float y)
+        +Spike(float x, float y, float w, float h)
     }
 
     class ArrowTrap {
         -bool facingRight
         -bool activated
         +ArrowTrap(float x, float y, bool facingRight)
-        +updateTrap(float dt, Player* player, ...) void
+        +updateTrap(float dt, Player* player, TileMap* map, vector~unique_ptr~DynamicEntity~~& entities) void
     }
 
     DynamicEntity <|-- Item
@@ -1201,6 +1259,19 @@ classDiagram
 
 ```mermaid
 classDiagram
+    class EventData {
+        <<struct>>
+        +int gridX
+        +int gridY
+        +float worldX
+        +float worldY
+        +int amount
+        +char entityCode
+        +float vx
+        +float vy
+        +TileType tileType
+    }
+
     class EventBus {
         -static EventBus* instance
         -unordered_map~EventType, vector~EventCallback~~ listeners
@@ -1208,36 +1279,38 @@ classDiagram
         +static getInstance() EventBus*
         +subscribe(EventType type, EventCallback cb) void
         +publish(EventType type, EventData data) void
+        +clearListeners(EventType type) void
+        +clearAllListeners() void
     }
 
     class Minimap {
         -bool visited[4][4]
-        -int playerRoomX
-        -int playerRoomY
+        -int currentRoomX
+        -int currentRoomY
         -int exitRoomX
         -int exitRoomY
-        -bool exitFound
-        +Minimap()
-        +onRoomEntered(int rx, int ry) void
-        +onExitFound(int rx, int ry) void
-        +setPlayerRoom(int rx, int ry) void
-        +render(float screenX, float screenY) void
-        +reset() void
+        +Minimap(Vector2 exitPos)
+        +update(float playerWorldX, float playerWorldY) void
+        +render() void
     }
 
     class ComboSystem {
         -float comboTimer
         -int comboCount
-        -float comboDuration
+        -float currentMultiplier
+        -float maxComboTime
         -vector~FloatingText~ floatingTexts
         +ComboSystem()
-        +onTreasureCollected(int baseGold, float wx, float wy) int
+        +onTreasureCollected(int baseGold, float worldX, float worldY) void
+        +onEnemyKilled(int basePoints, float worldX, float worldY) void
         +update(float dt) void
-        +render(Camera2D cam) void
+        +render(Font font) void
+        +renderHUD(Font font) void
         +getComboCount() int
     }
 
     class FloatingText {
+        <<struct>>
         +string text
         +float x
         +float y
@@ -1248,70 +1321,48 @@ classDiagram
 
     class ShopSystem {
         -vector~ShopItem~ inventory
-        -bool isActive
+        -int selectedIndex
+        -bool isPlayerInShopArea
         +ShopSystem()
-        +generateInventory(int floor) void
+        +initializeFromItems(const vector~unique_ptr~Item~~& levelItems, int floor) void
+        +handleInput(Player* player) void
         +attemptPurchase(Player* player, int index) bool
-        +render() void
+        +render(Font font) void
+        +setPlayerInShop(bool inShop) void
         +isPlayerInShop() bool
     }
 
     class ShopItem {
+        <<struct>>
+        +ItemType type
         +string name
         +int price
-        +ItemType type
         +bool isSold
+        +Item* physicalItem
     }
 
-    class LevelEditor {
-        -TileMap* editMap
-        -LiquidSimulator* editLiquids
-        -vector~EntityPlacement~ entityPlacements
-        -TilePalette selectedTile
-        -EntityPalette selectedEntity
-        -Camera2D editorCam
-        -int cursorGridX
-        -int cursorGridY
-        -bool showGrid
-        +LevelEditor()
-        +~LevelEditor()
-        +handleInput() void
-        +update(float dt) void
-        +render() void
-        +newMap(int w, int h) void
-        +placeTile(int gx, int gy, TileType type) void
-        +placeEntity(int gx, int gy, EntityPalette type) void
-        +eraseTile(int gx, int gy) void
-        +serialize(string filePath) bool
-        +deserialize(string filePath) bool
-        +testPlay() void
-        -drawPalette() void
-        -drawGrid() void
-        -drawCursor() void
+    class MenuBackground {
+        +static render() void
     }
 
-    class HUD {
-        -Player* player
-        -ComboSystem* combo
-        -float ghostTimer
-        +HUD(Player* player, ComboSystem* combo)
-        +render() void
-        -drawHealthBar() void
-        -drawBombCount() void
-        -drawRopeCount() void
-        -drawGoldCount() void
-        -drawFloorIndicator() void
-        -drawGhostTimer() void
-        -drawComboMeter() void
-        -drawModifierIcon() void
+    class PaletteItem {
+        <<struct>>
+        +TileType type
+        +Texture2D tex
+        +Rectangle src
+        +string name
     }
 
+    class TileChange {
+        <<struct>>
+        +int x
+        +int y
+        +TileType oldType
+        +TileType newType
+    }
 
     ComboSystem --> FloatingText
     ShopSystem --> ShopItem
-    LevelEditor --> TileMap : edits
-    LevelEditor --> LiquidSimulator : edits
-    HUD --> ComboSystem : reads
 ```
 
 #### Method Behavior Descriptions — Support Systems
@@ -1353,18 +1404,15 @@ classDiagram
 | `render(Font font)` | Screen-space modal dialog drawing a dark semi-transparent panel with gold border, header "SHOP", selection cursor ">", item names, and prices or "SOLD" tags. |
 | `setPlayerInShop(bool)` | Toggles shop modal visibility. Set to true when player presses 'Y' inside the shopArea. |
 
-**LevelEditor**
+**EditorState**
 
 | Method | Behavior |
 |---|---|
-| `handleInput()` | Left-click → `placeTile()` or `placeEntity()` at cursor grid position (depends on selected palette mode). Right-click → `eraseTile()`. Scroll wheel → cycle through palette options. Arrow keys → scroll `editorCam`. Ctrl+S → quick save current file. Ctrl+Shift+S → `serialize()` with native Windows Save As dialog. Tab → toggle between tile and entity palette. P → `testPlay()`. |
-| `placeTile(int gx, int gy, TileType type)` | Sets `editMap->setTile(gx, gy, type)`. Updates the visual grid immediately. |
-| `placeEntity(int gx, int gy, EntityPalette type)` | Adds an `EntityPlacement{type, gx, gy}` to the `entityPlacements` vector. Draws an icon at the grid position to show placement. |
-| `eraseTile(int gx, int gy)` | Sets tile to `TileType::EMPTY`. Also removes any `EntityPlacement` at `(gx, gy)` from the vector. |
-| `serialize(string filePath)` | Opens `filePath` via `std::ofstream`. Writes `HEADER:width,height,tileSize`. Writes `TILES:` section (each row as a string of tile-type digits). Writes `LIQUIDS:` section (x,y,level,type for each non-zero liquid cell). Writes `ENTITIES:` section (type,x,y for each placement). Writes `END`. Closes file. See §5.5 for format. |
-| `deserialize(string filePath)` | Opens `filePath` via `std::ifstream`. Parses `HEADER` to create a new `TileMap`. Reads `TILES` section row-by-row into the tile grid. Reads `LIQUIDS` into `editLiquids`. Reads `ENTITIES` into `entityPlacements`. Validates file integrity (correct dimensions, valid tile codes). |
-| `testPlay()` | Serializes current map to a temp file. Transitions to a special `PlayState` that loads the temp file instead of generating a level. Player can test their custom level and return to the editor. |
-| `render()` | Draws the tile grid with grid lines. Draws entity placement icons. Draws the selected palette panel on the side. Draws cursor highlight at `(cursorGridX, cursorGridY)`. If `showGrid`, draws gridlines over the entire map. |
+| `handleInput()` | Left-click → `placeTile()` with selected palette item. Right-click → erase tile (`TileType::NOTHING`). Mouse drag with right click / middle mouse to pan camera. Ctrl+Z / Ctrl+Y → `undo()` / `redo()`. Ctrl+S / Ctrl+O → save and load custom `.lvl` files via native OS file dialogs (`tinyfiledialogs`). Esc → return to menu. |
+| `placeTile(int tx, int ty, TileType newType)` | Records `TileChange{tx, ty, oldType, newType}` into `undoStack`, clears `redoStack`, and updates `tileMap->setTile(tx, ty, newType)`. |
+| `undo()` / `redo()` | Pops state changes between `undoStack` and `redoStack`, reverting or reapplying tile modifications. |
+| `saveLevel(string path)` / `loadLevel(string path)` | Serializes or parses tile grids into custom `.lvl` file format. |
+| `render()` | Draws world-space tile grid inside camera view, mouse cursor tile highlight box, and screen-space palette UI with tile icons and status bar. |
 
 **HUD**
 
@@ -1423,20 +1471,20 @@ BeginDrawing()
   ClearBackground(BLACK)
 
   BeginMode2D(camera)
-    1. TileMap::render(lightMap)           — tiles tinted by light intensity
-    2. LiquidSimulator::render()           — translucent water/lava overlays
-    3. for trap in traps → render()        — spikes, arrow launchers
-    4. for item in items → render()        — treasure, crates, pickups
-    5. for de in dynamicEntities → render()— enemies (tinted by light)
-    6. Player::render()                    — player sprite (tinted by light)
-    7. NemesisGhost::render()              — semi-transparent ghost + trail
-    8. ComboSystem::render(cam)            — floating text ("+50 ×3!")
+    1. TileMap::renderParallaxBackground(camera) — Parallax cave background
+    2. TileMap::render(lightMap, false)          — Background pass (dirt walls, ladders, backdrops)
+    3. Entities pass (tinted by local lightMap)  — Items, decorations, traps, enemies, player
+    4. LiquidSimulator::render(camera)           — Dynamic water / lava surfaces
+    5. TileMap::render(lightMap, true)           — Foreground pass (solid blocks overlapping entities)
+    6. NemesisGhost::render()                    — Ethereal ghost rendered over solid walls
+    7. ComboSystem::render(font)                 — In-world floating point numbers and text
   EndMode2D()
 
-   9. HUD::render()                        — health, bombs, ropes, gold, floor,
-                                              combo meter, modifier icon
-  10. Minimap::render()                     — 4×4 room grid with fog of war
-  11. ShopSystem::render() (if in shop)     — shop overlay
+  Screen-Space UI Pass (Outside Mode2D):
+    8. Minimap::render()                         — 4×4 exploration grid with fog of war
+    9. HUD elements                              — Health hearts, bombs, ropes, gold, floor indicator
+   10. ComboSystem::renderHUD(font)              — Combo multiplier badge and timer bar
+   11. ShopSystem::render(font) (if active)      — Shop dialogue panel / "Press Y" prompt
 EndDrawing()
 ```
 
@@ -1450,7 +1498,7 @@ Exactly **5 design patterns**, each mapped to a concrete system:
 
 | Pattern | System | Implementation |
 |---|---|---|
-| **Singleton** | `GameManager` | Global game state (floor, score, lives). `GameManager::getInstance()`. Also `AudioManager`, `EventBus`. |
+| **Singleton** | `GameManager` | Global game state (floor, score, player stats). `GameManager::getInstance()`. Also `AudioManager`, `EventBus`. |
 | **Factory** | `EntityFactory` | Translates integer IDs (from the room templates) into `TileType` enums and spawns items/enemies at runtime via concrete subclass constructors. |
 | **State** | Enemy AI & Game Screens | Enemies: `EnemyState` → Idle/Chase/Return. Game: `GameState` → Menu/CharSelect/Play/Pause/GameOver/Editor. |
 | **Strategy** | Character Movement | `MovementStrategy` → Explorer (balanced), Ninja (high jump, fast), Tank (slow, high HP). Swapped at character select. |
@@ -1520,11 +1568,11 @@ sequenceDiagram
     P->>MS: instantiate NinjaStrategy
     P->>P: handleInput()
     P->>MS: getMoveSpeed()
-    MS-->>P: returns 215.0f
-    P->>P: vx = 215.0f
+    MS-->>P: returns 170.0f
+    P->>P: vx = 170.0f
     P->>MS: getJumpForce()
-    MS-->>P: returns 480.0f
-    P->>P: vy = -480.0f
+    MS-->>P: returns 460.0f
+    P->>P: vy = -460.0f
 ```
 
 **4. Singleton Pattern (GameManager)**
@@ -1605,11 +1653,11 @@ Each floor is a **4×4 macro-grid** of 16 room slots:
 **Integrated Difficulty Scaling (per floor):**
 
 ```text
-Floor  | Enemy Spawn Rate | Trap Density | Treasure Value | Enemy Speed | Ghost Timer
--------|------------------|-------------|----------------|-------------|------------
- 1–3   |      60%         |    Low      |     Low        |    1.0×     |   180s
- 4–6   |      70%         |   Medium    |    Medium      |    1.2×     |   150s
- 7–9   |      85%         |    High     |     High       |    1.5×     |   120s
+Floor | Zone   | Treasure Multiplier | Ghost Timer
+------|--------|---------------------|------------
+  1   | Cave   |         1×          |    180s
+  2   | Jungle |         2×          |    165s
+  3   | Temple |         3×          |    150s
 ```
 
 **Data Structures:**
@@ -1701,13 +1749,13 @@ void NemesisGhost::handleChase(float dt, Player* player) {
 
 ### 6.7 Level Environmental Modifiers (A10)
 
-When generating a floor, the `LevelGenerator` rolls a random **floor modifier** (30% chance per floor, never on floor 1):
+When generating a floor, the `LevelGenerator` rolls a random **floor modifier** (50% chance per floor, never on floor 1):
 
 | Modifier | Effect | Implementation |
 |---|---|---|
-| **Dark Floor** | Player torch radius reduced by 50% | Set `playerTorch->setRadius(baseRadius * 0.5f)` |
-| **Flooded Floor** | Bottom 2 tile rows pre-filled with water | `liquidSim->addLiquid(x, bottomRows, 255, WATER)` in generation |
-| **Cursed Floor** | All treasure values doubled, but ghost timer halved | Modify `DifficultyConfig` fields |
+| **Dark Floor** | Player torch radius reduced by 50% | `radius *= 0.5f` in lighting loop |
+| **Flooded Floor** | Bottom 2 tile rows pre-filled with water | `LiquidSimulator::applyFloodedFloorModifier(2)` during level setup |
+| **Cursed Floor** | All treasure values doubled, but ghost timer halved | `treasureValueMultiplier *= 2`, `ghostTimerSeconds *= 0.5f` |
 
 Applied as a `FloorModifier` enum stored in `PlayState`. Each modifier tweaks an existing system's parameter — no new systems needed.
 
@@ -1773,7 +1821,7 @@ To keep level design simple and authentic, we use a single master spritesheet (`
    - ID 4: Platform that can be jumped through from below.
    - ID 5-8: Decorative border dirt blocks.
 2. **Parallax Background:** A dark, repeating dirt background is rendered behind the cave using parallax scrolling with a `{80, 80, 80, 255}` tint to simulate depth of field and make the foreground tiles pop.
-3. **Zoom & Bounds:** The camera features a 2.0x zoom (making the 16x16 tiles appear as chunky 32x32 blocks). The 40x32 map is mathematically surrounded by infinite dirt bounds (`CAVE_ROCK`), which the camera lets the player partially see without falling off the edge.
+3. **Zoom & Bounds:** The camera features a 2.0x zoom (making the 16x16 tiles appear as chunky 32x32 blocks). The 40x40 map is mathematically surrounded by infinite dirt bounds (`CAVE_ROCK`), which the camera lets the player partially see without falling off the edge.
 
 ---
 
@@ -1796,20 +1844,23 @@ To keep level design simple and authentic, we use a single master spritesheet (`
 | Data Structure | Where Used | Why |
 |---|---|---|
 | `std::vector<std::vector<TileType>>` | TileMap grid | O(1) random-access tile queries |
-| `std::vector<std::vector<float>>` | Lighting light map | Per-tile light intensity |
+| `std::vector<std::vector<Vector3>>` | Lighting light map | Per-tile RGB continuous light intensity vector |
 | `std::vector<std::vector<uint8_t>>` | Liquid grid | Per-tile liquid level (0–255) for CA |
 | `std::unordered_map<int, std::vector<int>>` | Level graph (adjacency list) | O(1) avg neighbor lookup |
 | `std::vector<int>` | Golden Path | Ordered room-index sequence from DFS |
 | `std::queue<std::pair<int, int>>` | BFS validation + Cascade Drainage | Standard BFS frontier + list of blocks to destroy per frame |
 | `std::stack<int>` | DFS golden-path generation | Standard DFS traversal |
-| `std::vector<unique_ptr<DynamicEntity>>` | **PlayState typed ownership** | Enemies — iterate without `dynamic_cast` |
+| `std::vector<unique_ptr<DynamicEntity>>` | **PlayState typed ownership** | Enemies & projectiles — iterate without `dynamic_cast` |
 | `std::vector<unique_ptr<Item>>` | **PlayState typed ownership** | Items — type-safe iteration |
 | `std::vector<unique_ptr<Trap>>` | **PlayState typed ownership** | Traps — type-safe iteration |
 | `bool visited[4][4]` | Minimap fog of war | Tracks which rooms are revealed |
 | `std::vector<FloatingText>` | Combo system | Active floating text elements |
 | `std::unordered_map<string, Sound>` | AudioManager SFX cache | O(1) sound lookup by name |
+| `std::unordered_map<string, Music>` | AudioManager BGM cache | O(1) streaming music lookup by name |
 | `std::unordered_map<EventType, vector<cb>>` | EventBus observer registry | O(1) event dispatch |
 | `std::vector<RoomTemplate>` | Room template library | Loaded at startup |
+| `std::vector<PaletteItem>` | Level Editor palette | Interactive tile palette options |
+| `std::vector<TileChange>` | Level Editor undo/redo stacks | Fast push/pop action history |
 | `std::fstream` | Save/Load, templates, Level Editor | File I/O for `.txt`, `.sav`, `.lvl` |
 
 ### 7.3 Collision Approach: O(N²) Typed-List Iteration
@@ -1818,24 +1869,16 @@ With ~30–50 entities per level, simple nested loops over typed lists are corre
 
 ```cpp
 // In PlayState::update(dt) — all collision checks
-Player* player = levelManager->getPlayer();
-auto& enemies  = levelManager->getDynamicEntities();
-auto& items    = levelManager->getItems();
-auto& traps    = levelManager->getTraps();
+Player* player = player.get();
+auto& enemies  = tempLevel.dynamicEntities;
+auto& items    = tempLevel.items;
+auto& traps    = tempLevel.traps;
 
 // Player vs Enemies (O(N))
 for (auto& enemy : enemies) {
     if (!enemy->isAlive()) continue;
     if (physics->checkAABBOverlap(player->getAABB(), enemy->getAABB())) {
-        // Jump-on-top? → enemy damage. Else → player damage.
-    }
-}
-
-// Player vs Ghost (O(1))
-NemesisGhost* ghost = levelManager->getGhost();
-if (ghost && ghost->isActive()) {
-    if (physics->checkAABBOverlap(player->getAABB(), ghost->getAABB())) {
-        player->takeDamage(9999); // instant death
+        player->takeDamage(enemy->getDamage());
     }
 }
 
@@ -1843,7 +1886,7 @@ if (ghost && ghost->isActive()) {
 for (auto& item : items) {
     if (item->isPickedUp()) continue;
     if (physics->checkAABBOverlap(player->getAABB(), item->getAABB())) {
-        if (item->getType() == ItemType::TREASURE) {
+        if (item->getType() == ItemType::LOOT_PICKUP) {
             int gold = combo->onTreasureCollected(
                 item->getGoldValue(),
                 item->getX(), item->getY());
@@ -1873,63 +1916,52 @@ for (auto& enemy : enemies) {
 ### 7.4 Recursive Shadowcasting Pseudocode
 
 ```cpp
-void LightingSystem::recursiveShadowCast(
-    int cx, int cy, int radius, int octant,
-    float startSlope, float endSlope, int row
+void LightingSystem::castLight(
+    TileMap* map, int cx, int cy, float fx, float fy, int row,
+    float startSlope, float endSlope, float radius,
+    int xx, int xy, int yx, int yy, Vector3 color
 ) {
-    if (row > radius || startSlope < endSlope) return;
+    if (startSlope <= endSlope) return;
+    for (int i = row; i <= radius; i++) {
+        for (int dx = -i; dx <= 0; dx++) {
+            int dy = -i;
+            int ax = cx + (dx * xx + dy * xy);
+            int ay = cy + (dx * yx + dy * yy);
+            if (!map->isInBounds(ax, ay)) continue;
 
-    bool prevBlocked = false;
-    float newStart = startSlope;
+            float l_slope = (ax - cx - 0.5f) / (ay - cy + 0.5f);
+            float r_slope = (ax - cx + 0.5f) / (ay - cy - 0.5f);
+            if (startSlope < r_slope) continue;
+            if (endSlope > l_slope) break;
 
-    for (int col = 0; col <= row; col++) {
-        auto [tx, ty] = transformOctant(cx, cy, row, col, octant);
-        if (!tileMap->isInBounds(tx, ty)) continue;
+            float dist = std::sqrt((ax + 0.5f - fx) * (ax + 0.5f - fx) + (ay + 0.5f - fy) * (ay + 0.5f - fy));
+            if (dist <= radius) {
+                float falloff = std::pow(1.0f - (dist / radius), 1.5f);
+                lightMap[ay][ax] += color * falloff;
+            }
 
-        float leftSlope  = (col - 0.5f) / (row + 0.5f);
-        float rightSlope = (col + 0.5f) / (row - 0.5f);
-        if (rightSlope > startSlope) continue;
-        if (leftSlope < endSlope) break;
-
-        float dist = std::sqrt((float)(row * row + col * col));
-        if (dist <= radius)
-            lightMap[ty][tx] += applyFalloff(cx, cy, tx, ty, radius);
-
-        if (tileMap->isOpaque(tx, ty)) {
-            if (!prevBlocked)
-                recursiveShadowCast(cx, cy, radius, octant,
-                                    newStart, leftSlope, row + 1);
-            prevBlocked = true;
-            newStart = rightSlope;
-        } else {
-            prevBlocked = false;
+            if (map->isOpaque(ax, ay)) {
+                castLight(map, cx, cy, fx, fy, i + 1, startSlope, l_slope, radius, xx, xy, yx, yy, color);
+                startSlope = r_slope;
+            }
         }
     }
-    if (!prevBlocked)
-        recursiveShadowCast(cx, cy, radius, octant,
-                            newStart, endSlope, row + 1);
 }
 ```
 
 ### 7.5 Level Editor File Format (`.lvl`)
 
+Levels created with the in-game editor are stored as 32 lines of 40 integer `TileType` IDs separated by whitespace:
+
 ```text
-HEADER:width,height,tileSize
-TILES:
-1111111111
-1000000001
-10C00E0001
-1000000001
-1111111111
-LIQUIDS:
-3,4,200,WATER
-7,2,255,LAVA
-ENTITIES:
-BAT,5,3
-SNAKE,2,8
-SHOP,6,6
-END
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ... 1
+1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ... 1
+1 0 0 16 0 0 0 0 0 0 0 0 0 0 0 0 17 0 0 0 ... 1
+1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ... 1
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ... 1
 ```
+
+*(Where `1` = Wall, `0` = Nothing, `16` = Entrance Door, `17` = Exit Door, `18` = Snake, `19` = Bat, etc.)*
 
 ---
 
@@ -2019,7 +2051,7 @@ END
 
 | Person A | Person B |
 |---|---|
-| Full integration testing (all 9 floors) | Load Spelunky sprites → map to entities |
+| Full integration testing (all 3 floors) | Load Spelunky sprites → map to entities |
 | Bug fixing: collision, lighting edge cases | Load Spelunky audio → map to AudioManager |
 | **Optimize lighting: dirty-flag recalc only when needed** | Bug fixing: generation, liquid, AI edge cases |
 | Smart pointer audit (`unique_ptr` ownership) | Balance: enemy count, treasure, shop prices, ghost timer |
@@ -2059,7 +2091,7 @@ END
 - Run: `make` or `mingw32-make`
 
 ### Manual Verification
-- **Play-test all 9 floors** (permadeath, all 3 characters).
+- **Play-test all 3 floors** (permadeath, all 3 characters; Floor 1 Cave → Floor 2 Jungle → Floor 3 Temple → Victory Cutscene).
 - **Lighting:** Walk dark caves; torch shadows; bomb flash; lava glow.
 - **Liquids:** Bomb wall → water floods; lava damages player.
 - **Ghost:** Wait for timer → ghost spawns → chases through walls.
