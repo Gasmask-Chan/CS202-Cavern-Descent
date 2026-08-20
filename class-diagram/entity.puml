@@ -1,0 +1,163 @@
+@startuml
+class EntityFactory {
+    -static textureCache : map<string, Texture2D>
+    +static preloadTextures() : void
+    +static getTexture(path : string) : Texture2D
+    +static createEnemy(code : char, x : float, y : float) : DynamicEntity*
+    +static createGhost(x : float, y : float) : DynamicEntity*
+    +static createItem(code : char, x : float, y : float) : Item*
+    +static createTrap(code : char, x : float, y : float) : Trap*
+}
+
+class Entity {
+    #x : float
+    #y : float
+    #width : float
+    #height : float
+    #isActive : bool
+    +{abstract} update(dt : float) : void
+    +{abstract} render(lightLevel : float) : void
+    +getAABB() : Rectangle
+    +{abstract} isAlive() : bool
+    +destroy() : void
+}
+
+class DynamicEntity {
+    #vx : float
+    #vy : float
+    #isGrounded : bool
+    +passesThroughWalls : bool
+    +applyGravity(dt : float) : void
+    +move(dx : float, dy : float) : void
+}
+
+class Player {
+    -health : int
+    -maxHealth : int
+    -bombs : int
+    -ropes : int
+    -gold : int
+    -moveStrategy : MovementStrategy*
+    -isSubmerged : bool
+    -isWhipping : bool
+    +handleInput() : void
+    +update(dt : float) : void
+    +takeDamage(dmg : int) : void
+    +heal(amount : int) : void
+    +collectGold(amount : int) : void
+    +whipAttack() : void
+    +setMovementStrategy(s : MovementStrategy*) : void
+}
+
+interface MovementStrategy {
+    +{abstract} getMoveSpeed() : float
+    +{abstract} getJumpForce() : float
+    +{abstract} getMaxHealth() : int
+    +{abstract} getGravityScale() : float
+}
+
+class Enemy {
+    #health : int
+    #damage : int
+    #currentStateObj : shared_ptr<EnemyState>
+    +update(dt : float) : void
+    +takeDamage(dmg : int) : void
+    +changeState(newState : shared_ptr<EnemyState>) : void
+    +{abstract} handleIdle(dt : float, player : Player*) : void
+    +{abstract} handleChase(dt : float, player : Player*) : void
+    +{abstract} handleReturn(dt : float, player : Player*) : void
+}
+
+class NemesisGhost {
+    +handleChase(dt : float, player : Player*) : void
+}
+
+class Item {
+    #type : ItemType
+    #isCollected : bool
+    +isShopItem : bool
+    +{abstract} activate(player : Player*) : bool
+}
+
+class Chest {
+    -isOpened : bool
+    +activate(player : Player*) : bool
+}
+
+class LootPickup {
+    -value : int
+    +activate(player : Player*) : bool
+}
+
+class BombPickup {
+    -amount : int
+    +activate(player : Player*) : bool
+}
+
+class Trap {
+    #damage : int
+    +{abstract} trigger() : void
+}
+
+class ArrowTrap {
+    -hasFired : bool
+    +trigger() : void
+}
+
+class Bomb {
+    -fuseTimer : float
+    -exploded : bool
+    +explode() : void
+}
+
+class Explosion {
+    -frameTimer : float
+}
+
+class Bat {
+    -startY : float
+}
+
+note bottom of Enemy : All Enemy subclasses and NemesisGhost\nreside in src/entities/enemies/
+
+class Snake {
+    -waitTimer : float
+    -moveSpeed : float
+    -direction : int
+}
+
+class Spider {
+    -jumpTimer : float
+}
+
+class Particle {
+    -lifetime : float
+}
+
+class RopeProjectile {
+    -isUnfurling : bool
+    -currentLength : int
+    -maxLength : int
+}
+
+Entity <|-- DynamicEntity
+Entity <|-- Trap
+DynamicEntity <|-- Item
+Item <|-- Chest
+Item <|-- LootPickup
+Item <|-- BombPickup
+Trap <|-- ArrowTrap
+DynamicEntity <|-- Player
+DynamicEntity <|-- Enemy
+DynamicEntity <|-- Bomb
+DynamicEntity <|-- Explosion
+DynamicEntity <|-- Particle
+DynamicEntity <|-- RopeProjectile
+Enemy <|-- Bat
+Enemy <|-- Snake
+Enemy <|-- Spider
+Enemy <|-- NemesisGhost
+Player --> MovementStrategy : uses
+
+Enemy --> EnemyState : currentState
+@enduml
