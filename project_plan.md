@@ -54,7 +54,7 @@ These cover every item in the base **Functionality** and **Design & Implementati
 | A4 | **Procedural Level Generation (Graph)** | Adjacency-list graph + DFS golden path + BFS validation + per-floor difficulty scaling | **High** | Every run is unique |
 | A5 | **Destructible Terrain (Bomb System)** | Runtime tile-grid mutation, 3×3 blast radius, cascading effects on liquid + lighting | Medium | Bombs blow open walls |
 | A6 | **🔦 Dynamic Lighting & Shadow Casting** | Recursive 8-octant shadowcasting algorithm | **High** | **Dark caves with real-time torch shadows** |
-| A7 | **🌊 Liquid Physics Simulation (CA)** | Cellular automata flow rules + BFS flood propagation | **High** | **Water/lava flows and floods** |
+| A7 | **🌊 Liquid Simulation (Cascade Drainage)** | Spelunky-style Cascade Drainage, Lava Drip Particles & Spurt Flame Traps | **High** | **Dynamic water/lava lakes, drainage & flame eruptions** |
 | A8 | **🛠️ Full In-Game Level Editor** | Tile palette, grid placement, `.lvl` file serialize/deserialize | **High** | **Players design custom levels (Bonus feature)** |
 | A9 | **🎬 The Nemesis Ghost** | Timer-triggered entity: passes through walls, flies directly toward player coordinates | **Low** | **Terrifying time-limit enforcer** |
 | A10 | **🎬 Level Environmental Modifiers** | Random floor affixes: "Dark Floor" (reduced torch), "Flooded Floor" (water-filled bottom rows) | **Low** | **Each floor feels different** |
@@ -1019,23 +1019,29 @@ classDiagram
 ```mermaid
 classDiagram
     class LiquidSimulator {
-        -vector~vector~uint8~~ liquidGrid
+        -vector~vector~bool~~ hasLiquid
         -vector~vector~LiquidType~~ typeGrid
+        -vector~vector~bool~~ isSpurtBlock
+        -vector~vector~float~~ spurtTimer
         -int width
         -int height
         -TileMap* tileMap
-        -float tickAccumulator
-        -float tickInterval
+        -bool checkLiquid
+        -Texture2D waterTex
+        -Texture2D lavaTex
+        -Texture2D lavaTopTex
         +LiquidSimulator(TileMap* map)
         +~LiquidSimulator()
         +update(float dt) void
         +render(Camera2D cam) void
         +addLiquid(int gx, int gy, uint8 amount, LiquidType type) void
         +removeLiquid(int gx, int gy) void
-        +getLiquidLevel(int gx, int gy) uint8
-        +getLiquidType(int gx, int gy) LiquidType
-        +onTerrainDestroyed(EventData data) void
-        +applyFloodedFloorModifier(int bottomRows) void
+        +hasLiquidAt(int gx, int gy) bool
+        +isWaterAt(Rectangle rect) bool
+        +isLavaAt(Rectangle rect) bool
+        +applyFloodedFloorModifier(int bottomRows, LiquidType type) void
+        +updateSpurts(float dt, float playerX, float playerY) void
+        -onTerrainDestroyed(EventData data) void
     }
 
     class LiquidType {
@@ -1055,13 +1061,16 @@ classDiagram
 
 | Method | Behavior |
 |---|---|
-| `update(float dt)` | If `checkLiquid` is true, iterates the grid. If a block is completely exposed to empty air on the left, right, or bottom, it flags it for destruction. At the end of the frame, flagged blocks are destroyed, `LavaDrip` particles are spawned, and `isWaterDirty` triggers a mesh rebuild. Continues checking until no blocks drain, then goes dormant. |
-| `render(Camera2D cam)` | Renders the static liquid meshes (water and lava) generated from `buildMesh()` to minimize draw calls, rather than rendering tile-by-tile. |
-| `addLiquid(int gx, int gy, uint8 amount, LiquidType type)` | Sets `hasLiquid[gy][gx] = true` and `typeGrid[gy][gx] = type`. Rebuilds the mesh and sets `checkLiquid = true` to check for immediate cascade drainage. |
-| `removeLiquid(int gx, int gy)` | Sets `hasLiquid[gy][gx] = false` and `typeGrid[gy][gx] = NONE`. |
-| `getLiquidLevel(int gx, int gy)` | Returns whether a tile contains liquid. Used by `PlayState` to check if player/enemies are submerged. |
-| `onTerrainDestroyed(EventData data)` | Subscribed to `EVENT_TERRAIN_DESTROYED`. When a bomb breaks a block, this triggers `checkLiquid = true` and `isWaterDirty = true` to wake up the Cascade algorithm and re-evaluate holes. |
-| `applyFloodedFloorModifier(int bottomRows)` | Fills the bottom `bottomRows` rows (typically 2) of the grid with `WATER`. Called once during floor generation when `FloorModifier::FLOODED_FLOOR` is active. |
+| `update(float dt)` | When `checkLiquid` is true, iterates active grid cells. Any liquid block exposed to empty air on the left, right, or bottom marks itself for destruction. Marked blocks are cleared, spawn `EVENT_SPAWN_LAVA_DRIP` events with random offsets if lava, and trigger cascade drainage on subsequent frames until all exposed pools are settled. |
+| `render(Camera2D cam)` | Renders visible water tiles and animated lava blocks with point texture filtering (`TEXTURE_FILTER_POINT`) and top-surface chroma keying within the active camera viewport. |
+| `addLiquid(int gx, int gy, uint8 amount, LiquidType type)` | Stacks liquid upward into the first open vertical tile at column `gx`, sets `hasLiquid` and `typeGrid`, and awakens the simulation (`checkLiquid = true`). For lava blocks, rolls a 25% chance to arm a hidden Spurt flame trap. |
+| `removeLiquid(int gx, int gy)` | Clears liquid presence at grid coordinates `(gx, gy)` and awakens the drainage evaluator. |
+| `hasLiquidAt(int gx, int gy)` | Returns whether a specific grid tile contains active liquid. |
+| `isWaterAt(Rectangle rect)` | Performs AABB intersection against water tile boundaries. Used by `Player` physics to apply 50% movement damping and drowning logic. |
+| `isLavaAt(Rectangle rect)` | Performs AABB intersection against lava tile boundaries. Inflicts continuous fire damage to entities and lights surrounding cavern spaces. |
+| `updateSpurts(float dt, float playerX, float playerY)` | Ticks countdown timers on armed lava spurt blocks when the player enters horizontal detection range, triggering `EVENT_SPAWN_FLAME` eruption columns. |
+| `applyFloodedFloorModifier(int bottomRows, LiquidType type)` | Pre-fills the lowest `bottomRows` rows of the cavern with water during floor generation when `FloorModifier::FLOODED_FLOOR` is rolled. |
+| `onTerrainDestroyed(EventData data)` | Subscribed to `EVENT_TERRAIN_DESTROYED` from `EventBus`. Awakens `checkLiquid = true` whenever a bomb destroys surrounding rock barriers. |
 
 ### 3.7 Physics & Items Subsystem
 
