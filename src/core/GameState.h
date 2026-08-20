@@ -123,7 +123,6 @@ private:
     float cameraShakeTimer;
     float cameraShakeIntensity;
     
-    bool ghostSpawned;
     float deathTimer;
     
     Texture2D hudIcons;

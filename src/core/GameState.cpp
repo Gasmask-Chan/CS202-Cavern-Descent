@@ -154,6 +154,10 @@ void PlayState::enter() {
     tempLevel.playerSpawn = {32.0f, 32.0f}; // default fallback
     tempLevel.exitPos = {200.0f, 200.0f};
     tempLevel.shopArea = {0, 0, 0, 0};
+    
+    // Initialize default difficulty since generator isn't called
+    tempLevel.difficulty.ghostTimerSeconds = 180.0f;
+    tempLevel.difficulty.treasureValueMultiplier = 1;
 
     std::ifstream in(GameManager::getInstance()->getCustomLevelPath());
     if (in.is_open()) {
@@ -547,8 +551,6 @@ void PlayState::enter() {
 
   camera.target = Vector2{player->getX(), player->getY()};
 
-  ghostSpawned = false;
-
   cameraShakeTimer = 0.0f;
   cameraShakeIntensity = 0.0f;
 
@@ -786,15 +788,12 @@ void PlayState::handleInput() {
 }
 
 void PlayState::update(float dt) {
-  if (!ghostSpawned) {
-    if (GameManager::getInstance()->tickGhostTimer(dt)) {
-      ghostSpawned = true;
-      auto ghost = EntityFactory::createGhost(player->getX() - 600.0f,
-                                              player->getY() - 600.0f);
-      pendingEntities.push_back(std::move(ghost));
-      AudioManager::getInstance()->playSFX("xghost");
-      AudioManager::getInstance()->playBGM("mBoss");
-    }
+  if (GameManager::getInstance()->tickGhostTimer(dt)) {
+    auto ghost = EntityFactory::createGhost(player->getX() - 600.0f,
+                                            player->getY() - 600.0f);
+    pendingEntities.push_back(std::move(ghost));
+    AudioManager::getInstance()->playSFX("xghost");
+    AudioManager::getInstance()->playBGM("mBoss");
   }
 
   // Merge pending items
