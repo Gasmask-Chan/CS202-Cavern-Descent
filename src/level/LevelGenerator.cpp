@@ -836,13 +836,8 @@ DifficultyConfig LevelGenerator::getDifficultyConfig(int floor) {
 FloorModifier LevelGenerator::rollFloorModifier(int floor) {
   if (floor == 1) return FloorModifier::NONE;
 
-  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-  std::default_random_engine rng(seed);
-  std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-
-  if (dist(rng) < 0.3f) {
-    std::uniform_int_distribution<int> modDist(1, 3);
-    int mod = modDist(rng);
+  if (GetRandomValue(1, 100) <= 50) {
+    int mod = GetRandomValue(1, 3);
     if (mod == 1) return FloorModifier::DARK_FLOOR;
     if (mod == 2) return FloorModifier::FLOODED_FLOOR;
     if (mod == 3) return FloorModifier::CURSED_FLOOR;
