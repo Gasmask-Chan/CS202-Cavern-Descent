@@ -47,19 +47,11 @@ void GameManager::syncPlayerStats(int hp, int b, int r, int g) {
 
 void GameManager::nextFloor() {
   currentFloor++;
-  if (currentFloor >= 3) {
-    ghostTimer = 180.0f;
-  } else if (currentFloor >= 2) {
-    ghostTimer = 240.0f;
-  } else {
-    ghostTimer = 300.0f;
-  }
 }
 
 void GameManager::resetRun() {
   currentFloor = 1;
   score = 0;
-  playerLives = 3;
   playerBombs = 4;
   playerRopes = 4;
   playerGold = 0;

@@ -11,7 +11,6 @@ class GameManager {
 private:
     int currentFloor;
     int score;
-    int playerLives;
     int playerHealth;
     int playerBombs;
     int playerRopes;
