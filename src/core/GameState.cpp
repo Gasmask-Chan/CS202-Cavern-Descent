@@ -541,6 +541,10 @@ void PlayState::enter() {
     liquids->addLiquid(liq.gx, liq.gy, 255, liq.type);
   }
 
+  if (tempLevel.modifier == FloorModifier::FLOODED_FLOOR) {
+    liquids->applyFloodedFloorModifier(2);
+  }
+
   camera.target = Vector2{player->getX(), player->getY()};
 
   ghostSpawned = false;
