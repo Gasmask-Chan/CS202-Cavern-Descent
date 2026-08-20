@@ -25,7 +25,6 @@ class LiquidSimulator {
     int height;
     TileMap* tileMap;
     
-    bool isWaterDirty;
     std::vector<std::vector<bool>> isSpurtBlock;
     std::vector<std::vector<float>> spurtTimer;
 

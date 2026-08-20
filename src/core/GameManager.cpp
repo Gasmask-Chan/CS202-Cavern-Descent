@@ -83,6 +83,7 @@ void GameManager::setSelectedCharacter(CharacterType type) {
 }
 
 float GameManager::getGhostTimer() { return ghostTimer; }
+void GameManager::setGhostTimer(float timer) { ghostTimer = timer; }
 
 bool GameManager::tickGhostTimer(float dt) {
   if (ghostTimer <= 0.0f) {

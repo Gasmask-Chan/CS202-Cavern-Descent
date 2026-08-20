@@ -71,8 +71,6 @@ void TileMap::destroyBlock(int x, int y) {
             setTile(x + dx[i], y + dy[i], TileType::NOTHING);
         }
     }
-    
-    // TODO: spawn rubble particle effects here in the future
 }
 
 bool TileMap::isBorder(int x, int y) const {

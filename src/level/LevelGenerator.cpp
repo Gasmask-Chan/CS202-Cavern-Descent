@@ -65,6 +65,10 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     tempItems.clear();
     tempTraps.clear();
     tempDecorations.clear();
+    tempEnemies.reserve(32);
+    tempItems.reserve(32);
+    tempTraps.reserve(32);
+    tempDecorations.reserve(32);
     level.initialLiquids.clear();
     tempPlayerSpawn = Vector2{0, 0};
     tempExitPos     = Vector2{0, 0};
@@ -73,9 +77,6 @@ GeneratedLevel LevelGenerator::generate(int floor, ZoneType zone) {
     snakesLeft    = 4 + (floor - 1);
     batsLeft      = 2 + (floor - 1);
     spidersLeft   = 2 + (floor - 1);
-    cavemenLeft   = 3 + (floor - 1);
-    skeletonsLeft = 3 + (floor - 1);
-    damselsLeft   = 1;
     spikesLeft    = 4;
     lastPlacement = 3;
 
@@ -827,12 +828,8 @@ bool LevelGenerator::bfsReachability(TileMap* map, Vector2i from, Vector2i to) {
 // ---------------------------------------------------------------------------
 DifficultyConfig LevelGenerator::getDifficultyConfig(int floor) {
   DifficultyConfig cfg;
-  cfg.maxEnemiesPerRoom         = 3 + floor / 2;
-  cfg.trapDensity               = 0.1f + (floor * 0.05f);
-  cfg.treasureValueMultiplier   = 1;
-  cfg.enemySpeedScale           = 1.0f + (floor * 0.1f);
-  cfg.ghostTimerSeconds         = std::max(60.0f, 180.0f - floor * 10.0f);
-  cfg.liquidProbability         = 0.2f;
+  cfg.ghostTimerSeconds         = std::max(60.0f, 180.0f - (floor - 1) * 15.0f);
+  cfg.treasureValueMultiplier   = 1 + (floor - 1) / 3;
   return cfg;
 }
 

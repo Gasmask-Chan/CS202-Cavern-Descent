@@ -43,7 +43,6 @@ void Spider::handleChase(float dt, Player* player) {
     if (!player) return;
     float dx = player->getX() - x;
     float dy = player->getY() - y;
-    float distanceToPlayer = std::sqrt(dx*dx + dy*dy);
     
     if (isGrounded) {
         if (jumpTimer > 0.0f) {
