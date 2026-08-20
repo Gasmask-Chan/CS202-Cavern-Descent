@@ -1,0 +1,88 @@
+@startuml
+
+class EventData <<struct>> {
+    +gridX : int
+    +gridY : int
+    +worldX : float
+    +worldY : float
+    +amount : int
+    +entityCode : char
+    +vx : float
+    +vy : float
+    +tileType : int
+}
+
+class EventBus {
+    -listeners : unordered_map<EventType, vector<EventCallback>>
+    +static getInstance() : EventBus*
+    +subscribe(type : EventType, cb : EventCallback) : void
+    +publish(type : EventType, data : EventData) : void
+    +clearListeners(type : EventType) : void
+    +clearAllListeners() : void
+}
+
+class Minimap {
+    -visited : bool[MAP_ROOMS_Y][MAP_ROOMS_X]
+    -currentRoomX : int
+    -currentRoomY : int
+    -exitRoomX : int
+    -exitRoomY : int
+    +update(playerWorldX : float, playerWorldY : float) : void
+    +render() : void
+}
+
+class ComboSystem {
+    -currentMultiplier : int
+    -comboTimer : float
+    -maxComboTime : float
+    -floatingTexts : vector<FloatingText>
+    +update(dt : float) : void
+    +render(font : Font) : void
+    +renderHUD(font : Font) : void
+    +onTreasureCollected(baseGold : int, worldX : float, worldY : float) : void
+    +onEnemyKilled(basePoints : int, worldX : float, worldY : float) : void
+    -spawnFloatingText(text : string, x : float, y : float, color : Color) : void
+    -addComboPoints(basePoints : int, x : float, y : float) : void
+}
+
+class FloatingText <<struct>> {
+    +x : float
+    +y : float
+    +text : string
+    +color : Color
+    +life : float
+    +maxLife : float
+    +speed : float
+}
+
+class ShopSystem {
+    -inventory : vector<ShopItem>
+    -isActive : bool
+    -selectedIndex : int
+    +initializeFromItems(levelItems : const vector<unique_ptr<Item>>&, floor : int) : void
+    +handleInput(player : Player*) : void
+    +attemptPurchase(player : Player*, index : int) : bool
+    +render(font : Font) : void
+    +setPlayerInShop(inShop : bool) : void
+    +isPlayerInShop() : bool
+}
+
+class ShopItem <<struct>> {
+    +type : ItemType
+    +name : string
+    +price : int
+    +isSold : bool
+    +physicalItem : Item*
+}
+
+class MenuBackground {
+    +static render() : void
+}
+
+ComboSystem *-- FloatingText : floatingTexts
+ShopSystem *-- ShopItem : inventory
+EventBus ..> EventData : passes
+ShopItem o-- Item : physicalItem
+ShopSystem ..> Item : uses
+
+@enduml

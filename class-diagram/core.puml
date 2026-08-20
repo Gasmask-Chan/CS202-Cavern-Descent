@@ -120,8 +120,23 @@ class LevelEditorMenuState {
 class EditorState {
     - tileMap : unique_ptr<TileMap>
     - camera : Camera2D
+    - paletteItems : vector<PaletteItem>
     - undoStack : vector<TileChange>
     - redoStack : vector<TileChange>
+}
+
+class PaletteItem <<struct>> {
+    +type : TileType
+    +tex : Texture2D
+    +src : Rectangle
+    +name : string
+}
+
+class TileChange <<struct>> {
+    +x : int
+    +y : int
+    +oldType : TileType
+    +newType : TileType
 }
 
 class VictoryState {
@@ -145,4 +160,8 @@ GameState <|.. VictoryState
 GameState <|.. LevelEditorMenuState
 Game ..> GameManager : uses
 Game ..> AudioManager : uses
+EditorState *-- PaletteItem : paletteItems
+EditorState *-- TileChange : undoStack\nredoStack
+GameState o-- Game : game
+GameManager *-- CharacterType : selectedCharacter
 @enduml

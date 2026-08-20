@@ -100,4 +100,8 @@ GeneratedLevel *-- FloorModifier : modifier
 TileMap *-- ZoneType : currentZone
 TileMap *-- TileType : tiles
 
+GeneratedLevel *-- DynamicEntity : dynamicEntities
+GeneratedLevel *-- Item : items
+GeneratedLevel *-- Trap : traps
+
 @enduml

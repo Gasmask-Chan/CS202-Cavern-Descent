@@ -164,4 +164,10 @@ Enemy o-- EnemyState : currentStateObj
 EntityFactory ..> DynamicEntity : creates
 EntityFactory ..> Item : creates
 EntityFactory ..> Trap : creates
+
+Player o-- TileMap : tileMap
+Player o-- LiquidSimulator : liquidSim
+Enemy o-- TileMap : tileMap
+Enemy o-- LiquidSimulator : liquidSim
+Trap ..> TileMap : uses
 @enduml
