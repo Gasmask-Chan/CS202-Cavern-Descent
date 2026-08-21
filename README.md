@@ -28,6 +28,7 @@ Every run is entirely unique thanks to our robust procedural generation engine, 
 
 ### ⚔️ Dynamic Gameplay & Systems
 - **Fluid Custom Physics:** Built-from-scratch AABB physics engine ensuring crisp, tight platforming.
+- **Spelunky Ledge Grabbing:** Seamlessly jump to or crawl off ledges to hang onto corners and drop down safely.
 - **Destructible Terrain:** Use bombs to blow up walls, drain lakes, and forge new paths.
 - **Cellular Automata Liquids:** Realistic water and lava simulation that flows, cascades, and reacts to explosions.
 - **Dynamic Lighting & Shadowcasting:** A recursive 8-octant shadowcasting system that brings dark caves to life with immersive torchlight and shadows.

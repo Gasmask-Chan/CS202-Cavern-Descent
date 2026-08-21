@@ -23,6 +23,14 @@ Player::Player(float x, float y, CharacterType type) : DynamicEntity(x, y, 16.0f
     whipHitThisFrame = false;
     isGodMode = false;
     cheatSequence = 0;
+    isLedgeGrabbing = false;
+    ledgeDirection = 0;
+    ledgeGrabFlipMode = false;
+    ledgeGrabCooldown = 0.0f;
+    ledgeTargetX = 0.0f;
+    ledgeTargetY = 0.0f;
+    ledgeStartX = 0.0f;
+    ledgeStartY = 0.0f;
     tileMap = nullptr;
     liquidSim = nullptr;
     bubbleTimer = 0;
@@ -77,6 +85,28 @@ Player::~Player() {
 void Player::handleInput() {
     if (!isAlive()) return;
     if (isWhipping || !moveStrategy || isDoorAnimPlaying()) return;
+
+    if (isLedgeGrabbing) {
+        if (IsKeyPressed(KEY_SPACE) && IsKeyPressed(KEY_S)) {
+            isLedgeGrabbing = false;
+            ledgeGrabCooldown = 0.3f;
+            vy = 0.0f; // Cancel jump velocity and drop
+        } else if (IsKeyPressed(KEY_SPACE)) {
+            isLedgeGrabbing = false;
+            ledgeGrabCooldown = 0.3f;
+            vy = -moveStrategy->getJumpForce();
+            isGrounded = false;
+            AudioManager::getInstance()->playSFX("xjump");
+        } else if ((IsKeyPressed(KEY_A) && ledgeDirection == 1) || (IsKeyPressed(KEY_D) && ledgeDirection == -1)) {
+            isLedgeGrabbing = false;
+            ledgeGrabCooldown = 0.3f;
+            vy = 0.0f; // Drop by moving away
+        } else {
+            vx = 0.0f;
+            vy = 0.0f;
+            return; // Skip normal movement
+        }
+    }
 
     bool onLadder = false;
     if (tileMap) {
@@ -220,6 +250,33 @@ void Player::update(float dt, Player* player) {
         vx = 0.0f;
         vy = 0.0f;
         gravity = 0.0f;
+    } else if (isLedgeGrabbing) {
+        gravity = 0.0f;
+        vx = 0.0f;
+        vy = 0.0f;
+        
+        if (ledgeGrabFlipMode) {
+            float progress = (currentFrame + (frameTimer / 0.08f)) / 6.0f;
+            if (progress > 1.0f) progress = 1.0f;
+            x = ledgeStartX + (ledgeTargetX - ledgeStartX) * progress;
+            y = ledgeStartY + (ledgeTargetY - ledgeStartY) * progress;
+        }
+        
+        // Verify ledge is still there
+        if (tileMap) {
+            float verifyY = (ledgeGrabFlipMode) ? ledgeTargetY : y;
+            float verifyX = (ledgeGrabFlipMode) ? ledgeTargetX : x;
+            
+            float checkX = (ledgeDirection == -1) ? (verifyX - 2.0f) : (verifyX + width + 2.0f);
+            float checkY = verifyY + 4.0f;
+            int tx = static_cast<int>(checkX / tileMap->getTileSize());
+            int ty = static_cast<int>(checkY / tileMap->getTileSize());
+            if (!tileMap->isSolid(tx, ty) || tileMap->isSolid(tx, ty - 1)) {
+                isLedgeGrabbing = false;
+            }
+        } else {
+            isLedgeGrabbing = false;
+        }
     } else if (isClimbing) {
         bool onLadder = false;
         if (tileMap) {
@@ -292,6 +349,73 @@ void Player::update(float dt, Player* player) {
         bubbleTimer = 0;
     }
     
+    if (ledgeGrabCooldown > 0.0f) {
+        ledgeGrabCooldown -= dt;
+    }
+
+    // Ledge Grab Detection
+    if (!isGrounded && vy > 0.0f && !isClimbing && !isLedgeGrabbing && !isSwimming && tileMap && ledgeGrabCooldown <= 0.0f && !isWhipping) {
+        int grabDir = 0;
+        bool isCrawlingOff = false;
+
+        if (!IsKeyDown(KEY_S)) {
+            // Airborne grab (holding towards wall)
+            if (IsKeyDown(KEY_A)) grabDir = -1;
+            else if (IsKeyDown(KEY_D)) grabDir = 1;
+        } else {
+            // Crawling off edge (ledge is behind us)
+            if (vx > 10.0f) grabDir = -1;
+            else if (vx < -10.0f) grabDir = 1;
+            else if (currentVx > 10.0f) grabDir = -1;
+            else if (currentVx < -10.0f) grabDir = 1;
+            else if (isFacingRight) grabDir = -1;
+            else grabDir = 1;
+
+            isCrawlingOff = true;
+        }
+
+        if (grabDir != 0) {
+            float checkX = (grabDir == -1) ? (x - 4.0f) : (x + width + 4.0f);
+            float checkY = isCrawlingOff ? (y + height + 4.0f) : (y + 4.0f);
+            int tx = static_cast<int>(checkX / tileMap->getTileSize());
+            int ty = static_cast<int>(checkY / tileMap->getTileSize());
+            
+            // Solid block next to us, empty block above it
+            if (tileMap->isSolid(tx, ty) && !tileMap->isSolid(tx, ty - 1)) {
+                // Ensure there is actually a drop-off (the tile we hang in must be empty)
+                int hangTx = (grabDir == -1) ? (tx + 1) : (tx - 1);
+                if (!tileMap->isSolid(hangTx, ty)) {
+                    float tileTop = ty * tileMap->getTileSize();
+                    bool yCondition = isCrawlingOff ? 
+                        (y + height >= tileTop - 8.0f && y + height <= tileTop + 16.0f) : 
+                        (y >= tileTop - 8.0f && y <= tileTop + 16.0f);
+                    
+                if (yCondition) {
+                    isLedgeGrabbing = true;
+                    ledgeGrabFlipMode = isCrawlingOff;
+                    ledgeDirection = grabDir;
+                    ledgeTargetY = tileTop;
+                    ledgeTargetX = (grabDir == -1) ? (tx * tileMap->getTileSize() + tileMap->getTileSize()) : (tx * tileMap->getTileSize() - width);
+                    
+                    if (isCrawlingOff) {
+                        ledgeStartX = x;
+                        ledgeStartY = y;
+                    } else {
+                        y = ledgeTargetY;
+                        x = ledgeTargetX;
+                    }
+                    
+                    vx = 0.0f;
+                    vy = 0.0f;
+                    currentVx = 0.0f; // Stop horizontal movement for this frame
+                    isFacingRight = (grabDir == -1); // Fix: Face away from the wall
+                    AudioManager::getInstance()->playSFX("xclimb1");
+                }
+                }
+            }
+        }
+    }
+    
     move(currentVx * dt, vy * dt);
     
     if (invincibilityTimer > 0) {
@@ -321,6 +445,8 @@ void Player::update(float dt, Player* player) {
     } else if (!isAlive()) {
         newAnim = AnimState::DEAD;
         vx = 0; // Stop moving when dead
+    } else if (isLedgeGrabbing) {
+        newAnim = AnimState::LEDGE_GRAB;
     } else if (isWhipping) {
         whipTimer += dt;
         currentVx = 0; // Lock horizontal movement while whipping
@@ -352,6 +478,10 @@ void Player::update(float dt, Player* player) {
                 }
             }
         }
+    } else if (isDoorAnimPlaying()) {
+        newAnim = AnimState::DOOR_ENTER;
+    } else if (isLedgeGrabbing) {
+        newAnim = AnimState::LEDGE_GRAB;
     } else if (isSwimming) {
         newAnim = AnimState::SWIM;
     } else if (isClimbing) {
@@ -376,7 +506,11 @@ void Player::update(float dt, Player* player) {
     
     if (newAnim != currentAnim) {
         currentAnim = newAnim;
-        currentFrame = 0;
+        if (currentAnim == AnimState::LEDGE_GRAB && !ledgeGrabFlipMode) {
+            currentFrame = 6; // Instantly show the final hanging frame
+        } else {
+            currentFrame = 0;
+        }
         frameTimer = 0.0f;
     }
     
@@ -399,6 +533,12 @@ void Player::update(float dt, Player* player) {
             colOffset = 0;
             frameDuration = 0.15f;
             if (vy == 0) maxFrames = 1; // Pause animation if not moving
+            break;
+        case AnimState::LEDGE_GRAB:
+            maxFrames = 7;
+            row = 2;
+            colOffset = 4;
+            frameDuration = 0.08f;
             break;
         case AnimState::RUN:
             maxFrames = 8;
@@ -500,6 +640,8 @@ void Player::update(float dt, Player* player) {
             colOffset = 0;
         } else if (currentAnim == AnimState::DEAD && currentFrame == maxFrames - 1) {
             // Stay on the last frame of death animation
+        } else if (currentAnim == AnimState::LEDGE_GRAB && currentFrame == maxFrames - 1) {
+            // Stay hanging on the last frame
         } else {
             currentFrame = (currentFrame + 1) % maxFrames;
         }
@@ -565,6 +707,20 @@ void Player::render(float lightLevel) {
         // To make the visible feet (at destRec.y + 35) touch the floor (at y + 24), destRec.y must be y - 11.0f.
         Rectangle destRec = { x - 12.0f, y - 12.0f, 40.0f, 40.0f };
         
+        // Visually adjust the sprite so the hands perfectly grip the corner
+        if (currentAnim == AnimState::LEDGE_GRAB) {
+            // Push the sprite up slightly
+            destRec.y -= 4.0f; 
+            
+            // The 40x40 sprite has 12px of padding on each side. 
+            // We must push the sprite AWAY from the wall to prevent it from clipping inside the block.
+            if (ledgeDirection == -1) {
+                destRec.x += 4.0f; // Wall on left, push character right
+            } else if (ledgeDirection == 1) {
+                destRec.x -= 4.0f; // Wall on right, push character left
+            }
+        }
+        
         int whipFrame = 0;
         Rectangle wSrc, wDest;
         
@@ -624,6 +780,7 @@ void Player::takeDamage(int dmg) {
     vy = -300.0f;
     vx = isFacingRight ? -200.0f : 200.0f;
     isClimbing = false; // Fall off ladder when taking damage
+    isLedgeGrabbing = false; // Fall off ledge
     
     EventData data;
     data.amount = dmg;

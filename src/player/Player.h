@@ -30,6 +30,14 @@ private:
     bool isClimbing;
     bool isGodMode;
     int cheatSequence;
+    bool isLedgeGrabbing;
+    int ledgeDirection;
+    bool ledgeGrabFlipMode;
+    float ledgeGrabCooldown;
+    float ledgeTargetX;
+    float ledgeTargetY;
+    float ledgeStartX;
+    float ledgeStartY;
     TileMap* tileMap;
     LiquidSimulator* liquidSim;
     Texture2D whipSprite;
@@ -37,7 +45,7 @@ private:
     int bubbleTimer;
 
     // Animation state
-    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP, CLIMB, SWIM, DEAD, DOOR_SPAWN, DOOR_ENTER } currentAnim;
+    enum class AnimState { IDLE, RUN, JUMP, FALL, LOOK_UP, LOOK_UP_END, DUCK, CRAWL, WHIP, CLIMB, SWIM, DEAD, DOOR_SPAWN, DOOR_ENTER, LEDGE_GRAB } currentAnim;
     float frameTimer;
     int currentFrame;
     Rectangle frameRec;
